@@ -843,6 +843,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 && !this.isHiredFollower()
                 && tc.getTargetVillage() != null
                 && tc.isAtTargetStop()
+                && !isOnStay()
                 && this.getNavigator().noPath()
                 && !tc.isReadyToDepart())) {
             stuckAtVillageTicks = 0;

@@ -43,11 +43,11 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
 
         BlockPos activityVillagePos = null;
         boolean travellingToVillage = false;
-        if (travelCommon != null && travelCommon.isIdlingAtStop()) {
+        if (travelCommon != null && travelCommon.isIdlingAtStop() && !travelCommon.isAtRestSpot()) {
             builder.activity(DialogueContext.ActivityKind.IDLING_IN_VILLAGE);
             activityVillagePos = travelCommon.getNearestVillage();
         } else {
-            BlockPos target = travelCommon != null ? travelCommon.getTargetVillage() : null;
+            BlockPos target = travelCommon != null ? travelCommon.getTargetSettlement() : null;
             if (target != null) {
                 builder.activity(DialogueContext.ActivityKind.TRAVELLING_TO_VILLAGE);
                 activityVillagePos = target;

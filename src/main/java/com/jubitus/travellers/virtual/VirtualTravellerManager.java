@@ -949,9 +949,11 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
     }
 
+    /** A worker's gift to the settlement of its current stop (never at a rest spot). */
     void tryVirtualDonate(WorldServer world, VirtualTravellerRecord r) {
+        if (!"WORKER".equals(r.entityClass)) return;
         BlockPos center = r.currentTripStop() != null ? r.currentTripStop() : r.goal;
-        if (center == null) return;
+        if (center == null || com.jubitus.travellers.restspot.RestSpotManager.isRestSpot(world, center)) return;
         // A gift is skipped rather than delayed when the chest budget is spent this tick.
         if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
         com.jubitus.travellers.village.MillGoods.donateToConstruction(world, center);
@@ -1025,7 +1027,8 @@ public class VirtualTravellerManager extends WorldSavedData {
     /** Sets the record's trip from {@code origin} to {@code dest} by the shared trip rule and heads for its first stop; false when it has no stop. */
     public boolean startTrip(WorldServer world, VirtualTravellerRecord r, BlockPos origin, BlockPos dest) {
         java.util.List<BlockPos> stops = com.jubitus.travellers.travel.TripPlanner.stops(world, origin, dest,
-                "WORKER".equals(r.entityClass), "RAIDER".equals(r.entityClass), r.homeVillage, r.hopPreference, world.rand, null);
+                "WORKER".equals(r.entityClass), "RAIDER".equals(r.entityClass), r.homeVillage, r.hopPreference, world.rand, null,
+                VirtualStays.visitsEnabledFor(r));
         if (stops.isEmpty()) return false;
         r.setTrip(stops, 0);
         r.goal = r.currentTripStop();
@@ -1070,7 +1073,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (visits.tryStart(world, r, stop, now)) return;
         if (legReached(r, stop)) {
             // No stay here (visits off, or no Millénaire data): a worker still leaves its gift.
-            if ("WORKER".equals(r.entityClass)) tryVirtualDonate(world, r);
+            tryVirtualDonate(world, r);
             advanceTrip(world, r, now);
             return;
         }

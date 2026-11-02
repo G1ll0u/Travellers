@@ -16,6 +16,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.mixins.MixinResManagerPointsAccessor;
 import com.jubitus.travellers.village.MillFootprints;
 import com.jubitus.travellers.village.MillGoods;
+import com.jubitus.travellers.restspot.RestSpotManager;
 import com.jubitus.travellers.village.VillageVisitIndex;
 import com.jubitus.travellers.village.visit.VillageGround;
 import net.minecraft.block.properties.IProperty;
@@ -238,6 +239,10 @@ public class EntityAIStay extends EntityAIBase {
         // (remainingTicks 0), which goes straight back to leaving.
         boolean resume = stop != null && isResumable(stop, follower);
         place = stop == null ? null : StayPlace.at(mob.world, stop);
+        if (!resume && !follower && place != null && place.isRestSpot() && RestSpotManager.heldByOtherSide(
+                RestSpotManager.sidesStaying((net.minecraft.world.WorldServer) mob.world), stop, mob instanceof EntityTravellerRaider)) {
+            place = null; // the other side got there first: no break, the trip goes on
+        }
         if (!resume) {
             // A follower's stay has no timer of its own: it lasts as long as its leader's.
             mob.setStayState(stop == null ? null
@@ -657,7 +662,7 @@ public class EntityAIStay extends EntityAIBase {
         trace("finish", "");
         // A follower's own trip isn't what brought it here; it simply goes back to following.
         if (st == null || st.asFollower) return;
-        if (mob instanceof EntityTravellerWorker) donate(st.stop);
+        if (mob instanceof EntityTravellerWorker && (place == null || !place.isRestSpot())) donate(st.stop);
         mob.getTravelCommon().setVisitedStop(st.stop);
         mob.getTravelCommon().setReadyToDepart(true);
     }

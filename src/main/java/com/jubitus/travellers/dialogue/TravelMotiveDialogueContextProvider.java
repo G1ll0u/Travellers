@@ -42,7 +42,7 @@ public final class TravelMotiveDialogueContextProvider implements DialogueContex
         World world = traveller.world;
         BlockPos home = traveller.getHomeVillage();
         TravelCommon travelCommon = traveller.getTravelCommon();
-        BlockPos target = travelCommon != null ? travelCommon.getTargetVillage() : null;
+        BlockPos target = travelCommon != null ? travelCommon.getTargetSettlement() : null;
 
         Map<TravelMotive, Double> weights = new EnumMap<>(TravelMotive.class);
         for (TravelMotive m : TravelMotive.values()) weights.put(m, 1.0);

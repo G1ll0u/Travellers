@@ -35,7 +35,7 @@ import java.util.UUID;
 final class RestSpotScorer {
 
     /** How far the walkable patch may spread from where it starts. */
-    private static final int ROOM_RADIUS = 12;
+    private static final int ROOM_RADIUS = RestSpotRecord.REACH;
     /** Water and trees count this far beyond the patch. */
     private static final int SCENERY_REACH = 6;
     /** Where the patch may start, around the chunk middle; with the radii above it stays inside the 3x3 chunks. */

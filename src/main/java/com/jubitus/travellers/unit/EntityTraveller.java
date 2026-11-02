@@ -1725,8 +1725,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private void announceHeadingTo(EntityPlayer player) {
-        // original target (whatever you stored there)
-        BlockPos target = travelCommon.getTargetVillage();
+        BlockPos target = travelCommon.getTargetSettlement();
         if (target == null) {
             ITextComponent noDestMsg = new TextComponentTranslation("travellers.dialogue.no_destination");
             noDestMsg.getStyle().setColor(TextFormatting.WHITE);

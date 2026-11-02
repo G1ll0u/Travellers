@@ -2614,6 +2614,22 @@ public class TravellersConfig {
         @Config.Comment("How many possible rest spots are examined per tick. Lower is lighter on the server; spots just appear a little later.")
         @Config.RangeInt(min = 1, max = 32)
         public int scoringsPerTick = 2;
+
+        @Config.Comment("Chance that a trip includes a break at a rest spot near the way.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double stopChance = 0.25;
+
+        @Config.Comment("How far off their way travellers go for a break, in blocks.")
+        @Config.RangeInt(min = 16, max = 512)
+        public int maxDetour = 96;
+
+        @Config.Comment("Shortest break at a rest spot, in minutes.")
+        @Config.RangeInt(min = 1, max = 60)
+        public int pauseMinMinutes = 2;
+
+        @Config.Comment("Longest break at a rest spot, in minutes.")
+        @Config.RangeInt(min = 1, max = 60)
+        public int pauseMaxMinutes = 6;
     }
 
     public static class BattleEvents {

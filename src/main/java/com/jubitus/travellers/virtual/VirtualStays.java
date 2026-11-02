@@ -28,7 +28,7 @@ final class VirtualStays {
         this.records = records;
     }
 
-    private static boolean visitsEnabledFor(VirtualTravellerRecord r) {
+    static boolean visitsEnabledFor(VirtualTravellerRecord r) {
         TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
         if ("RAIDER".equals(r.entityClass)) return cfg.enabledRaiders;
         if ("WORKER".equals(r.entityClass)) return cfg.enabledWorkers && !r.isHiredFollower;
@@ -50,6 +50,9 @@ final class VirtualStays {
         if (place == null) return false;
         int arrive = place.arrivalRadius();
         if (d2 > (double) arrive * arrive) return false;
+        // The other side got there first: no break, the trip goes on.
+        if (place.isRestSpot() && com.jubitus.travellers.restspot.RestSpotManager.heldByOtherSide(
+                com.jubitus.travellers.restspot.RestSpotManager.sidesStaying(world), stop, "RAIDER".equals(r.entityClass))) return false;
 
         startStay(world, r, new StayState(stop, place.rollStayTicks(world.rand), false), place, now);
         return true;
@@ -171,7 +174,7 @@ final class VirtualStays {
         drop(world, r);
         // A follower's own trip isn't what brought it here; it simply goes back to following.
         if (st == null || st.asFollower) return;
-        if ("WORKER".equals(r.entityClass)) manager.tryVirtualDonate(world, r);
+        manager.tryVirtualDonate(world, r);
         manager.advanceTrip(world, r, now);
     }
 

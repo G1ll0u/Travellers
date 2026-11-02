@@ -9,4 +9,5 @@ A stay is a unit stopping at a place of its trip: travellers, raiders (mirrored,
 - Leaving is a sequence: out of buildings → back to the hitched horse → a leader waits for its members → `visitedStop`.
 - Group followers disperse while their leader stays (`isDispersedInStay`); their stay ends when the leader leaves.
 - Offscreen: `VirtualStays.tick`, same draw and sequence.
-- Tuning lives in the `VILLAGE_VISIT` config category (name kept: renaming it would drop saved overrides).
+- A rest spot is held by one side at a time (travellers + unhired workers, or raiders): `RestSpotManager.heldByOtherSide`, checked when the trip is planned and again on arrival (held = no break, the trip goes on). No gift at a rest spot.
+- Tuning lives in the `VILLAGE_VISIT` config category (name kept: renaming it would drop saved overrides); break length and frequency in `REST_SPOTS`.

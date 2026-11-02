@@ -10,6 +10,8 @@ import com.jubitus.travellers.camp.CampfireBlock;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.restspot.RestSpotManager;
+import com.jubitus.travellers.restspot.RestSpotRecord;
 import com.jubitus.travellers.village.MillFootprints;
 import com.jubitus.travellers.village.MillSettlements;
 import net.minecraft.block.Block;
@@ -66,6 +68,18 @@ public class TravelCommon {
 
     public BlockPos getTargetVillage() {
         return this.targetVillage;
+    }
+
+    /** The settlement the unit is heading for: its current stop, or the next one when it is heading for a rest spot. */
+    @Nullable
+    public BlockPos getTargetSettlement() {
+        if (!RestSpotManager.isRestSpot(owner.world, targetVillage)) return targetVillage;
+        return routeIndex >= 0 && routeIndex + 1 < route.size() ? route.get(routeIndex + 1) : null;
+    }
+
+    /** Taking a break at a rest spot of its trip. */
+    public boolean isAtRestSpot() {
+        return idlingAtStop && RestSpotManager.isRestSpot(owner.world, targetVillage);
     }
 
     public void setTargetVillage(@Nullable BlockPos pos) {
@@ -170,7 +184,7 @@ public class TravelCommon {
 
         route.clear();
         route.addAll(TripPlanner.stops(owner.world, origin, dest, worker, owner instanceof EntityTravellerRaider,
-                owner.getHomeVillage(), hopPreference, owner.getRNG(), this::isVillageBad));
+                owner.getHomeVillage(), hopPreference, owner.getRNG(), this::isVillageBad, owner.usesStays()));
         if (route.isEmpty()) return;
 
         routeIndex = 0;
@@ -320,13 +334,14 @@ public class TravelCommon {
         double dx = owner.posX - (stop.getX() + 0.5D);
         double dz = owner.posZ - (stop.getZ() + 0.5D);
         if (dx * dx + dz * dz <= (double) r * r) return true;
-        if (stopKindFor(stop) == StopKind.OTHER) return false;
+        StopKind kind = stopKindFor(stop);
+        if (kind == StopKind.OTHER || kind == StopKind.REST_SPOT) return false;
         MillFootprints.Footprint f = MillFootprints.atPlanar(owner.world, owner.posX, owner.posZ, 2 + extra);
         return f != null && f.building.getPos() != null
                 && f.building.getPos().getiX() == stop.getX() && f.building.getPos().getiZ() == stop.getZ();
     }
 
-    private enum StopKind {VILLAGE, LONE_BUILDING, OTHER}
+    private enum StopKind {VILLAGE, LONE_BUILDING, REST_SPOT, OTHER}
 
     @Nullable
     private BlockPos stopKindTarget;
@@ -337,7 +352,8 @@ public class TravelCommon {
             if (owner.world == null || MillSettlements.wd(owner.world) == null) return StopKind.OTHER;
             stopKindTarget = target;
             MillSettlements.Settlement s = MillSettlements.at(owner.world, target);
-            stopKind = s == null ? StopKind.OTHER : s.isVillage ? StopKind.VILLAGE : StopKind.LONE_BUILDING;
+            stopKind = s != null ? (s.isVillage ? StopKind.VILLAGE : StopKind.LONE_BUILDING)
+                    : RestSpotManager.isRestSpot(owner.world, target) ? StopKind.REST_SPOT : StopKind.OTHER;
         }
         return stopKind;
     }
@@ -359,6 +375,8 @@ public class TravelCommon {
                 return TravellersConfig.VILLAGE_VISIT.arrivalRadius;
             case LONE_BUILDING:
                 return TravellersConfig.VILLAGE_VISIT.loneBuildingArrivalRadius;
+            case REST_SPOT:
+                return RestSpotRecord.ARRIVAL_RADIUS;
             default:
                 // Workers' non-settlement targets (home chests, employer positions).
                 if (owner instanceof EntityTravellerWorker) return 8;

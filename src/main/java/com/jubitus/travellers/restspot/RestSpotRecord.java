@@ -9,6 +9,11 @@ import java.util.UUID;
 /** One rest spot: where it is, how roomy, and its beauty score with the part each criterion added. */
 public final class RestSpotRecord {
 
+    /** How far the walkable patch reaches from its middle. */
+    public static final int REACH = 12;
+    /** A unit has reached the spot within this distance of its middle. */
+    public static final int ARRIVAL_RADIUS = 6;
+
     public final UUID id;
     /** Feet position at the middle of the walkable patch. */
     public final BlockPos center;

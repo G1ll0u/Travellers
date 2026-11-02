@@ -15,9 +15,16 @@ import net.minecraft.world.storage.WorldSavedData;
 import net.minecraftforge.common.util.Constants;
 
 import javax.annotation.Nullable;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
+
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * World-saved catalog of rest spots. Fed by ChunkReader (one fixed roll per chunk); a lucky chunk
@@ -58,6 +65,50 @@ public final class RestSpotManager extends WorldSavedData {
 
     public List<RestSpotRecord> getAll() {
         return Collections.unmodifiableList(spots);
+    }
+
+    /** The rest spot a trip stop stands for (its middle, XZ), or null. */
+    @Nullable
+    public RestSpotRecord at(BlockPos stop) {
+        for (RestSpotRecord s : spots) {
+            if (s.center.getX() == stop.getX() && s.center.getZ() == stop.getZ()) return s;
+        }
+        return null;
+    }
+
+    private static final int CIVIL = 1;
+    private static final int RAIDERS = 2;
+
+    /**
+     * Which side is staying at each stop right now, loaded or offscreen (packed XZ -> bit 1 travellers
+     * and unhired workers, bit 2 raiders). One pass over every unit: call it once per decision.
+     */
+    public static Map<Long, Integer> sidesStaying(WorldServer world) {
+        Map<Long, Integer> out = new HashMap<>();
+        for (EntityTraveller t : world.getEntities(EntityTraveller.class, e -> e != null && e.getStayState() != null)) {
+            out.merge(xz(t.getStayState().stop), t instanceof EntityTravellerRaider ? RAIDERS : CIVIL, (a, b) -> a | b);
+        }
+        int dim = world.provider.getDimension();
+        for (VirtualTravellerRecord r : VirtualTravellerManager.get(world).getRecordsView()) {
+            if (r.visit == null || r.dimension != dim) continue;
+            out.merge(xz(r.visit.stop), "RAIDER".equals(r.entityClass) ? RAIDERS : CIVIL, (a, b) -> a | b);
+        }
+        return out;
+    }
+
+    /** One side at a time: whether the other side of {@code raider} is staying at this stop. */
+    public static boolean heldByOtherSide(Map<Long, Integer> sides, BlockPos stop, boolean raider) {
+        Integer held = sides.get(xz(stop));
+        return held != null && (held & (raider ? CIVIL : RAIDERS)) != 0;
+    }
+
+    private static long xz(BlockPos p) {
+        return ((long) p.getX() << 32) | (p.getZ() & 0xFFFFFFFFL);
+    }
+
+    /** Whether this trip stop is a rest spot (never true off the server or while rest spots are off). */
+    public static boolean isRestSpot(net.minecraft.world.World world, @Nullable BlockPos stop) {
+        return stop != null && world instanceof WorldServer && get((WorldServer) world).at(stop) != null;
     }
 
     /** Called by ChunkReader for every chunk it reads. */

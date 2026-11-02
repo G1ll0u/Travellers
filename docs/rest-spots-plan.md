@@ -1,4 +1,4 @@
-**Status: steps 1–3a done; step 3b built, village visits to be checked in game.**
+**Status: steps 1–3b done; 3c–5 built, not checked in game.**
 
 # Rest spots
 
@@ -66,7 +66,7 @@ Pretty, roomy places in the wild (riverbank, summit, open view, forest edge) whe
 1. Record + saved data + `ChunkReader` consumer + lazy scoring (`restspot/`). — done (build OK)
 2. Population map markers + tooltip; debug command `/travellersdebug restspot here|stats|rescan`. Tune the score with the user on real maps. — done (spots look sensible in game)
 3a. Clean up `TravelCommon`; one trip rule (`TripPlanner`) for loaded and virtual units. — done
-3b. Rename visit → stay (`stay/`), `StayPlace` with the village branch only, behaviour unchanged; user checks village visits in game. — built
-3c. Rest spot stop: insertion in `TripPlanner` (within `maxDetour`, `stopChance`), stop recognised by position (`RestSpotManager`), audit every "stop = village" assumption. — todo
-4. Rest spot branch of `StayPlace` (reach, anchors in the patch, stay length from config, nothing to donate), loaded and offscreen. — todo
-5. Faction occupancy, group behaviour, trace events. — todo
+3b. Rename visit → stay (`stay/`), `StayPlace` with the village branch only, behaviour unchanged; user checks village visits in game. — done
+3c. Rest spot stop: insertion in `TripPlanner` (within `maxDetour`, `stopChance`), stop recognised by position (`RestSpotManager`), audit every "stop = village" assumption (dialogue and "where are you going" name the next settlement, no gift at a rest spot, worker stuck-watchdog waits for the stay). — built
+4. Rest spot branch of `StayPlace` (reach, anchors in the patch, stay length from config, nothing to donate), loaded and offscreen. — built
+5. One side at a time (`RestSpotManager.heldByOtherSide`, checked at planning and on arrival); groups disperse and trace events come from the stay itself. — built
