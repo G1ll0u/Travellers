@@ -1,0 +1,35 @@
+# english<TAB>translation<TAB>optional note for the model
+# Lines starting with ! are style rules for the whole language.
+! Address the player with informal "tu".
+Traveller	viaggiatore
+Travellers	viaggiatori
+Henchman	sgherro
+Henchmen	sgherri
+Raider	predone
+Raiders	predoni
+Barrack	caserma
+Barracks	caserma
+Stable	scuderia
+stable hand	stalliere	who tames and breeds horses
+Leader	capo
+Follower	seguace
+Escort	scorta
+Hire	assumere
+Unhire	congedare
+Dismiss	congedare
+Recruit	reclutare
+Duty	servizio
+Home	casa
+Town Hall	municipio
+Purse	borsa
+Formation Hub	centro formazioni
+Formation	formazione
+Orders	ordini
+Rest spot	luogo di sosta
+Raid	razzia
+Battle	battaglia
+Zone	zona
+Millénaire	Millénaire	never translate
+Worker	sgherro
+Workers	sgherri
+Shift	Maiusc	keyboard key

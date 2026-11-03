@@ -1,0 +1,35 @@
+# english<TAB>translation<TAB>optional note for the model
+# Lines starting with ! are style rules for the whole language.
+! Address the player with polite "вы".
+Traveller	путник
+Travellers	путники
+Henchman	подручный
+Henchmen	подручные
+Raider	налётчик
+Raiders	налётчики
+Barrack	казарма
+Barracks	казарма
+Stable	конюшня
+stable hand	конюх	who tames and breeds horses
+Leader	командир
+Follower	спутник
+Escort	эскорт
+Hire	нанять
+Unhire	уволить
+Dismiss	отпустить
+Recruit	вербовать
+Duty	служба
+Home	дом
+Town Hall	ратуша
+Purse	кошель
+Formation Hub	штаб построений
+Formation	построение
+Orders	приказы
+Rest spot	место привала
+Raid	набег
+Battle	битва
+Zone	зона
+Millénaire	Millénaire	never translate
+Worker	подручный
+Workers	подручные
+Shift	Shift	keyboard key

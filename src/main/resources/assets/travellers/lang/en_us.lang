@@ -31,11 +31,11 @@ travellers.worker.orders.hire_group=Hire all %s · %s
 travellers.worker.hire.hint.chief=Only the chief of a Millénaire village can hire henchmen.
 travellers.worker.hire.hint.beds_missing=Free beds in your Barracks: %s, needed: %s.
 travellers.worker.hire.hint.why_bed=A henchman with a bed comes back after dying.
-travellers.worker.hire.hint.wand=Shift + right-click with a Summoning Wand to build a Barrack (needs a bed and a chest).
+travellers.worker.hire.hint.wand=Shift + right-click with a Wand of Summoning to build a Barrack (needs a bed and a chest).
 travellers.worker.hire.hint.assign=After hiring, give them a bed in the Zones menu.
 travellers.worker.hire.hint.money=Not enough money: you have %s.
 travellers.worker.hub.info.no_bed=No bed: won't come back if killed
-travellers.worker.zones.create_hint=To create a Barrack or a Stable: Shift + right-click with a Summoning Wand where you want it.
+travellers.worker.zones.create_hint=To create a Barrack or a Stable: Shift + right-click with a Wand of Summoning where you want it.
 travellers.worker.orders.unhire=Unhire
 travellers.worker.orders.hired_other=Hired by somebody
 travellers.worker.follow.hired_success=The traveller is now following you.
@@ -71,7 +71,7 @@ travellers.worker.zones.list_zones=Barracks & Stables
 travellers.worker.zones.unassigned_any=Unassigned Henchmen
 travellers.worker.zones.assigned_here=Assigned Here
 travellers.notify.duty.assigned=Assigned to duty at %s.
-travellers.notify.duty.no_bed=%s has no free bed - place another bed in the Stable before assigning a palfrenier there.
+travellers.notify.duty.no_bed=%s has no free bed - place another bed in the Stable before assigning a stable hand there.
 travellers.notify.stable.horse_tamed=A horse was tamed at %s.
 travellers.notify.stable.horse_saddled=A horse was saddled at %s.
 travellers.notify.stable.foal_born=A foal was born at %s.
@@ -372,7 +372,7 @@ travellers.zone.barrack.title=Barrack
 travellers.zone.barrack.description=Housing for hired workers. Needs at least one bed and one chest. Workers assigned here call it home: they can respawn beside their bed after dying, and their capacity is one worker per bed.
 
 travellers.zone.stable.title=Stable
-travellers.zone.stable.description=A horse ranch for hired workers. Needs at least one chest, one fence to hitch horses to, and one bed per palfrenier. Assigned palfreniers tame, saddle and breed horses here for your other workers to ride, and sleep in the beds at night.
+travellers.zone.stable.description=A horse ranch for hired workers. Needs at least one chest, one fence to hitch horses to, and one bed per stable hand. Assigned stable hands tame, saddle and breed horses here for your other workers to ride, and sleep in the beds at night.
 
 # Map legend
 travellers.map.legend.controlled_village=Ctrl. Village

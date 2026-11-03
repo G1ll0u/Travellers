@@ -1,0 +1,35 @@
+# english<TAB>translation<TAB>optional note for the model
+# Lines starting with ! are style rules for the whole language.
+! Address the player with informal "tú" (Spain Spanish).
+Traveller	viajero
+Travellers	viajeros
+Henchman	secuaz
+Henchmen	secuaces
+Raider	saqueador
+Raiders	saqueadores
+Barrack	cuartel
+Barracks	cuartel
+Stable	establo
+stable hand	mozo de cuadra	who tames and breeds horses
+Leader	líder
+Follower	seguidor
+Escort	escolta
+Hire	contratar
+Unhire	despedir
+Dismiss	despedir
+Recruit	reclutar
+Duty	servicio
+Home	hogar
+Town Hall	ayuntamiento
+Purse	bolsa
+Formation Hub	centro de formaciones
+Formation	formación
+Orders	órdenes
+Rest spot	lugar de descanso
+Raid	asalto
+Battle	batalla
+Zone	zona
+Millénaire	Millénaire	never translate
+Worker	secuaz
+Workers	secuaces
+Shift	Mayús	keyboard key

@@ -1,0 +1,35 @@
+# english<TAB>translation<TAB>optional note for the model
+# Lines starting with ! are style rules for the whole language.
+! Address the player with informal "du".
+Traveller	Reisender
+Travellers	Reisende
+Henchman	Handlanger
+Henchmen	Handlanger
+Raider	Räuber
+Raiders	Räuber
+Barrack	Kaserne
+Barracks	Kaserne
+Stable	Stall
+stable hand	Stallknecht	who tames and breeds horses
+Leader	Anführer
+Follower	Gefolgsmann
+Escort	Eskorte
+Hire	anheuern
+Unhire	entlassen
+Dismiss	entlassen
+Recruit	rekrutieren
+Duty	Dienst
+Home	Zuhause
+Town Hall	Rathaus
+Purse	Geldbeutel
+Formation Hub	Formationszentrale
+Formation	Formation
+Orders	Befehle
+Rest spot	Rastplatz
+Raid	Überfall
+Battle	Schlacht
+Zone	Zone
+Millénaire	Millénaire	never translate
+Worker	Handlanger
+Workers	Handlanger
+Shift	Umschalt	keyboard key

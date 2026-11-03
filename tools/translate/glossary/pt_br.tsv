@@ -1,0 +1,35 @@
+# english<TAB>translation<TAB>optional note for the model
+# Lines starting with ! are style rules for the whole language.
+! Address the player with "você".
+Traveller	viajante
+Travellers	viajantes
+Henchman	capanga
+Henchmen	capangas
+Raider	saqueador
+Raiders	saqueadores
+Barrack	quartel
+Barracks	quartel
+Stable	estábulo
+stable hand	cavalariço	who tames and breeds horses
+Leader	líder
+Follower	seguidor
+Escort	escolta
+Hire	contratar
+Unhire	demitir
+Dismiss	dispensar
+Recruit	recrutar
+Duty	serviço
+Home	lar
+Town Hall	prefeitura
+Purse	bolsa
+Formation Hub	central de formações
+Formation	formação
+Orders	ordens
+Rest spot	local de descanso
+Raid	ataque
+Battle	batalha
+Zone	zona
+Millénaire	Millénaire	never translate
+Worker	capanga
+Workers	capangas
+Shift	Shift	keyboard key

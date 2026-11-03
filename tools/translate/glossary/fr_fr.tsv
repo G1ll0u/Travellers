@@ -1,0 +1,36 @@
+# english<TAB>translation<TAB>optional note for the model
+# Lines starting with ! are style rules for the whole language.
+! Address the player with formal "vous" everywhere, including henchmen speaking to their lord.
+! French typography: a space before : ; ! ? and after «, before ».
+Traveller	voyageur
+Travellers	voyageurs
+Henchman	homme de main
+Henchmen	hommes de main
+Raider	pillard
+Raiders	pillards
+Barrack	caserne
+Barracks	caserne
+Stable	écurie
+stable hand	palefrenier	who tames and breeds horses
+Leader	chef
+Follower	suiveur
+Escort	escorte
+Hire	engager
+Unhire	licencier
+Dismiss	renvoyer
+Recruit	recruter
+Duty	service
+Home	foyer
+Town Hall	mairie
+Purse	bourse
+Formation Hub	centre de formation
+Formation	formation
+Orders	ordres
+Rest spot	lieu de repos
+Raid	raid
+Battle	bataille
+Zone	zone
+Millénaire	Millénaire	never translate
+Worker	homme de main
+Workers	hommes de main
+Shift	Maj	keyboard key

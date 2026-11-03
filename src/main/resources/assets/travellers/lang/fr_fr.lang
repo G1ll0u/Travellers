@@ -6,11 +6,20 @@ travellers.worker.title=Transaction
 travellers.worker.send=Vendre
 travellers.worker.not_enough_money=Vous avez besoin de %s pour ce voyage.
 travellers.worker.cost=Coût du voyage : %s
-travellers.worker.cost_unknown=Coût du voyage : (valider)
-travellers.worker.validate=Valider
+travellers.worker.no_village_in_range=Aucun village connu dans la portée. Explorez pour en découvrir davantage.
+travellers.worker.cargo=Cargaison
+travellers.worker.blocked.not_yours=Ce homme de main ne vous appartient pas.
+travellers.worker.blocked.no_village=Choisissez un village dans la liste.
+travellers.worker.blocked.empty_cargo=Mettez d'abord les marchandises dans la cargaison.
+travellers.worker.blocked.money=Le voyage coûte %s ; vous avez %s.
 travellers.worker.donate=Faire un don
 travellers.worker.send.tooltip=Vendre la cargaison à ce village pour de l'argent et de la réputation.
 travellers.worker.donate.tooltip=Donner la cargaison gratuitement à ce village. Rapporte plus de réputation, mais pas d'argent.
+travellers.worker.pickup.title=De retour du voyage
+travellers.worker.pickup.unsold=Je n'ai pas pu tout vendre. Récupérez ce qui reste afin que je puisse repartir.
+travellers.worker.pickup.earnings=Voici ce que le voyage a rapporté. Prenez-le pour pouvoir repartir.
+travellers.worker.pickup.take_all=Prendre tout
+travellers.worker.pickup.done=Terminé
 
 travellers.worker.hub.title=Options du voyageur
 travellers.worker.hub.transport=Transport
@@ -18,6 +27,15 @@ travellers.worker.hub.transport.tooltip=Envoyer cet homme de main vers un villag
 travellers.worker.hub.follow=Ordres
 travellers.worker.follow.title=Options du suivant
 travellers.worker.orders.hire=Engager (%s)
+travellers.worker.orders.hire_group=Engager tous les %s · %s
+travellers.worker.hire.hint.chief=Seul le chef d'un village de Millénaire peut engager des hommes de main.
+travellers.worker.hire.hint.beds_missing=Lits libres dans votre caserne : %s, nécessaires : %s.
+travellers.worker.hire.hint.why_bed=Un homme de main avec un lit revient après sa mort.
+travellers.worker.hire.hint.wand=Appuyez sur Maj, puis faites un clic droit avec une Baguette d'invocation pour construire une caserne (il en faut une lit et un coffre).
+travellers.worker.hire.hint.assign=Après l'engagement, donnez-leur un lit dans le menu Zones.
+travellers.worker.hire.hint.money=Pas assez d'argent : vous avez %s.
+travellers.worker.hub.info.no_bed=Pas de lit : il/elle ne reviendra pas si vous êtes tué(e).
+travellers.worker.zones.create_hint=Pour créer une caserne ou une écurie : cliquez droit avec une Baguette d'invocation à l'endroit souhaité.
 travellers.worker.orders.unhire=Licencier
 travellers.worker.orders.hired_other=Engagé par quelqu'un
 travellers.worker.follow.hired_success=Le voyageur vous suit désormais.
@@ -38,7 +56,7 @@ travellers.worker.orders.follow_player.tooltip=Arrêter de suivre son chef d'esc
 travellers.worker.orders.title=Ordres
 travellers.worker.hub.behavior=Comportement
 travellers.worker.hub.map=Carte
-travellers.worker.hub.barracks=Casernes
+travellers.worker.hub.barracks=Zones
 travellers.worker.hub.barracks.tooltip=Ouvrir le menu des casernes pour assigner une caserne à chaque travailleur.
 
 travellers.worker.barracks.list=Casernes
@@ -50,22 +68,36 @@ travellers.worker.zones.list_stables=Écuries
 travellers.worker.zones.unassigned_duty=Sans service
 travellers.worker.zones.selected_duty=En service ici
 travellers.worker.zones.list_zones=Casernes et écuries
-travellers.worker.zones.unassigned_any=Ouvriers non assignés
+travellers.worker.zones.unassigned_any=Hommes de main non assignés
 travellers.worker.zones.assigned_here=Assignés ici
-travellers.notify.duty.worker_grouped=Ce travailleur dirige un groupe - il ne doit plus avoir de suiveurs pour être affecté à une garde.
 travellers.notify.duty.assigned=Assigné en service à %s.
+travellers.notify.duty.no_bed=%s n'a pas de lit libre - posez un autre lit dans l'écurie avant d'affecter un palefrenier stable là-bas.
 travellers.notify.stable.horse_tamed=Un cheval a été apprivoisé à %s.
 travellers.notify.stable.horse_saddled=Un cheval a été sellé à %s.
 travellers.notify.stable.foal_born=Un poulain est né à %s.
 travellers.notify.stable.mount_recovered=Le cheval de %s a rejoint l'écurie où il a été mis en service.
 travellers.notify.stable.pool_too_small_to_equip=L'écurie « %s » n'avait aucun cheval sellé disponible à donner - elle garde aussi une petite réserve. Apprivoisez, sellez ou faites-en naître d'autres d'abord.
+travellers.notify.stable.horses_returned=%s de %s hommes de main ont déposé leurs montures à "%s".
+travellers.notify.stable.horses_taken=%s de %s hommes de main ont pris une monture à "%s".
+travellers.notify.stable.no_horse_to_return=Aucun cheval ne peut être retourné à l'écurie.
 travellers.worker.barracks.dragdrop=Sélectionnez une caserne et glissez-déposez pour assigner/désassigner des hommes de main
 travellers.worker.barracks.delete=Supprimer la caserne
 travellers.worker.barracks.get_equip=Obtenir l'équipement
+travellers.worker.barracks.take_horses=Prendre les chevaux
+travellers.worker.barracks.take_horses.tooltip=Envoyez cet homme de main prendre un cheval depuis une écurie.
+travellers.worker.barracks.take_horses_stay=Prendre le cheval et rester
+travellers.worker.barracks.take_horses_stay.tooltip=Prenez un cheval, puis restez sur place au lieu de revenir.
+travellers.worker.barracks.take_horses_return=Prendre le cheval et retourner
+travellers.worker.barracks.take_horses_return.tooltip=Prenez un cheval, puis revenez à son emplacement précédent.
 travellers.worker.barracks.get_equip.tooltip=Envoyer cet homme de main chercher un meilleur équipement dans un village ou une caserne.
 travellers.worker.barracks.equip_title=Choisir la mission :
+travellers.worker.barracks.dump=Déposer les objets
+travellers.worker.barracks.dump.tooltip=Envoyez cet homme de main pour déposer ses objets de rechange et sa nourriture dans les coffres d'un village ou d'une caserne. Il conserve son meilleur arme et arc.
+travellers.worker.barracks.dump_stay=Déposer et rester
+travellers.worker.barracks.dump_stay.tooltip=Déposez les objets de rechange, puis restez sur place au lieu de revenir.
+travellers.worker.barracks.dump_return=Déposer et retourner
+travellers.worker.barracks.dump_return.tooltip=Déposez les objets de rechange, puis revenez à son emplacement précédent.
 travellers.worker.barracks.equip_stay=S'équiper et rester
-
 travellers.worker.barracks.equip_stay.tooltip=Récupérer l'équipement et rester sur place au lieu de revenir.
 travellers.worker.barracks.equip_return=S'équiper et revenir
 travellers.worker.barracks.equip_return.tooltip=Récupérer l'équipement, puis revenir à sa position précédente.
@@ -102,7 +134,11 @@ travellers.worker.behavior.village_relations=Relations avec les villages
 
 travellers.worker.enemies.title=Ajouter/retirer des ennemis du joueur
 travellers.worker.enemies.hint=(que les hommes de main attaqueront à vue)
-travellers.worker.enemies.count=Ennemis : %s
+travellers.worker.enemies.none=Aucun autre joueur n'a encore rejoint ce serveur.
+travellers.worker.enemies.make_enemy=Créer un ennemi
+travellers.worker.enemies.make_friendly=Rendre amical
+travellers.worker.enemies.tag.enemy=Ennemi
+travellers.worker.enemies.tag.friendly=Amical
 
 travellers.worker.village_relations.title=Relations avec les villages
 travellers.worker.village_relations.hint=Sélectionnez un village, puis basculez l'état d'ennemi.
@@ -125,9 +161,33 @@ travellers.worker.orders.choir_stop=Arrêter de chanter
 travellers.worker.orders.choir.tooltip=Faire chanter cet homme de main avec les autres hommes de main chantant à proximité (EN COURS : UNE SEULE CHANSON POUR LES NORMANDS)
 
 travellers.worker.recruit.start=Recruter
-travellers.worker.recruit.fee=Frais : %s
-
-travellers.worker.recruit.too_close=Trop près pour recruter. Distance min : %sm
+travellers.worker.recruit.cost=Coût de la mission : %s
+travellers.worker.recruit.count=Recrutements : %s/%s
+travellers.worker.recruit.cost.travel=Voyage : %s
+travellers.worker.recruit.cost.purse=Bourse pour les recrues : %s
+travellers.worker.recruit.cost.refund=Ce que la bourse ne dépense pas revient à vous.
+travellers.worker.recruit.none=Aucun village en portée
+travellers.worker.recruit.blocked.enemy=Ennemi
+travellers.worker.recruit.blocked.reputation=Méfié
+travellers.worker.recruit.tip.villages=%s villages, le plus proche à %sm
+travellers.worker.recruit.tip.free=À propos de %s de leur peuple alentour
+travellers.worker.recruit.tip.chance=%s%% chance que chacun accepte
+travellers.worker.recruit.tip.enemy=L'un de leurs villages est votre ennemi
+travellers.worker.recruit.tip.reputation=Votre réputation auprès d'eux est trop basse
+travellers.worker.recruit.report.title=%s, %s partis
+travellers.worker.recruit.report.take=Prendre %s
+travellers.worker.recruit.report.taken=Bourse vide
+travellers.worker.recruit.report.spent=Dépensé
+travellers.worker.recruit.report.left=Laissé dans la bourse
+travellers.worker.recruit.report.dead_short=+%s morts
+travellers.worker.recruit.report.tip.found=%s trouvé de %s recherché
+travellers.worker.recruit.report.tip.where=%s dans les villages, %s sur la route
+travellers.worker.recruit.report.tip.dead=%s est mort en chemin
+travellers.worker.recruit.report.map.visited=%s. %s: %s recrutements
+travellers.worker.recruit.report.map.skipped=%s: ignorés
+travellers.worker.recruit.report.map.not_reached=%s: non atteints
+travellers.worker.recruit.report.map.road=%s recruits joined on the road
+travellers.worker.recruit.report.map.death=Un recrue est morte ici
 
 travellers.worker.home_list.empty=Aucune caserne assignée. Maj+clic droit avec la baguette d'invocation pour créer une caserne.
 
@@ -182,15 +242,14 @@ travellers.worker.formation.hover.offset=Décalage : x=%s z=%s
 travellers.worker.hub.mark_button=Marque des hommes de main
 travellers.worker.hub.mark_button.desc=Modifier la marque visuelle de vos hommes de main engagés
 
-travellers.worker.mark.title=Marque des hommes de main
+travellers.worker.mark.title=Apparence
 travellers.worker.mark.style=Style
 travellers.worker.mark.color=Couleur : %s
 travellers.worker.mark.preview=Aperçu
-travellers.worker.mark.preview.follower=Sbire
+travellers.worker.mark.preview.follower=Homme de main
 travellers.worker.mark.preview.leader=Chef
-
 travellers.worker.mark.preview.leader_hint=Les chefs utilisent un calque dédié
-travellers.worker.mark.saved=Marque du sbire enregistrée
+travellers.worker.mark.saved=Marque de l'homme de main enregistrée
 
 travellers.worker.mark.style.plain=Simple
 travellers.worker.mark.style.double=Double
@@ -201,28 +260,81 @@ travellers.worker.formation.card.you=Votre escorte
 travellers.worker.formation.card.workers=%s hommes de main
 travellers.worker.formation.card.following=en marche
 travellers.worker.formation.card.halted=à l'arrêt
+travellers.worker.formation.card.en_route=en route
+travellers.worker.formation.leaders=Chefs
+travellers.worker.formation.barracks=Caserne
+travellers.worker.formation.zone.beds=%s/%s lits
+travellers.worker.formation.zone.horses=%s/%s chevaux
+travellers.worker.formation.zone.horse_state=%s dompté · %s sellé
+travellers.worker.formation.zone.hands=%s hommes de main · %s ici
+travellers.worker.formation.zone.nobody=Personne ne vit ici.
+travellers.worker.formation.zone.here_away=%s ici · %s loin
+travellers.worker.formation.zone.at_rest=%s au repos, libre de former un groupe
 travellers.worker.formation.card.busy=en mission
 travellers.worker.formation.card.followers_selected=%s sélectionnés
 travellers.worker.formation.card.followers_hint=Clic droit sur la carte pour leur donner un ordre.
-travellers.worker.formation.menu.here=Ici
 travellers.worker.formation.menu.go=Aller ici
-travellers.worker.formation.menu.equip_return=S'équiper, puis revenir
-travellers.worker.formation.menu.equip_stay=S'équiper et rester
+travellers.worker.formation.menu.equip=Équipez-vous...
+travellers.worker.formation.menu.loadout=Équipement à transporter :
+travellers.worker.formation.menu.loadout.melee=Mêlée
+travellers.worker.formation.menu.loadout.bow=Arc
+travellers.worker.formation.menu.loadout.shield=Bouclier
+travellers.worker.formation.menu.loadout.armour=Armure
+travellers.worker.formation.summary.members=%s hommes de main
+travellers.worker.formation.summary.wounded=%s blessés
+travellers.worker.formation.summary.armour=Armure
+travellers.worker.formation.summary.armour.diamond=Diamant
+travellers.worker.formation.summary.armour.iron=Fer
+travellers.worker.formation.summary.armour.chain=Chaîne
+travellers.worker.formation.summary.armour.gold=Or
+travellers.worker.formation.summary.armour.leather=Cuir
+travellers.worker.formation.summary.armour.other=Autre
+travellers.worker.formation.summary.armour.none=Aucun
+travellers.worker.formation.menu.dump=Vider les objets...
+travellers.worker.formation.menu.take_horses=Prendre des chevaux...
+travellers.worker.formation.menu.return_horses=Rendre les chevaux...
+travellers.worker.formation.menu.after_mission=Puis :
+travellers.worker.formation.menu.stay_there=Restez ici
+travellers.worker.formation.menu.come_back=Revenez ici
 travellers.worker.formation.menu.follow_me=Me suivre
 travellers.worker.formation.menu.merge_escort=Fusionner avec mon escorte
 travellers.worker.formation.menu.follow_group=Suivre ce groupe
 travellers.worker.formation.menu.merge_group=Fusionner avec ce groupe
 travellers.worker.formation.menu.halt=Halte ici
+travellers.worker.formation.menu.recall=Revenir ici
 travellers.worker.formation.menu.resume=Reprendre la marche
 travellers.worker.formation.menu.create_group=Former un groupe
 travellers.worker.formation.menu.create_group_go=Former un groupe et aller ici
 travellers.worker.formation.menu.join_group=Rejoindre ce groupe
 travellers.worker.formation.menu.no_orders=Aucun ordre
+travellers.worker.formation.menu.select=Sélectionner
 travellers.worker.formation.menu.reason.busy=Ce groupe est en mission.
 travellers.worker.formation.menu.reason.target_busy=Ce groupe est en mission.
 travellers.worker.formation.menu.reason.need_two=Sélectionnez au moins 2 hommes de main.
 travellers.worker.formation.menu.reason.select_first=Sélectionnez d'abord un groupe ou des hommes de main.
 travellers.worker.formation.orders_tab=Ordres du Chef
+travellers.worker.formation.menu.choose_follow=Suivre qui ?
+travellers.worker.formation.menu.choose_merge=Fusionner dans quel groupe ?
+travellers.worker.formation.menu.choose_join=Rejoindre quel groupe ?
+travellers.worker.formation.menu.no_other_group=Pas d'autre groupe
+travellers.worker.formation.menu.reason.no_other_group=Vous n'avez pas d'autre groupe pour l'instant.
+travellers.worker.formation.bar.empty=Sélectionnez un groupe ou des hommes de main pour voir leurs ordres.
+travellers.worker.formation.bar.follow_me=Me suivre
+travellers.worker.formation.bar.follow_me.tip=Revenir vers vous et vous suivre.
+travellers.worker.formation.bar.halt=Halte
+travellers.worker.formation.bar.halt.tip=Arrêtez à l'endroit où ils sont.
+travellers.worker.formation.bar.resume=Reprendre
+travellers.worker.formation.bar.resume.tip=Reprendre le suivi.
+travellers.worker.formation.bar.follow=Suivre...
+travellers.worker.formation.bar.follow.tip=Choisissez un groupe (ou vous) pour que ce groupe vous suive.
+travellers.worker.formation.bar.merge=Fusionner avec...
+travellers.worker.formation.bar.merge.tip=Choisissez un autre groupe pour fusionner ce groupe avec.
+travellers.worker.formation.bar.center=Centrer
+travellers.worker.formation.bar.center.tip=Centrer la carte sur ce groupe.
+travellers.worker.formation.bar.create_group=Former un groupe
+travellers.worker.formation.bar.create_group.tip=Formez un nouveau groupe avec les hommes de main sélectionnés.
+travellers.worker.formation.bar.join=Rejoignez-vous ...
+travellers.worker.formation.bar.join.tip=Choisissez un groupe pour que vos hommes de main rejoignent.
 travellers.worker.formation.you=Vous
 travellers.worker.formation.set_home=Casernes
 
@@ -238,7 +350,7 @@ key.travellers.formation_hub=Ouvrir le centre de formation
 key.travellers.world_map=Ouvrir la carte du monde
 key.categories.travellers=Voyageurs
 
-# Zones du joueur (Caserne / Écurie)
+# Player zones (Barrack / Stable)
 travellers.lone_barrack.prompt.title=Nouvelle Zone
 travellers.lone_barrack.prompt.name=Nom :
 travellers.lone_barrack.prompt.half_width=largeur
@@ -264,6 +376,14 @@ travellers.zone.stable.description=Un haras pour vos travailleurs engagés. Néc
 
 # Map legend
 travellers.map.legend.controlled_village=Vil. contrôlé
+travellers.map.legend.enemy_village=Village ennemi
+travellers.map.settlement.population=%d habitants
+travellers.map.settlement.kind=%s - %s
+travellers.map.settlement.reputation=Votre réputation : %s
+travellers.map.settlement.controlled_by=Contrôlé par %s
+travellers.map.settlement.under_attack=Sous attaque !
+travellers.map.settlement.raiding=Raid de %s
+travellers.map.settlement.enemy=Ennemi de vos hommes de main
 travellers.map.legend.home=Caserne
 travellers.map.legend.stable=Écurie
 travellers.map.legend.follower=Suiveur
@@ -271,6 +391,28 @@ travellers.map.legend.leader=Chef
 travellers.map.legend.player=Vous
 travellers.map.legend.camp_firepit=Feu de camp
 travellers.map.legend.camp_slot=Abri de camp
+travellers.map.legend.rest_spot=Lieu de repos
+travellers.map.legend.road=Route
+travellers.map.legend.trail=Sentier
+travellers.map.legend.bridge=Pont
+travellers.battle.report.running=Bataille
+travellers.battle.report.camp_assault=Assaut de camp
+travellers.battle.report.won=Victoire
+travellers.battle.report.lost=Défaite
+travellers.battle.report.broken_off=Coupé
+travellers.battle.report.over=%s a gagné
+travellers.battle.report.ago=il y a %s
+travellers.battle.report.yours=Vos hommes de main
+travellers.battle.report.enemies=Ennemis
+travellers.battle.report.name.raiders=Pillards
+travellers.battle.report.name.travellers=Voyageurs
+travellers.battle.report.name.henchmen=Hommes de main
+travellers.battle.report.fallen=Tombés : %s
+travellers.battle.report.fallen_more=Tombés : %s et %s de plus
+travellers.battle.report.outlook.tomorrow=%s est de retour dans son lit demain
+travellers.battle.report.outlook.later=%s est de retour dans quelques jours
+travellers.battle.report.outlook.no_bed=%s n'avait pas de lit (perdu pour de bon)
+travellers.battle.report.outlook.never=%s ne reviendra pas
 
 # Population map
 travellers.map.population.traveller=Voyageurs : %d (%d chargés, %d virtuels)
@@ -288,34 +430,37 @@ travellers.map.worker.status.transport=En mission de transport
 travellers.map.worker.status.returning=Retourne à la maison
 travellers.map.worker.status.recruiting=En mission de recrutement
 travellers.map.worker.status.get_equipment=Récupère l'équipement
+travellers.map.worker.status.dump_items=Déposer des objets
+travellers.map.worker.status.take_horses=Aller prendre un cheval
+travellers.map.worker.status.return_horses=Aller ramener un cheval
 travellers.map.worker.status.going_home=Rentre à la maison
 travellers.map.worker.status.going_to=Se rend vers une destination
 
 # On-screen notifications
-travellers.notify.hire.success=Engagé !
 travellers.notify.hire.already_hired_by_other=Ce voyageur est déjà engagé par quelqu'un d'autre.
 travellers.notify.hire.needs_village_chief=Vous devez être le chef d'un village Millenaire pour engager des hommes de main.
 travellers.notify.hire.not_enough_money=Vous n'avez pas assez d'argent (%s requis).
 travellers.notify.hire.payment_failed=Échec de l'engagement : l'argent n'a pu être déduit.
 travellers.notify.hire.dismissed=Le voyageur ne vous suivra plus.
 
-travellers.notify.recruit.not_your_worker=Vous ne contrôlez pas cet homme de main.
 travellers.notify.recruit.busy=Je suis occupé pour le moment.
+travellers.notify.recruit.needs_group=Seul le chef d'un groupe peut recruter.
 travellers.notify.recruit.no_villages_in_range=Aucun village à portée pour recruter.
 travellers.notify.recruit.not_enough_fee=Frais de recrutement : %s (vous avez %s)
-travellers.notify.recruit.route_not_enough_fee=Frais de recrutement : %s
 travellers.notify.recruit.payment_failed=Échec du paiement des frais de recrutement. Réessayez.
+travellers.notify.recruit.recalled=%s revient.
 travellers.notify.recruit.mission_started=Mission de recrutement lancée. Frais payés : %s
 travellers.notify.recruit.henchmen_recruited=Recruté %s homme(s) de main à %s.
+travellers.notify.recruit.henchmen_recruited_road=Recruté %s hommes de main sur la route près de %s.
 travellers.notify.recruit.mission_completed=Mission de recrutement terminée.
-travellers.notify.recruit.village_too_close=Ce village est trop proche pour recruter. Distance minimale : %sm
+travellers.notify.recruit.back=%s est de retour du recrutement : parlez-en pour lire le rapport.
+travellers.notify.worker.purse_no_room=Pas de place pour les pièces : libérez de la place ou portez une bourse Millénaire.
 
 travellers.notify.worker.not_hired_transport=Vous devez engager cet homme de main pour utiliser le transport.
 travellers.notify.worker.not_hired_inventory=Vous ne pouvez accéder qu'au sac d'un homme de main que vous avez engagé.
 travellers.notify.worker.not_hired_orders=Vous ne pouvez donner des ordres qu'à un homme de main que vous avez engagé.
 travellers.notify.worker.not_hired_behavior=Vous ne pouvez gérer le comportement que d'un homme de main que vous avez engagé.
 travellers.notify.worker.not_hired_recruit=Vous ne pouvez recruter qu'avec un homme de main que vous avez engagé.
-
 travellers.notify.worker.not_hired_home=Vous ne pouvez gérer le foyer que pour un homme de main engagé.
 travellers.notify.worker.not_hired_go=Vous ne pouvez donner d'ordres qu'à un homme de main engagé.
 travellers.notify.worker.not_hired_formation=Vous ne pouvez gérer la formation que pour un homme de main engagé.
@@ -324,11 +469,18 @@ travellers.notify.worker.not_hired_village_relations=Vous ne pouvez gérer les r
 travellers.notify.leader.released_followers=%s partisans vous ont été rendus.
 travellers.notify.leader.now_leading=Cet homme de main dirige maintenant %s partisans.
 travellers.notify.leader.no_free_followers=Aucun partisan disponible à assigner.
+travellers.notify.leader.succession=%s a pris le commandement du groupe.
+
+travellers.follow.choice.talk=Parlez
+travellers.follow.choice.follow=Suivez-le
+travellers.dialogue.gui.follow=Suivez-le
+travellers.notify.follow.stopped_hurt=Vous avez subi des dégâts : vous avez arrêté de suivre.
+travellers.notify.follow.stopped_combat=Un combat a éclaté : vous avez arrêté de suivre.
+travellers.notify.follow.stopped_hungry=Vous êtes trop affamé pour suivre : vous avez arrêté de suivre.
+travellers.notify.follow.target_lost=Vous avez perdu de vue celui que vous suiviez.
 
 travellers.notify.home.not_your_worker=Ce n'est pas votre homme de main.
 travellers.notify.home.none_assigned=Aucun foyer assigné.
-travellers.notify.home.lone_barrack_not_found=Caserne isolée non trouvée.
-travellers.notify.home.lone_barrack_assigned=Caserne isolée assignée : %s
 travellers.notify.home.lone_barrack_bed_destroyed=%s a perdu son lit à "%s" et aucun autre lit n'est libre : il quitte la zone et revient vers vous.
 
 travellers.notify.order.worker_busy=Cet homme de main est occupé et ne peut pas recevoir d'ordres pour le moment.
@@ -343,7 +495,6 @@ travellers.notify.goto.delivery_started_paid=Très bien, je pars pour %s pour %s
 travellers.notify.goto.delivery_started_donate=Très bien, je pars pour %s pour un don de %s.
 
 travellers.notify.hostile.not_owner=Cet homme de main ne vous appartient pas.
-travellers.notify.hostile.player_not_found=Joueur '%s' non trouvé. Il doit s'être connecté au serveur au moins une fois.
 travellers.notify.hostile.added=Les hommes de main attaqueront : %s
 travellers.notify.hostile.removed=Ennemi supprimé : %s
 travellers.notify.hostile.war_declared_on_you=%s a attaqué vos hommes de main - vous êtes maintenant en guerre avec eux.
@@ -351,6 +502,10 @@ travellers.notify.hostile.war_declared_on_you=%s a attaqué vos hommes de main -
 travellers.notify.worker.arrived_home=L'homme de main est arrivé chez lui.
 travellers.notify.worker.cargo_arrived_full=Je suis là avec vos marchandises. Vérifiez mon sac.
 travellers.notify.worker.cargo_arrived_partial=Je suis là. Je n'ai pas pu tout vendre, certaines marchandises sont encore dans mon sac.
+travellers.notify.worker.goods_left=%s transporte encore des marchandises pour vous : parlez-en pour en prendre le reste.
+travellers.notify.worker.cargo_heading_home=%s ne vous trouve pas et se dirige vers la caserne avec votre cargaison.
+travellers.notify.worker.cargo_waiting=%s ne peut pas vous trouver et attend avec votre cargaison là où vous avez été vu pour la dernière fois.
+travellers.notify.worker.cargo_coming_back=%s ramène votre cargaison à vous.
 travellers.notify.worker.already_on_job=Je suis déjà en mission. Attendez mon retour.
 travellers.notify.worker.died=%s est mort.
 travellers.notify.worker.respawn_cancelled=%s ne reviendra pas : son lit a disparu.
@@ -365,16 +520,26 @@ travellers.notify.mount.led_sidestep_gave_up=Le cheval de %s est resté coincé 
 travellers.notify.mount.led_low_health=Le cheval de %s est trop blessé pour continuer à être monté - il le mène à pied à la place.
 
 travellers.notify.trade.refused=Le village refuse de commercer avec vous (réputation trop basse ou le village ne commerce pas actuellement).
+travellers.notify.trade.village_gone=%s n'a pas trouvé le village et ramène votre cargaison à vous.
 travellers.notify.trade.sold_summary=Vente à %s : %s objets vendus pour %s, rép +%s%s
 travellers.notify.trade.donated_summary=Don à %s : %s objets, rép +%s%s
 travellers.notify.goto.arrived=Votre homme de main est arrivé à destination.
 travellers.notify.goto.group_arrived=Votre groupe de %s hommes de main est arrivé à destination.
 travellers.notify.equip.done=Équipement récupéré : %s sur %s ont reçu du nouveau matériel.
 travellers.notify.equip.nothing=Aucun meilleur équipement n'a été trouvé.
+travellers.notify.dump.done=%s articles stockés, déposés par %s hommes de main.
+travellers.notify.dump.full=Plus de place : %s articles stockés, %s sont restés dans les sacs.
+travellers.notify.dump.nothing=Rien n'a été déposé.
 
 travellers.notify.battle.under_attack=Vos hommes de main sont attaqués
-travellers.notify.battle.worker_killed=%s a été tué au combat
-travellers.notify.location_suffix=%sm vers le/la %s
+travellers.notify.battle.fallen=Bataille : %s de vos hommes de main tombés (%s)
+travellers.notify.battle.fallen_more=Bataille : %s de vos hommes de main tombés (%s et %s de plus)
+travellers.notify.battle.won=Bataille gagnée - %s de vos hommes de main sont tombés
+travellers.notify.battle.lost=Bataille perdue - %s de vos hommes de main sont tombés
+travellers.notify.battle.broken_off=Bataille brisée - %s de vos hommes de main tombés
+travellers.notify.battle.away_summary=Pendant votre absence : %s batailles, %s de vos hommes de main sont tombés
+travellers.notify.overflow=+%s autres avis
+travellers.notify.location_suffix=%sm vers le %s
 
 travellers.gui.history.loading=Chargement de l'historique...
 travellers.gui.history.empty=Aucun événement pour le moment.
@@ -384,20 +549,70 @@ travellers.gui.history.time.hours_ago=il y a %sh
 travellers.gui.history.time.days_ago=il y a %sd
 
 travellers.dialogue.worker_farewell=J'ai fait ce que j'avais à faire. Laissez-moi me reposer un peu.
-
 travellers.dialogue.staying_in_village=Je reste à %s pour un moment.
 travellers.dialogue.no_destination=Je n'ai pas de destination pour le moment.
 travellers.dialogue.heading_to=Je me rends actuellement à %s, dans le %s.
+travellers.dialogue.gui_fallback_heading_to=Je me dirige réellement vers %s.
 
+# --- Dialogue GUI (AI conversation) ---
+travellers.dialogue.gui.title=Parler
+travellers.dialogue.gui.not_configured=Vous n'avez pas encore configuré le dialogue d'IA.
+travellers.dialogue.gui.configure=Configurer le dialogue d'IA
+travellers.dialogue.gui.send=Envoyer
+travellers.dialogue.gui.you=Vous
+travellers.dialogue.gui.generating=...
+travellers.dialogue.gui.looking_up=...(en réfléchissant)...
+travellers.dialogue.gui.tool_cap_fallback=Laissez-moi y réfléchir un peu plus avant de répondre.
+travellers.dialogue.gui.error_note=(Quelque chose s'est mal passé en essayant d'atteindre votre IA locale.)
 
-# --- Arbre du menu du travailleur ---
+# --- Dialogue setup screen (client-local AI server connection) ---
+travellers.dialogue.setup.title=Configuration du dialogue d'IA
+travellers.dialogue.setup.server_type=Serveur : %s
+travellers.dialogue.setup.host=Serveur hôte
+travellers.dialogue.setup.port=Port
+travellers.dialogue.setup.enabled=Dialogue IA :
+travellers.dialogue.setup.preload=Précharger le modèle au démarrage
+travellers.dialogue.setup.preload_help=L'échauffe votre modèle choisi au démarrage du jeu, pour que la première conversation ne soit pas lente.
+travellers.dialogue.setup.preload_not_needed=Non nécessaire : llama.cpp a déjà chargé son modèle
+travellers.dialogue.setup.test_connection=Tester la connexion
+travellers.dialogue.setup.testing=Test en cours...
+travellers.dialogue.setup.test_ok=Connecté - %d modèle(s) trouvé(s).
+travellers.dialogue.setup.test_no_models=Connecté, mais aucun modèle n'a encore été chargé.
+travellers.dialogue.setup.test_failed=Impossible de se connecter : %s
+travellers.dialogue.setup.detail_level=Détail : %s
+travellers.dialogue.setup.detail_level.minimal=Minimal
+travellers.dialogue.setup.detail_level.standard=Standard
+travellers.dialogue.setup.detail_level.rich=Riche
+travellers.dialogue.setup.detail_level_help=Riche = plus de détails, nécessite un modèle local plus gros
+travellers.dialogue.setup.debug_dump=Débogage : déverser les prompts bruts
+travellers.dialogue.setup.debug_dump_help=Écrit tout ce qui est envoyé à l'IA dans un fichier de log, pour diagnostiquer les mauvaises réponses
+travellers.dialogue.setup.advanced=Avancé (réglages du modèle)
+
+travellers.dialogue.setup.advanced.title=Paramètres avancés du modèle
+travellers.dialogue.setup.advanced.intro=Laissez un champ vide pour utiliser les valeurs par défaut du modèle.
+travellers.dialogue.setup.advanced.think=Réflexion étendue
+travellers.dialogue.setup.advanced.tools=Laissez le PNJ chercher
+travellers.dialogue.setup.advanced.tools_warning=Tous les modèles ne le supportent pas - les non supportés l'ignorent simplement.
+travellers.dialogue.setup.advanced.reset=Réinitialiser aux valeurs par défaut
+travellers.dialogue.setup.advanced.num_ctx=Taille du contexte (mémoire, num_ctx)
+travellers.dialogue.setup.advanced.num_ctx_fixed=Taille du contexte : définie au démarrage de llama.cpp
+travellers.dialogue.setup.advanced.temperature=Température (créativité)
+travellers.dialogue.setup.advanced.top_p=Top P (focus mot)
+travellers.dialogue.setup.advanced.top_k=Top K (choix de mots)
+travellers.dialogue.setup.advanced.repeat_penalty=Pénalité de répétition
+travellers.dialogue.setup.advanced.num_predict=Longueur max des réponses (-1 = pas de limite)
+
+# --- Worker hub menu tree ---
 travellers.worker.hub.node.orders=Ordres
 travellers.worker.hub.node.follow=Suivre
 travellers.worker.hub.node.follow_player=Me suivre
+travellers.worker.hub.node.follow_him=Le suivre
+travellers.worker.hub.node.follow_him.tooltip=Vous pouvez marcher derrière cet homme de main, puis partir. Appuyez sur une touche de déplacement pour l'arrêter.
 travellers.worker.hub.node.leader=Chef
 travellers.worker.hub.node.go=Missions
 travellers.worker.hub.node.travel=Voyager
 travellers.worker.hub.node.recruit=Recruter
+travellers.worker.hub.node.recruit.tooltip=Il envoie ce chef et son groupe en mission de recrutement. Ils doivent diriger au moins un homme de main d'abord.
 travellers.worker.hub.node.choir=Chanter
 travellers.worker.hub.node.transport=Transport
 travellers.worker.hub.node.unhire=Renvoyer
@@ -409,8 +624,50 @@ travellers.worker.hub.node.players.tooltip=Les joueurs que vos serviteurs consid
 travellers.worker.hub.node.relations=Relations
 travellers.worker.hub.node.villages=Villages
 travellers.worker.hub.node.villages.tooltip=Le comportement de vos serviteurs envers chaque village. S'applique à tous vos serviteurs, pas seulement à celui-ci.
-travellers.worker.hub.node.barracks=Caserne
+travellers.worker.hub.node.barracks=Zones
 travellers.worker.hub.node.inventory=Inventaire
 travellers.worker.hub.node.formation=Formation
 travellers.worker.hub.info.health=Santé %s/%s
 travellers.worker.hub.info.village=De %s
+travellers.notify.raid.incoming=Raid en approche !
+travellers.notify.raid.wave=Vague %s/%s en approche !
+travellers.notify.raid.repelled=Raid repoussé.
+travellers.notify.raid.scattered=Raid sur : les pillards se dispersent.
+travellers.raid.bar=Raid — vague %s/%s
+
+# /summonworkers
+commands.travellers.summonworkers.usage=/summonworkers <count> [joueur] [équipement=naturel|aucun|cuir|chaîne|fer|diamant] [arme=naturel|corps-à-corps|arc] [bouclier=naturel|oui|non] [monture=naturel|oui|non] [culture=<id>]
+commands.travellers.summonworkers.success=Spawnés %s hommes de main embauchés (%s à cheval) pour %s.
+commands.travellers.summonworkers.partial=%s hommes de main n'ont trouvé aucun endroit sûr à proximité et n'ont pas été spawnés.
+commands.travellers.summonworkers.none=Aucun endroit sûr trouvé autour de %s.
+commands.travellers.summonworkers.bowShield=Un ouvrier ne peut pas porter un arc et un bouclier ensemble.
+commands.travellers.summonworkers.badOption=Option inconnue : %s
+commands.travellers.summonworkers.badCulture=Culture inconnue : %s
+commands.travellers.summonworkers.mountsDisabled=Les montures à cheval sont désactivées dans la configuration : aucun cheval ne sera donné.
+
+tile.travellers.village_of_nature.name=Le Village de la Nature
+
+# GUI unification: screen titles and hints
+travellers.map.title=Carte du monde
+travellers.worker.go.title=Envoyer à un lieu
+travellers.worker.recruit.title=Recruter des hommes de main
+travellers.worker.barracks.title=Zones
+
+# Keys no longer in en_us
+travellers.worker.cost_unknown=Coût du voyage : (valider)
+travellers.worker.validate=Valider
+travellers.notify.duty.worker_grouped=Ce travailleur dirige un groupe - il ne doit plus avoir de suiveurs pour être affecté à une garde.
+travellers.worker.enemies.count=Ennemis : %s
+travellers.worker.recruit.fee=Frais : %s
+travellers.worker.recruit.too_close=Trop près pour recruter. Distance min : %sm
+travellers.worker.formation.menu.here=Ici
+travellers.worker.formation.menu.equip_return=S'équiper, puis revenir
+travellers.worker.formation.menu.equip_stay=S'équiper et rester
+travellers.notify.hire.success=Engagé !
+travellers.notify.recruit.not_your_worker=Vous ne contrôlez pas cet homme de main.
+travellers.notify.recruit.route_not_enough_fee=Frais de recrutement : %s
+travellers.notify.recruit.village_too_close=Ce village est trop proche pour recruter. Distance minimale : %sm
+travellers.notify.home.lone_barrack_not_found=Caserne isolée non trouvée.
+travellers.notify.home.lone_barrack_assigned=Caserne isolée assignée : %s
+travellers.notify.hostile.player_not_found=Joueur '%s' non trouvé. Il doit s'être connecté au serveur au moins une fois.
+travellers.notify.battle.worker_killed=%s a été tué au combat
