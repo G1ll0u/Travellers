@@ -94,6 +94,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Is this chunk loaded / borrow a chunk / budget a chunk job | `ground/chunk/LoadedChunks` (never `getLoadedChunk`) |
 | Per-chunk reads (terrain grid, worldmap, campsites) | `ground/chunk/ChunkReader` — add a consumer, never a second `ChunkEvent.Load` queue |
 | Which settlement / its population / is a point inside it | `village/MillSettlements` (XZ identity) |
+| Does this player know this village (lists, orders, recruiting filter by it, server side) | `worldmap/KnownVillages` |
 | Moving items into a settlement's stores | `village/MillGoods` |
 | Is this spot inside a Millénaire building | `village/MillFootprints` (`isForbiddenLanding`) |
 | Where a unit's route goes | `pathing/itinerary/ItineraryPlanner` |

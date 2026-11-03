@@ -4,3 +4,4 @@
 - The purse (`unit/WorkerPurse`) belongs to the worker, not to a mission; a worker carrying money is never dismissed; tour and purse leave a dying worker before the bed-respawn snapshot.
 - A recruited loaded traveller changes kind through virtualize → `VirtualTravellerManager.recruitRecord` → `materializeSoon`; never spawn a second body with its UUID.
 - Whether a mission can be called back, and how: `MissionRecall` only (loaded), `VirtualTravellerManager.recallMission` (offscreen).
+- A transport worker back with goods is handled only by `DeliveryJob.offerPickup` (take-only pickup screen, owner only); the job ends when the cargo is empty on close, never by forcing items back.

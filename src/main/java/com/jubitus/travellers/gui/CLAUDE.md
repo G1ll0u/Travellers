@@ -1,6 +1,7 @@
 # GUIs
 
 - Every Travellers screen implements the empty marker `ITravellersGui` (toasts are drawn over those only). `GuiTravellersButton` + `TravellersGuiTheme` are the standard button and theme, meant to replace remaining vanilla `GuiButton`s. `GuiContextMenu` is the reusable right-click menu.
+- A screen with item slots extends `GuiTravellersContainer` (placed slots, shared frame); frames, panels and slots are drawn only through `TravellersGuiTheme` / `FramedPanel` / `MapListLayout`, so a future skin is one place.
 - A screen showing the player's workers on a map uses `worldmap/gui/WorkerMapScreenSupport` (+ `WorldMapNavButtons`); a row list uses `ScrollList` + `TravellersGuiTheme.drawScrollbar`; clipping goes through `GuiClip`.
 - **Never load sounds synchronously in `initGui()`** (freezes the client). A `GuiTextField` must be drawn every frame. `Gui.drawRect` leaves the GL colour set — reset to white before drawing an entity. Theme text colours (`COL_TEXT`…) carry no alpha: OR `0xFF000000` before using one in `Gui.drawRect`.
 
