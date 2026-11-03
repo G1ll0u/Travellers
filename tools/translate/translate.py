@@ -3,7 +3,10 @@
 import argparse
 import json
 import re
+import shutil
 import sys
+import threading
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -202,14 +205,68 @@ def batches(keys, en):
         yield batch
 
 
-def translate(server, lang, keys, en, human, references):
-    """Yields progress: key -> translation for the keys that passed the checks, key -> reason for the others."""
+class Status:
+    """One status line rewritten in place (redrawn every second so the clock moves while the model works)."""
+
+    def __init__(self, lang, index, count, total):
+        self.lang, self.index, self.count, self.total = lang, index, count, total
+        self.done = self.failed = 0
+        self.step = ""
+        self.start = time.monotonic()
+        self.live = sys.stdout.isatty()
+        self.stop = threading.Event()
+        if self.live:
+            threading.Thread(target=self._tick, daemon=True).start()
+
+    def update(self, done=None, failed=None, step=None):
+        if done is not None:
+            self.done, self.failed = done, failed
+        if step is not None:
+            self.step = step
+        if self.live:
+            self._draw()
+        else:
+            print(self._line(), flush=True)
+
+    def close(self):
+        self.stop.set()
+        if self.live:
+            self._draw()
+            print()
+
+    def _tick(self):
+        while not self.stop.wait(1):
+            self._draw()
+
+    def _draw(self):
+        width = shutil.get_terminal_size((100, 20)).columns
+        print("\r\033[K" + self._line()[:width - 1], end="", flush=True)
+
+    def _line(self):
+        elapsed = time.monotonic() - self.start
+        part = self.done / self.total if self.total else 1
+        bar = "#" * int(part * 20) + "-" * (20 - int(part * 20))
+        eta = f"~{clock(elapsed / part - elapsed)} left" if self.done else "estimating..."
+        failed = f" | {self.failed} rejected" if self.failed else ""
+        return (f"[{self.index}/{self.count}] {self.lang} [{bar}] {self.done}/{self.total} {part:4.0%}"
+                f"{failed} | {clock(elapsed)} | {eta} | {self.step}")
+
+
+def clock(seconds):
+    m, s = divmod(int(seconds), 60)
+    return f"{m // 60}h{m % 60:02d}" if m >= 60 else f"{m}:{s:02d}"
+
+
+def translate(server, lang, keys, en, human, references, status, on_batch):
+    """Translates keys (one retry for rejected ones); returns key -> reason for those still rejected."""
     style, terms = load_glossary(lang)
-    done, failed = {}, {}
-    todo = list(keys)
+    done, failed, todo = 0, {}, list(keys)
     for attempt in (1, 2):
         failed = {}
-        for batch in batches(todo, en):
+        groups = list(batches(todo, en))
+        for i, batch in enumerate(groups, 1):
+            label = "retry " if attempt == 2 else ""
+            status.update(step=f"{label}batch {i}/{len(groups)}: {batch[0]}")
             src = {k: en[k] for k in batch}
             system = system_prompt(lang, style, glossary_hits(terms, references, src.values()),
                                    pick_examples(batch, en, human))
@@ -217,24 +274,29 @@ def translate(server, lang, keys, en, human, references):
                 answer = ask_llm(server, system, src)
             except Exception as e:  # network, bad JSON: the whole batch goes to the retry
                 answer = {}
-                print(f"  batch error: {e}", file=sys.stderr)
+                status.update(step=f"batch error: {e}")
+            good = {}
             for k in batch:
                 why = problem(en[k], answer.get(k)) if k in answer else "missing"
                 if why:
                     failed[k] = why
                 else:
-                    done[k] = answer[k]
-            yield len(done), len(keys), done, failed
+                    good[k] = answer[k]
+            on_batch(good)
+            done += len(good)
+            status.update(done=done, failed=len(failed))
         todo = list(failed)
         if not todo:
             break
+    return failed
 
 
 # ---------- commands ----------
 
 def run_mod(args):
     en_lines, en = read_lang(MOD_LANG_DIR / "en_us.lang")
-    for lang in args.langs.split(","):
+    langs = args.langs.split(",")
+    for index, lang in enumerate(langs, 1):
         path = MOD_LANG_DIR / f"{lang}.lang"
         _, existing = read_lang(path)
         memory = load_memory(lang)
@@ -246,25 +308,31 @@ def run_mod(args):
                         if k in en and k not in existing and m["en"] == en[k]})
         todo = [k for k in en if k not in human
                 and (k not in machine or memory[k]["en"] != en[k])]
-        print(f"{lang}: {len(human)} by hand, {len(machine)} by the tool, {len(todo)} to translate")
-        if not todo or args.dry_run:
-            continue
         if args.limit:
             todo = todo[:args.limit]
-        failed = {}
-        for count, total, done, failed in translate(args.server, lang, todo, en, human,
-                                                 reference_names(MOD_REFERENCES, lang)):
-            for k, v in done.items():
+        print(f"\n{LANGUAGE_NAMES.get(lang, lang)} ({lang}): {len(human)} by hand, "
+              f"{len(machine)} by the tool, {len(todo)} to translate")
+        if not todo or args.dry_run:
+            continue
+
+        def keep(good):
+            for k, v in good.items():
                 memory[k] = {"en": en[k], "tr": v}
                 machine[k] = v
             save_memory(lang, memory)
-            print(f"  {count}/{total}", end="\r", flush=True)
-        print()
+
+        status = Status(lang, index, len(langs), len(todo))
+        try:
+            failed = translate(args.server, lang, todo, en, human,
+                               reference_names(MOD_REFERENCES, lang), status, keep)
+        finally:
+            status.close()
         values = {k: v for k, v in {**machine, **human}.items() if k in en}
         extra = {k: v for k, v in existing.items() if k not in en}
         write_lang(path, en_lines, values, extra)
+        print(f"  wrote {path.name}: {len(todo) - len(failed)} translated, {len(failed)} left in English")
         for k, why in failed.items():
-            print(f"  left in English ({why}): {k}={en[k]}")
+            print(f"  - {why}: {k} = {en[k]}")
 
 
 def main():
