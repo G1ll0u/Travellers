@@ -16,7 +16,7 @@ Pretty, roomy places in the wild (riverbank, summit, open view, forest edge) whe
 | Factions | One faction at a time, like camps: civil (travellers + unhired workers) or raiders. |
 | Time of day | Any time. |
 | Name | "Rest spots" (config category `restSpots`). |
-| Display | Population map (`/travellerChunks`) only, reusing an existing marker shape with its own colour; tooltip shows the score and its reasons. |
+| Display | Population map (`/travellersmap`) only, reusing an existing marker shape with its own colour; tooltip shows the score and its reasons. |
 | Config | Every tuning knob a player or admin might touch is a config field (see below). |
 | Trips | One shared trip rule for loaded and virtual units (`travel/TripPlanner`): offscreen units now also stop at villages on the way. |
 | Pause code | The village visit was already place-neutral except a few points: it becomes one stay task (`stay/`) with a pluggable place (`StayPlace`: village or rest spot), loaded and offscreen. Renamed from "village visit" to "stay" in code (saves stay compatible). |

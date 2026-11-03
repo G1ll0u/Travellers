@@ -3,6 +3,7 @@
 All under `/travellersdebug`: one class per subcommand in `debug/cmd/`, registered in `CommandTravellerDebug`'s table.
 - `/travellersdebug` may arrive on the RCON thread; `execute` hops to the server thread — never read the world before that hop.
 - Every diagnostic file goes through `DebugFiles` (`logs/travellers/<topic>/`), never a hard-coded path.
+- `reset` removes units without `onDeath` (no bed respawn); any new place that keeps a unit's UUID must be freed in `ResetDebugCommand.forget`.
 - A subcommand declares `description()` and `usage()`; `opOnly()` is false only for `export` (a solo world owner may run it).
 
 ## Per-traveller trace (`trace/`) — the tool of record for one unit's movement
@@ -23,6 +24,6 @@ All under `/travellersdebug`: one class per subcommand in `debug/cmd/`, register
 - `autotest forest <x1> <z1> <x2> <z2> [solo] [followers] [seconds]|status|stop`: mounted forest crossing scenario; `servertest.py forest` runs it on 3 fixed routes.
 
 ## Others
-`destination report|log`, `relations`, `village …`, `stable …`, `map …`, `camp reset`, `restspot here|stats|rescan`, `battle`, `mount`, `elytra`, `terrain region`, `dialogue memory dump`, `reset [workers]`.
+`destination report|log`, `relations`, `village …`, `stable …`, `map …`, `camp reset`, `restspot here|stats|rescan`, `battle`, `mount`, `elytra`, `terrain region`, `dialogue memory dump`, `reset all|travellers|raiders|henchmen|recruitedhenchmen`.
 - `freeze/FreezeWatchdog`: always-on, writes `logs/travellers/profile/freeze_*.txt` when most units that should move are still, or most loaded units stop ticking.
 - `MapJumpLog` writes every too-fast unit move to `logs/travellers/mapjumps.log` while any map is open, with the loaded/virtual hand-off and the materialize placement.

@@ -4,17 +4,17 @@ import com.jubitus.travellers.worldmap.net.MsgOpenPopulationMap;
 import com.jubitus.travellers.net.TravellersNetwork;
 import net.minecraft.entity.player.EntityPlayerMP;
 
-// TravellerCommandChunks.java
-public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
+// CommandTravellersMap.java
+public class CommandTravellersMap extends net.minecraft.command.CommandBase {
 
     @Override
     public String getName() {
-        return "travellerChunks";
+        return "travellersmap";
     }
 
     @Override
     public String getUsage(net.minecraft.command.ICommandSender sender) {
-        return "/travellerChunks";
+        return "/travellersmap";
     }
 
     @Override

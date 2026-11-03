@@ -25,7 +25,7 @@ import com.jubitus.travellers.command.CommandTravellerCount;
 import com.jubitus.travellers.debug.CommandTravellerDebug;
 import com.jubitus.travellers.command.CommandTravellerReload;
 import com.jubitus.travellers.command.CommandTravellersShelter;
-import com.jubitus.travellers.command.TravellerCommandChunks;
+import com.jubitus.travellers.command.CommandTravellersMap;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.TravellerWorkerLootHandler;
 import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
@@ -86,7 +86,7 @@ public class Travellers {
         event.registerServerCommand(new CommandMountTraveller());
         event.registerServerCommand(new CommandTravellerDebug());
         event.registerServerCommand(new com.jubitus.travellers.command.CommandTravellersShelter());
-        event.registerServerCommand(new TravellerCommandChunks());
+        event.registerServerCommand(new CommandTravellersMap());
         event.registerServerCommand(new CommandSummonWorkers());
         event.registerServerCommand(new CommandSummonRaiders());
         event.registerServerCommand(new CommandModConfig());
