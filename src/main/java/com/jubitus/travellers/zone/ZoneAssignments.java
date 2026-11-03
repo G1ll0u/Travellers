@@ -142,24 +142,24 @@ public final class ZoneAssignments {
         r.workerMode = w.getMode().name();
     }
 
-    private static final String[] RESPAWN_DROPPED_KEYS = {
-            "MountUUID", "MountSnapshot", "PendingMountNbt", "PendingMountPos", "MountMode", "VillageHitchStop"};
-
     /** A hired worker died, loaded or offscreen: it comes back beside its bed later (see
-     * {@code PlayerZoneManager.tickRespawns}), or its bed is freed at once. */
-    public static void onWorkerDied(MinecraftServer server, UUID workerUUID, @Nullable UUID owner,
-                                    @Nullable ZoneRef ref, NBTTagCompound strippedNbt) {
-        if (ref == null) return;
+     * {@code PlayerZoneManager.tickRespawns}), or its bed is freed at once. {@code workerNbt} is its full
+     * save; returns true when it comes back with its gear, which the caller must then not drop. */
+    public static boolean onWorkerDied(MinecraftServer server, UUID workerUUID, @Nullable UUID owner,
+                                       @Nullable ZoneRef ref, NBTTagCompound workerNbt) {
+        if (ref == null) return false;
         WorldServer zoneWorld = net.minecraftforge.common.DimensionManager.getWorld(ref.dim);
-        if (zoneWorld == null) return;
+        if (zoneWorld == null) return false;
         PlayerZoneManager mgr = PlayerZoneManager.get(zoneWorld);
-        if (owner != null && com.jubitus.travellers.config.TravellersConfig.WORKER.workerRespawnAtBed) {
-            // Its horse went loose where it died: it comes back on foot, never with a second copy of it.
-            for (String key : RESPAWN_DROPPED_KEYS) strippedNbt.removeTag(key);
-            mgr.scheduleRespawn(owner, workerUUID, ref, strippedNbt);
-        } else {
+        if (owner == null || !com.jubitus.travellers.config.TravellersConfig.WORKER.workerRespawnAtBed) {
             mgr.unassignWorker(workerUUID);
+            return false;
         }
+        boolean keepGear = com.jubitus.travellers.config.TravellersConfig.WORKER.workerRespawnKeepGear;
+        NBTTagCompound snapshot = workerNbt.copy();
+        RespawnSnapshot.strip(snapshot, keepGear);
+        mgr.scheduleRespawn(owner, workerUUID, ref, snapshot);
+        return keepGear;
     }
 
     /** Mornings left before a dead worker comes back beside its bed, or -1 when no respawn is pending. */

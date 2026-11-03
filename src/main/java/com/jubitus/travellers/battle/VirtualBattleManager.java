@@ -1101,12 +1101,23 @@ public class VirtualBattleManager extends WorldSavedData {
         victim.alive = false;
         participantIndex.remove(victim.uuid);
 
+        // Same bed rule as a loaded death: back beside its bed later, or the bed is freed. Decided before
+        // the loot, so gear it comes back with never also lands in the pool.
+        NBTTagCompound lootNbt = rec.entityNbt;
+        if (rec.isHiredFollower && "WORKER".equals(rec.entityClass) && rec.entityNbt != null
+                && world.getMinecraftServer() != null
+                && com.jubitus.travellers.zone.ZoneAssignments.onWorkerDied(world.getMinecraftServer(), rec.uuid,
+                        rec.followOwnerUUID, com.jubitus.travellers.zone.ZoneRef.read(rec.entityNbt), rec.entityNbt)) {
+            lootNbt = rec.entityNbt.copy();
+            com.jubitus.travellers.zone.RespawnSnapshot.removeKeptGear(lootNbt);
+        }
+
         if (lootEnabledFor(rec)) {
             // Hired/non-hired workers drop everything, no roll — mirrors EntityTravellerWorker's
             // physical death (dropInventoryFull). Travellers/raiders use the same per-item chances
             // as the physical vanilla drop roll, for virtual/physical parity.
             boolean guaranteedFull = "WORKER".equals(rec.entityClass);
-            NBTTagList items = collectLootItems(rec.entityNbt, guaranteedFull, world.rand);
+            NBTTagList items = collectLootItems(lootNbt, guaranteedFull, world.rand);
             for (int i = 0; i < items.tagCount(); i++) {
                 b.lootPool.appendTag(items.getCompoundTagAt(i));
             }
@@ -1114,15 +1125,6 @@ public class VirtualBattleManager extends WorldSavedData {
 
         if (rec.campSiteId != null) {
             CampsiteManager.get(world).releaseOccupant(rec.uuid);
-        }
-
-        // Same bed rule as a loaded death: back beside its bed later, or the bed is freed.
-        if (rec.isHiredFollower && "WORKER".equals(rec.entityClass) && rec.entityNbt != null
-                && world.getMinecraftServer() != null) {
-            NBTTagCompound nbt = rec.entityNbt.copy();
-            com.jubitus.travellers.unit.EntityTravellerWorker.stripInventoryNbt(nbt);
-            com.jubitus.travellers.zone.ZoneAssignments.onWorkerDied(world.getMinecraftServer(), rec.uuid,
-                    rec.followOwnerUUID, com.jubitus.travellers.zone.ZoneRef.read(nbt), nbt);
         }
 
         // After the bed rule, so the notice can say whether the worker comes back.
@@ -1161,7 +1163,7 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /**
-     * Armor + hand items + backpack contents, skipping ghost display copies. Workers ({@code
+     * Armor + hand items + backpack contents (+ a worker's cargo), skipping ghost display copies. Workers ({@code
      * guaranteedFull}) drop everything; travellers/raiders roll the same per-item chances as the
      * physical death drop ({@code TravellersConfig.EQUIPMENT}), for virtual/physical parity.
      */
@@ -1178,6 +1180,10 @@ public class VirtualBattleManager extends WorldSavedData {
             } else {
                 appendBackpackStacksLimited(out, backpack, rand);
             }
+        }
+        // A worker's cargo, dropped in full like EntityTravellerWorker.dropLoot does.
+        if (guaranteedFull && entityNbt.hasKey("TravelInventory", 10)) {
+            appendStacks(out, entityNbt.getCompoundTag("TravelInventory").getTagList("Items", 10), true, 1f, rand);
         }
         return out;
     }

@@ -1031,9 +1031,10 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (hiredFollower && zone != null && world.getMinecraftServer() != null) {
                 NBTTagCompound nbt = new NBTTagCompound();
                 writeToNBT(nbt);
-                stripInventoryNbt(nbt);
-                com.jubitus.travellers.zone.ZoneAssignments.onWorkerDied(
-                        world.getMinecraftServer(), getUniqueID(), followOwnerId, zone, nbt);
+                if (com.jubitus.travellers.zone.ZoneAssignments.onWorkerDied(
+                        world.getMinecraftServer(), getUniqueID(), followOwnerId, zone, nbt)) {
+                    com.jubitus.travellers.zone.RespawnSnapshot.takeKeptGearOff(this);
+                }
             }
 
             // A battle participant's notice comes from VirtualBattleManager.onParticipantDeath (via super.onDeath).
@@ -1363,18 +1364,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
     }
 
-    /** Remove all inventory data from a worker NBT so the respawned entity starts empty. */
-    public static void stripInventoryNbt(NBTTagCompound nbt) {
-        // Vanilla equipment
-        nbt.removeTag("HandItems");
-        nbt.removeTag("ArmorItems");
-        // EntityTraveller personal inventory
-        nbt.removeTag("TravellerInv");
-        // EntityTravellerWorker cargo
-        nbt.removeTag("TravelInventory");
-        // Legacy key (migrated during readFromNBT but strip it anyway)
-        nbt.removeTag("PersonalInventory");
-    }
 
     // Mark/unmark specific players as hostile
 

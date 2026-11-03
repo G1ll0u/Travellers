@@ -7,7 +7,7 @@ A player zone is a **Barrack** (worker housing) or a **Stable** (horse pool). Sh
 - **`ZoneAssignments` is the only code that binds (`assign`) or releases a worker**, loaded or virtual, always with a bed. Every path uses it (messages, zone deletion, lost bed, audit, `onWorkerDied`).
 - `ZoneRoleRescan` is the one place role blocks are re-synced and the one bed rule; never rescans an unloaded box.
 - Barrack save compatibility: the `"TravellersLoneBarracks"` key, the `BARRACK` default and the old tags are load-bearing (`ZoneRef.read`, `resolveLegacyZoneRef`).
-- Bed respawn (`tickRespawns`): the worker comes back beside its bed — or as a virtual record there — never "when a player comes by"; it returns un-grouped with no order, mount bond dropped.
+- Bed respawn (`tickRespawns`): the worker comes back beside its bed — or as a virtual record there — never "when a player comes by"; it returns un-grouped with no order, mount bond dropped. The respawn snapshot is built only by `RespawnSnapshot`; when gear is kept, the caller must take it off the body or out of the loot, or it duplicates.
 
 ## Stable horse pool (`stable/`)
 Rationale: memory `project_stable_zone_feature`.

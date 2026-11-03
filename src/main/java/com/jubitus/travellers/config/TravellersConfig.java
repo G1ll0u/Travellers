@@ -2775,6 +2775,9 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 30)
         public int workerRespawnDays = 3;
 
+        @Config.Comment("Dead workers who come back beside their bed keep their weapons and armour.")
+        public boolean workerRespawnKeepGear = true;
+
         @Config.Comment("Time of day dead workers come back (0 = sunrise, 6000 = noon).")
         @Config.RangeInt(min = 0, max = 23999)
         public int workerRespawnMorningTime = 1000;
