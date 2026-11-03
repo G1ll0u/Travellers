@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fill missing Minecraft 1.12 lang keys with a local llama.cpp server (see README.md)."""
 import argparse
+import fnmatch
 import json
 import re
 import shutil
@@ -16,7 +17,6 @@ REPO = HERE.parent.parent
 MOD_LANG_DIR = REPO / "src/main/resources/assets/travellers/lang"
 # Jars whose own item/block names are reused as glossary (official names stay consistent).
 MOD_REFERENCES = [REPO / "libs/millenaire-8.1.2.jar"]
-DEFAULT_LANGS = "fr_fr,de_de,es_es,it_it,pt_br,ru_ru"
 
 LANGUAGE_NAMES = {
     "fr_fr": "French", "de_de": "German", "es_es": "Spanish (Spain)", "it_it": "Italian",
@@ -293,44 +293,86 @@ def translate(server, lang, keys, en, human, references, status, on_batch):
 
 # ---------- commands ----------
 
+def plan(lang, en, existing, memory, patterns, force):
+    """Sorts a language's keys. Returns (human, machine, todo, stale).
+
+    Memory entries are {"en", "tr"} for lines the tool wrote and {"en", "hand"} for hand-written lines,
+    so a change of the English under either kind is noticed."""
+    human = {k: v for k, v in existing.items() if memory.get(k, {}).get("tr") != v}
+    machine = {k: v for k, v in existing.items() if k not in human}
+    # Resume an interrupted run: memory entries for the current English are reused as they are.
+    machine.update({k: m["tr"] for k, m in memory.items()
+                    if "tr" in m and k in en and k not in existing and m["en"] == en[k]})
+    stale = [k for k, v in human.items()
+             if k in en and memory.get(k, {}).get("hand") == v and memory[k]["en"] != en[k]]
+    if patterns:
+        wanted = [k for k in en if any(fnmatch.fnmatchcase(k, p) for p in patterns)]
+        todo = [k for k in wanted if force or k not in human]
+    else:
+        todo = [k for k in en if k not in human and (k not in machine or memory[k]["en"] != en[k])]
+    return human, machine, todo, stale
+
+
+def check_server(server):
+    try:
+        urllib.request.urlopen(server.rstrip("/") + "/health", timeout=5).read()
+    except Exception as e:
+        sys.exit(f"llama-server is not reachable at {server} ({e}). Start it, then run this again.")
+
+
 def run_mod(args):
     en_lines, en = read_lang(MOD_LANG_DIR / "en_us.lang")
-    langs = args.langs.split(",")
+    patterns = [p for p in args.keys.split(",") if p] if args.keys else []
+    langs = args.langs.split(",") if args.langs else sorted(p.stem for p in (HERE / "glossary").glob("*.tsv"))
+    if not args.dry_run:
+        check_server(args.server)
     for index, lang in enumerate(langs, 1):
         path = MOD_LANG_DIR / f"{lang}.lang"
         _, existing = read_lang(path)
         memory = load_memory(lang)
-        # A value equal to what we produced is ours; anything else in the file is a human translation.
-        human = {k: v for k, v in existing.items() if memory.get(k, {}).get("tr") != v}
-        machine = {k: v for k, v in existing.items() if k not in human}
-        # Resume an interrupted run: memory entries for the current English are reused as they are.
-        machine.update({k: m["tr"] for k, m in memory.items()
-                        if k in en and k not in existing and m["en"] == en[k]})
-        todo = [k for k in en if k not in human
-                and (k not in machine or memory[k]["en"] != en[k])]
+        human, machine, todo, stale = plan(lang, en, existing, memory, patterns, args.force)
         if args.limit:
             todo = todo[:args.limit]
         print(f"\n{LANGUAGE_NAMES.get(lang, lang)} ({lang}): {len(human)} by hand, "
               f"{len(machine)} by the tool, {len(todo)} to translate")
-        if not todo or args.dry_run:
+        if stale:
+            print(f"  English changed under {len(stale)} hand-written line(s), left as they are "
+                  f"(retranslate with --keys ... --force):")
+            for k in stale:
+                print(f"  - {k} = {en[k]}")
+        if args.dry_run:
+            for k in todo[:30]:
+                print(f"  + {k} = {en[k]}")
+            if len(todo) > 30:
+                print(f"  + ... and {len(todo) - 30} more")
             continue
 
         def keep(good):
             for k, v in good.items():
                 memory[k] = {"en": en[k], "tr": v}
                 machine[k] = v
+                human.pop(k, None)
             save_memory(lang, memory)
 
-        status = Status(lang, index, len(langs), len(todo))
-        try:
-            failed = translate(args.server, lang, todo, en, human,
-                               reference_names(MOD_REFERENCES, lang), status, keep)
-        finally:
-            status.close()
+        failed = {}
+        if todo:
+            status = Status(lang, index, len(langs), len(todo))
+            try:
+                failed = translate(args.server, lang, todo, en, human,
+                                   reference_names(MOD_REFERENCES, lang), status, keep)
+            finally:
+                status.close()
+        # Remember the English under each hand-written line, so a later change of it is reported.
+        for k, v in human.items():
+            if k in en and memory.get(k, {}).get("hand") != v:
+                memory[k] = {"en": en[k], "hand": v}
+        save_memory(lang, memory)
+        if not todo:
+            continue
         values = {k: v for k, v in {**machine, **human}.items() if k in en}
         extra = {k: v for k, v in existing.items() if k not in en}
         write_lang(path, en_lines, values, extra)
-        print(f"  wrote {path.name}: {len(todo) - len(failed)} translated, {len(failed)} left in English")
+        print(f"  wrote {path.name}: {len(todo) - len(failed)} translated, {len(failed)} left as before")
         for k, why in failed.items():
             print(f"  - {why}: {k} = {en[k]}")
 
@@ -340,10 +382,15 @@ def main():
     p.add_argument("--server", default="http://localhost:8080")
     sub = p.add_subparsers(dest="cmd", required=True)
     mod = sub.add_parser("mod", help="translate the Travellers lang files")
-    mod.add_argument("--langs", default=DEFAULT_LANGS)
+    mod.add_argument("--langs", help="comma-separated, e.g. fr_fr,de_de (default: every glossary/*.tsv)")
+    mod.add_argument("--keys", help="only these keys, comma-separated, * wildcards allowed; "
+                                    "retranslates them even if the tool already did")
+    mod.add_argument("--force", action="store_true", help="with --keys: also overwrite hand-written lines")
     mod.add_argument("--limit", type=int, default=0, help="translate at most N keys per language (trial run)")
-    mod.add_argument("--dry-run", action="store_true", help="only count what is missing")
+    mod.add_argument("--dry-run", action="store_true", help="show what would be translated, change nothing")
     args = p.parse_args()
+    if args.force and not args.keys:
+        p.error("--force needs --keys")
     run_mod(args)
 
 

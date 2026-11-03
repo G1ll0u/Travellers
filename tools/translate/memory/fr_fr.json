@@ -31,6 +31,30 @@
   "en": "/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]",
   "tr": "/summonworkers <count> [joueur] [équipement=naturel|aucun|cuir|chaîne|fer|diamant] [arme=naturel|corps-à-corps|arc] [bouclier=naturel|oui|non] [monture=naturel|oui|non] [culture=<id>]"
  },
+ "entity.travellers.traveller.name": {
+  "en": "Traveller",
+  "hand": "Voyageur"
+ },
+ "entity.travellers.traveller_raider.name": {
+  "en": "Raider",
+  "hand": "Pillard"
+ },
+ "entity.travellers.traveller_worker.name": {
+  "en": "Henchman",
+  "hand": "Homme de main"
+ },
+ "key.categories.travellers": {
+  "en": "Travellers",
+  "hand": "Voyageurs"
+ },
+ "key.travellers.formation_hub": {
+  "en": "Open Formation Hub",
+  "hand": "Ouvrir le centre de formation"
+ },
+ "key.travellers.world_map": {
+  "en": "Open World Map",
+  "hand": "Ouvrir la carte du monde"
+ },
  "tile.travellers.village_of_nature.name": {
   "en": "The Village of Nature",
   "tr": "Le Village de la Nature"
@@ -150,6 +174,14 @@
  "travellers.dialogue.gui_fallback_heading_to": {
   "en": "I'm actually heading to %s.",
   "tr": "Je me dirige réellement vers %s."
+ },
+ "travellers.dialogue.heading_to": {
+  "en": "I'm actually heading to %s in the %s.",
+  "hand": "Je me rends actuellement à %s, dans le %s."
+ },
+ "travellers.dialogue.no_destination": {
+  "en": "I don't currently have a destination.",
+  "hand": "Je n'ai pas de destination pour le moment."
  },
  "travellers.dialogue.setup.advanced": {
   "en": "Advanced (model settings)",
@@ -287,6 +319,14 @@
   "en": "AI Dialogue Setup",
   "tr": "Configuration du dialogue d'IA"
  },
+ "travellers.dialogue.staying_in_village": {
+  "en": "I'm staying in %s for a bit.",
+  "hand": "Je reste à %s pour un moment."
+ },
+ "travellers.dialogue.worker_farewell": {
+  "en": "I did what I had to do. Let me rest a bit.",
+  "hand": "J'ai fait ce que j'avais à faire. Laissez-moi me reposer un peu."
+ },
  "travellers.follow.choice.follow": {
   "en": "Follow him",
   "tr": "Suivez-le"
@@ -295,13 +335,169 @@
   "en": "Talk",
   "tr": "Parlez"
  },
+ "travellers.gui.add": {
+  "en": "Add",
+  "hand": "Ajouter"
+ },
+ "travellers.gui.back": {
+  "en": "Back",
+  "hand": "Retour"
+ },
+ "travellers.gui.cancel": {
+  "en": "Cancel",
+  "hand": "Annuler"
+ },
+ "travellers.gui.clear": {
+  "en": "Clear",
+  "hand": "Effacer"
+ },
+ "travellers.gui.close": {
+  "en": "Close",
+  "hand": "Fermer"
+ },
+ "travellers.gui.done": {
+  "en": "Done",
+  "hand": "Terminé"
+ },
+ "travellers.gui.go": {
+  "en": "Go",
+  "hand": "Aller"
+ },
+ "travellers.gui.history.empty": {
+  "en": "No events yet.",
+  "hand": "Aucun événement pour le moment."
+ },
+ "travellers.gui.history.loading": {
+  "en": "Loading history...",
+  "hand": "Chargement de l'historique..."
+ },
+ "travellers.gui.history.time.days_ago": {
+  "en": "%sd ago",
+  "hand": "il y a %sd"
+ },
+ "travellers.gui.history.time.hours_ago": {
+  "en": "%sh ago",
+  "hand": "il y a %sh"
+ },
+ "travellers.gui.history.time.just_now": {
+  "en": "just now",
+  "hand": "à l'instant"
+ },
+ "travellers.gui.history.time.minutes_ago": {
+  "en": "%sm ago",
+  "hand": "il y a %sm"
+ },
+ "travellers.gui.remove": {
+  "en": "Remove",
+  "hand": "Retirer"
+ },
+ "travellers.gui.save": {
+  "en": "Save",
+  "hand": "Sauvegarder"
+ },
+ "travellers.gui.unnamed": {
+  "en": "(unnamed)",
+  "hand": "(sans nom)"
+ },
+ "travellers.home_name_prompt.subtitle": {
+  "en": "You can assign it to hired Henchmen and send them here, more to come.",
+  "hand": "Vous pouvez l'assigner aux hommes de main engagés et les y envoyer ; d'autres options à venir."
+ },
+ "travellers.home_name_prompt.title": {
+  "en": "Name of your home",
+  "hand": "Nom de votre foyer"
+ },
+ "travellers.lone_barrack.created": {
+  "en": "Zone created!",
+  "hand": "Zone créée !"
+ },
+ "travellers.lone_barrack.error.invalid": {
+  "en": "This zone cannot be created here: stand closer, keep it within the size limits, and wait for the area to load.",
+  "hand": "Impossible de créer cette zone ici : rapprochez-vous, respectez la taille maximale et attendez que la zone soit chargée."
+ },
+ "travellers.lone_barrack.error.overlaps": {
+  "en": "This area overlaps an existing zone.",
+  "hand": "Cette zone chevauche une zone existante."
+ },
+ "travellers.lone_barrack.prompt.half_depth": {
+  "en": "depth",
+  "hand": "profondeur"
+ },
+ "travellers.lone_barrack.prompt.half_height": {
+  "en": "height",
+  "hand": "hauteur"
+ },
+ "travellers.lone_barrack.prompt.half_width": {
+  "en": "width",
+  "hand": "largeur"
+ },
+ "travellers.lone_barrack.prompt.name": {
+  "en": "Name:",
+  "hand": "Nom :"
+ },
+ "travellers.lone_barrack.prompt.title": {
+  "en": "New Zone",
+  "hand": "Nouvelle Zone"
+ },
+ "travellers.map.center": {
+  "en": "Center",
+  "hand": "Centrer"
+ },
+ "travellers.map.chunks.legend.center_chunk": {
+  "en": "White square = current center chunk",
+  "hand": "Carré blanc = chunk central actuel"
+ },
+ "travellers.map.chunks.legend.loaded_merchants": {
+  "en": "Chunks loaded by travellers Henchmen",
+  "hand": "Chunks chargés par les hommes de main"
+ },
+ "travellers.map.chunks.legend.loaded_normal": {
+  "en": "Loaded chunks (normal)",
+  "hand": "Chunks chargés (normaux)"
+ },
+ "travellers.map.chunks.legend.player_pos": {
+  "en": "Green dot = your pos",
+  "hand": "Point vert = votre position"
+ },
+ "travellers.map.chunks.legend.villages": {
+  "en": "Village Town Halls",
+  "hand": "Mairies de village"
+ },
  "travellers.map.legend.bridge": {
   "en": "Bridge",
   "tr": "Pont"
  },
+ "travellers.map.legend.camp_firepit": {
+  "en": "Camp firepit",
+  "hand": "Feu de camp"
+ },
+ "travellers.map.legend.camp_slot": {
+  "en": "Camp shelter",
+  "hand": "Abri de camp"
+ },
+ "travellers.map.legend.controlled_village": {
+  "en": "Ctrl. Village",
+  "hand": "Vil. contrôlé"
+ },
  "travellers.map.legend.enemy_village": {
   "en": "Enemy village",
   "tr": "Village ennemi"
+ },
+ "travellers.map.legend.follower": {
+  "en": "Follower",
+  "hand": "Suiveur"
+ },
+ "travellers.map.legend.home": {
+  "en": "Barrack",
+  "hand": "Caserne"
+ },
+ "travellers.map.legend.leader": {
+  "en": "Leader",
+  "hand": "Chef"
+ },
+ "travellers.map.legend.player": {
+  "en": "You",
+  "hand": "Vous"
  },
  "travellers.map.legend.rest_spot": {
   "en": "Rest spot",
@@ -311,9 +507,29 @@
   "en": "Road",
   "tr": "Route"
  },
+ "travellers.map.legend.stable": {
+  "en": "Stable",
+  "hand": "Écurie"
+ },
  "travellers.map.legend.trail": {
   "en": "Trail",
   "tr": "Sentier"
+ },
+ "travellers.map.population.raider": {
+  "en": "Raiders: %d (%d loaded, %d virtual)",
+  "hand": "Pillards : %d (%d chargés, %d virtuels)"
+ },
+ "travellers.map.population.stable": {
+  "en": "Stables: %d (%d loaded, %d virtual)",
+  "hand": "Écuries : %d (%d chargées, %d virtuelles)"
+ },
+ "travellers.map.population.traveller": {
+  "en": "Travellers: %d (%d loaded, %d virtual)",
+  "hand": "Voyageurs : %d (%d chargés, %d virtuels)"
+ },
+ "travellers.map.population.worker": {
+  "en": "Henchmen: %d (%d loaded, %d virtual)",
+  "hand": "Hommes de main : %d (%d chargés, %d virtuels)"
  },
  "travellers.map.settlement.controlled_by": {
   "en": "Controlled by %s",
@@ -343,21 +559,93 @@
   "en": "Under attack!",
   "tr": "Sous attaque !"
  },
+ "travellers.map.spawn.active": {
+  "en": "Click map...",
+  "hand": "Cliquer sur la carte..."
+ },
+ "travellers.map.spawn_raider": {
+  "en": "Spawn raiders",
+  "hand": "spawn pillards"
+ },
+ "travellers.map.spawn_traveller": {
+  "en": "Spawn traveller",
+  "hand": "spawn voyageur"
+ },
+ "travellers.map.spawn_worker": {
+  "en": "Spawn henchmen",
+  "hand": "spawn hommes de main"
+ },
+ "travellers.map.teleport": {
+  "en": "Teleport",
+  "hand": "Téléporter"
+ },
+ "travellers.map.teleport.active": {
+  "en": "Click map...",
+  "hand": "Cliquer sur la carte..."
+ },
  "travellers.map.title": {
   "en": "World map",
   "tr": "Carte du monde"
+ },
+ "travellers.map.unavailable_dimension": {
+  "en": "The map only shows the Overworld.",
+  "hand": "La carte ne montre que la Surface."
+ },
+ "travellers.map.worker.following": {
+  "en": "Following: %s",
+  "hand": "Suit : %s"
+ },
+ "travellers.map.worker.hp": {
+  "en": "§c♥§r %d/%d",
+  "hand": "§c♥§r %d/%d"
+ },
+ "travellers.map.worker.in_battle": {
+  "en": "In battle!",
+  "hand": "En combat !"
  },
  "travellers.map.worker.status.dump_items": {
   "en": "Dropping off items",
   "tr": "Déposer des objets"
  },
+ "travellers.map.worker.status.get_equipment": {
+  "en": "Fetching equipment",
+  "hand": "Récupère l'équipement"
+ },
+ "travellers.map.worker.status.going_home": {
+  "en": "Going home",
+  "hand": "Rentre à la maison"
+ },
+ "travellers.map.worker.status.going_to": {
+  "en": "Heading to a destination",
+  "hand": "Se rend vers une destination"
+ },
+ "travellers.map.worker.status.recruiting": {
+  "en": "On a recruit job",
+  "hand": "En mission de recrutement"
+ },
  "travellers.map.worker.status.return_horses": {
   "en": "Going to return a horse",
   "tr": "Aller ramener un cheval"
  },
+ "travellers.map.worker.status.returning": {
+  "en": "Returning home",
+  "hand": "Retourne à la maison"
+ },
  "travellers.map.worker.status.take_horses": {
   "en": "Going to take a horse",
   "tr": "Aller prendre un cheval"
+ },
+ "travellers.map.worker.status.transport": {
+  "en": "On a transport job",
+  "hand": "En mission de transport"
+ },
+ "travellers.map.worker.unknown": {
+  "en": "Somebody",
+  "hand": "Quelqu'un"
+ },
+ "travellers.map.worker.unnamed": {
+  "en": "Henchman #%d",
+  "hand": "Homme de main #%d"
  },
  "travellers.notify.battle.away_summary": {
   "en": "While you were away: %s battles, %s of your henchmen fell",
@@ -379,6 +667,10 @@
   "en": "Battle lost - %s of your henchmen fell",
   "tr": "Bataille perdue - %s de vos hommes de main sont tombés"
  },
+ "travellers.notify.battle.under_attack": {
+  "en": "Your henchmen are under attack",
+  "hand": "Vos hommes de main sont attaqués"
+ },
  "travellers.notify.battle.won": {
   "en": "Battle won - %s of your henchmen fell",
   "tr": "Bataille gagnée - %s de vos hommes de main sont tombés"
@@ -395,9 +687,21 @@
   "en": "Nothing was dropped off.",
   "tr": "Rien n'a été déposé."
  },
+ "travellers.notify.duty.assigned": {
+  "en": "Assigned to duty at %s.",
+  "hand": "Assigné en service à %s."
+ },
  "travellers.notify.duty.no_bed": {
   "en": "%s has no free bed - place another bed in the Stable before assigning a stable hand there.",
   "tr": "%s n'a pas de lit libre - posez un autre lit dans l'écurie avant d'affecter un palefrenier stable là-bas."
+ },
+ "travellers.notify.equip.done": {
+  "en": "Equipment sorted: %s of %s changed their gear.",
+  "hand": "Équipement récupéré : %s sur %s ont reçu du nouveau matériel."
+ },
+ "travellers.notify.equip.nothing": {
+  "en": "Nothing better to equip was found.",
+  "hand": "Aucun meilleur équipement n'a été trouvé."
  },
  "travellers.notify.follow.stopped_combat": {
   "en": "A fight broke out: you stopped following.",
@@ -415,9 +719,133 @@
   "en": "You lost sight of who you were following.",
   "tr": "Vous avez perdu de vue celui que vous suiviez."
  },
+ "travellers.notify.goto.arrived": {
+  "en": "Your henchman has arrived at its destination.",
+  "hand": "Votre homme de main est arrivé à destination."
+ },
+ "travellers.notify.goto.delivery_started_donate": {
+  "en": "Alright, I'm heading to %s for %s as a donation.",
+  "hand": "Très bien, je pars pour %s pour un don de %s."
+ },
+ "travellers.notify.goto.delivery_started_free": {
+  "en": "Alright, I'm heading to %s!",
+  "hand": "Très bien, je pars pour %s !"
+ },
+ "travellers.notify.goto.delivery_started_paid": {
+  "en": "Alright, I'm heading to %s for %s.",
+  "hand": "Très bien, je pars pour %s pour %s."
+ },
+ "travellers.notify.goto.going_to": {
+  "en": "Henchman is going to: %s",
+  "hand": "L'homme de main se rend à : %s"
+ },
+ "travellers.notify.goto.going_to_pos": {
+  "en": "Henchman is going to selected map position.",
+  "hand": "L'homme de main se rend à la position sélectionnée sur la carte."
+ },
+ "travellers.notify.goto.group_arrived": {
+  "en": "Your group of %s henchmen has arrived at its destination.",
+  "hand": "Votre groupe de %s hommes de main est arrivé à destination."
+ },
+ "travellers.notify.goto.not_enough_money": {
+  "en": "You need %s for this trip.",
+  "hand": "Vous avez besoin de %s pour ce voyage."
+ },
+ "travellers.notify.goto.payment_failed": {
+  "en": "Payment failed. Try again.",
+  "hand": "Échec du paiement. Réessayez."
+ },
+ "travellers.notify.hire.already_hired_by_other": {
+  "en": "This travellers is already hired by someone else.",
+  "hand": "Ce voyageur est déjà engagé par quelqu'un d'autre."
+ },
+ "travellers.notify.hire.dismissed": {
+  "en": "The travellers will no longer follow you.",
+  "hand": "Le voyageur ne vous suivra plus."
+ },
+ "travellers.notify.hire.needs_village_chief": {
+  "en": "You must be chief of a Millenaire village to hire henchmen.",
+  "hand": "Vous devez être le chef d'un village Millenaire pour engager des hommes de main."
+ },
+ "travellers.notify.hire.not_enough_money": {
+  "en": "You don't have enough money (%s needed).",
+  "hand": "Vous n'avez pas assez d'argent (%s requis)."
+ },
+ "travellers.notify.hire.payment_failed": {
+  "en": "Hire failed: money could not be deducted.",
+  "hand": "Échec de l'engagement : l'argent n'a pu être déduit."
+ },
+ "travellers.notify.home.lone_barrack_bed_destroyed": {
+  "en": "%s lost their bed at \"%s\" and no other bed is free there: they left the zone and are coming back to you.",
+  "hand": "%s a perdu son lit à \"%s\" et aucun autre lit n'est libre : il quitte la zone et revient vers vous."
+ },
+ "travellers.notify.home.none_assigned": {
+  "en": "No home assigned.",
+  "hand": "Aucun foyer assigné."
+ },
+ "travellers.notify.home.not_your_worker": {
+  "en": "Not your henchman.",
+  "hand": "Ce n'est pas votre homme de main."
+ },
+ "travellers.notify.hostile.added": {
+  "en": "Henchmen will attack: %s",
+  "hand": "Les hommes de main attaqueront : %s"
+ },
+ "travellers.notify.hostile.not_owner": {
+  "en": "You don't own this henchman.",
+  "hand": "Cet homme de main ne vous appartient pas."
+ },
+ "travellers.notify.hostile.removed": {
+  "en": "Removed enemy: %s",
+  "hand": "Ennemi supprimé : %s"
+ },
+ "travellers.notify.hostile.war_declared_on_you": {
+  "en": "%s attacked your henchmen - you are now at war with them.",
+  "hand": "%s a attaqué vos hommes de main - vous êtes maintenant en guerre avec eux."
+ },
+ "travellers.notify.leader.no_free_followers": {
+  "en": "No free direct followers to assign.",
+  "hand": "Aucun partisan disponible à assigner."
+ },
+ "travellers.notify.leader.now_leading": {
+  "en": "This henchman is now leading %s followers.",
+  "hand": "Cet homme de main dirige maintenant %s partisans."
+ },
+ "travellers.notify.leader.released_followers": {
+  "en": "Released %s followers back to you.",
+  "hand": "%s partisans vous ont été rendus."
+ },
  "travellers.notify.leader.succession": {
   "en": "%s has taken command of the group.",
   "tr": "%s a pris le commandement du groupe."
+ },
+ "travellers.notify.location_suffix": {
+  "en": "%sm to the %s",
+  "hand": "%sm vers le %s"
+ },
+ "travellers.notify.mount.led_low_health": {
+  "en": "%s's horse is too badly hurt to keep riding - leading it on foot instead.",
+  "hand": "Le cheval de %s est trop blessé pour continuer à être monté - il le mène à pied à la place."
+ },
+ "travellers.notify.mount.led_sidestep_gave_up": {
+  "en": "%s's horse got stuck and couldn't work its way free - leading it on foot instead.",
+  "hand": "Le cheval de %s est resté coincé et n'a pas réussi à se dégager - il le mène à pied à la place."
+ },
+ "travellers.notify.mount.led_terrain_blocked": {
+  "en": "%s's horse can't get through here - leading it on foot instead.",
+  "hand": "Le cheval de %s ne peut pas passer par là - il le mène à pied à la place."
+ },
+ "travellers.notify.order.some_busy_skipped": {
+  "en": "%s henchmen were on a task and left alone.",
+  "hand": "%s hommes de main étaient occupés et ont été ignorés."
+ },
+ "travellers.notify.order.worker_busy": {
+  "en": "This henchman is on a task and can't take new orders right now.",
+  "hand": "Cet homme de main est occupé et ne peut pas recevoir d'ordres pour le moment."
+ },
+ "travellers.notify.order.worker_on_duty": {
+  "en": "%s works at \"%s\" and takes no orders there. Unassign them from the zones menu first.",
+  "hand": "%s travaille à \"%s\" et n'y reçoit pas d'ordres. Désassignez-le d'abord depuis le menu des zones."
  },
  "travellers.notify.overflow": {
   "en": "+%s more notices",
@@ -443,17 +871,57 @@
   "en": "%s is back from recruiting: talk to them to read the report.",
   "tr": "%s est de retour du recrutement : parlez-en pour lire le rapport."
  },
+ "travellers.notify.recruit.busy": {
+  "en": "I'm busy right now.",
+  "hand": "Je suis occupé pour le moment."
+ },
+ "travellers.notify.recruit.henchmen_recruited": {
+  "en": "Recruited %s henchmen at %s.",
+  "hand": "Recruté %s homme(s) de main à %s."
+ },
  "travellers.notify.recruit.henchmen_recruited_road": {
   "en": "Recruited %s henchmen on the road near %s.",
   "tr": "Recruté %s hommes de main sur la route près de %s."
+ },
+ "travellers.notify.recruit.mission_completed": {
+  "en": "Recruit mission completed.",
+  "hand": "Mission de recrutement terminée."
+ },
+ "travellers.notify.recruit.mission_started": {
+  "en": "Recruit mission started. Fee paid: %s",
+  "hand": "Mission de recrutement lancée. Frais payés : %s"
  },
  "travellers.notify.recruit.needs_group": {
   "en": "Only the leader of a group can go recruiting.",
   "tr": "Seul le chef d'un groupe peut recruter."
  },
+ "travellers.notify.recruit.no_villages_in_range": {
+  "en": "No villages in range to recruit from.",
+  "hand": "Aucun village à portée pour recruter."
+ },
+ "travellers.notify.recruit.not_enough_fee": {
+  "en": "Recruit fee: %s (you have %s)",
+  "hand": "Frais de recrutement : %s (vous avez %s)"
+ },
+ "travellers.notify.recruit.payment_failed": {
+  "en": "Recruit fee payment failed. Try again.",
+  "hand": "Échec du paiement des frais de recrutement. Réessayez."
+ },
  "travellers.notify.recruit.recalled": {
   "en": "%s is coming back.",
   "tr": "%s revient."
+ },
+ "travellers.notify.stable.foal_born": {
+  "en": "A foal was born at %s.",
+  "hand": "Un poulain est né à %s."
+ },
+ "travellers.notify.stable.horse_saddled": {
+  "en": "A horse was saddled at %s.",
+  "hand": "Un cheval a été sellé à %s."
+ },
+ "travellers.notify.stable.horse_tamed": {
+  "en": "A horse was tamed at %s.",
+  "hand": "Un cheval a été apprivoisé à %s."
  },
  "travellers.notify.stable.horses_returned": {
   "en": "%s of %s workers dropped off their mounts at \"%s\".",
@@ -463,13 +931,49 @@
   "en": "%s of %s workers took a mount from \"%s\".",
   "tr": "%s de %s hommes de main ont pris une monture à \"%s\"."
  },
+ "travellers.notify.stable.mount_recovered": {
+  "en": "%s's horse joined the stable it was put on duty at.",
+  "hand": "Le cheval de %s a rejoint l'écurie où il a été mis en service."
+ },
  "travellers.notify.stable.no_horse_to_return": {
   "en": "No horse could be returned to the stable.",
   "tr": "Aucun cheval ne peut être retourné à l'écurie."
  },
+ "travellers.notify.stable.pool_too_small_to_equip": {
+  "en": "The stable \"%s\" had no saddled horse spare to give out - it also keeps a small reserve. Tame, saddle or breed more first.",
+  "hand": "L'écurie « %s » n'avait aucun cheval sellé disponible à donner - elle garde aussi une petite réserve. Apprivoisez, sellez ou faites-en naître d'autres d'abord."
+ },
+ "travellers.notify.trade.donated_summary": {
+  "en": "Donation to %s: %s items, rep +%s%s",
+  "hand": "Don à %s : %s objets, rép +%s%s"
+ },
+ "travellers.notify.trade.refused": {
+  "en": "The village refuses to trade with you (reputation too low or village is not trading right now).",
+  "hand": "Le village refuse de commercer avec vous (réputation trop basse ou le village ne commerce pas actuellement)."
+ },
+ "travellers.notify.trade.sold_summary": {
+  "en": "Sale at %s: %s items sold for %s, rep +%s%s",
+  "hand": "Vente à %s : %s objets vendus pour %s, rép +%s%s"
+ },
  "travellers.notify.trade.village_gone": {
   "en": "%s couldn't find the village and is bringing your cargo back.",
   "tr": "%s n'a pas trouvé le village et ramène votre cargaison à vous."
+ },
+ "travellers.notify.worker.already_on_job": {
+  "en": "I'm already on a job.",
+  "hand": "Je suis déjà en mission. Attendez mon retour."
+ },
+ "travellers.notify.worker.arrived_home": {
+  "en": "Henchman is now at home.",
+  "hand": "L'homme de main est arrivé chez lui."
+ },
+ "travellers.notify.worker.cargo_arrived_full": {
+  "en": "I'm here with your goods. Check my pack.",
+  "hand": "Je suis là avec vos marchandises. Vérifiez mon sac."
+ },
+ "travellers.notify.worker.cargo_arrived_partial": {
+  "en": "I'm here. I couldn't sell everything, some goods are still in my pack.",
+  "hand": "Je suis là. Je n'ai pas pu tout vendre, certaines marchandises sont encore dans mon sac."
  },
  "travellers.notify.worker.cargo_coming_back": {
   "en": "%s is bringing your cargo back to you.",
@@ -483,17 +987,89 @@
   "en": "%s can't find you and is waiting with your cargo where you were last seen.",
   "tr": "%s ne peut pas vous trouver et attend avec votre cargaison là où vous avez été vu pour la dernière fois."
  },
+ "travellers.notify.worker.death_no_bed": {
+  "en": "Had no bed: will not come back.",
+  "hand": "Il n'avait pas de lit : il ne reviendra pas."
+ },
+ "travellers.notify.worker.death_respawn_days": {
+  "en": "Will be back at their bed in about %s days.",
+  "hand": "Il reviendra à son lit dans environ %s jours."
+ },
+ "travellers.notify.worker.death_respawn_tomorrow": {
+  "en": "Will be back at their bed tomorrow morning.",
+  "hand": "Il reviendra à son lit demain matin."
+ },
+ "travellers.notify.worker.died": {
+  "en": "%s has died.",
+  "hand": "%s est mort."
+ },
  "travellers.notify.worker.goods_left": {
   "en": "%s still carries goods for you: talk to them to take the rest.",
   "tr": "%s transporte encore des marchandises pour vous : parlez-en pour en prendre le reste."
+ },
+ "travellers.notify.worker.not_hired_behavior": {
+  "en": "You can only manage behavior of a henchman you've hired.",
+  "hand": "Vous ne pouvez gérer le comportement que d'un homme de main que vous avez engagé."
+ },
+ "travellers.notify.worker.not_hired_formation": {
+  "en": "You can only manage formation of a henchman you've hired.",
+  "hand": "Vous ne pouvez gérer la formation que pour un homme de main engagé."
+ },
+ "travellers.notify.worker.not_hired_go": {
+  "en": "You can only order a henchman you've hired.",
+  "hand": "Vous ne pouvez donner d'ordres qu'à un homme de main engagé."
+ },
+ "travellers.notify.worker.not_hired_home": {
+  "en": "You can only manage home for a henchman you've hired.",
+  "hand": "Vous ne pouvez gérer le foyer que pour un homme de main engagé."
+ },
+ "travellers.notify.worker.not_hired_inventory": {
+  "en": "You can only access the pack of a henchman you've hired.",
+  "hand": "Vous ne pouvez accéder qu'au sac d'un homme de main que vous avez engagé."
+ },
+ "travellers.notify.worker.not_hired_orders": {
+  "en": "You can only give orders to a henchman you've hired.",
+  "hand": "Vous ne pouvez donner des ordres qu'à un homme de main que vous avez engagé."
+ },
+ "travellers.notify.worker.not_hired_recruit": {
+  "en": "You can only recruit with a henchman you've hired.",
+  "hand": "Vous ne pouvez recruter qu'avec un homme de main que vous avez engagé."
+ },
+ "travellers.notify.worker.not_hired_transport": {
+  "en": "You must hire this henchman to use Transport.",
+  "hand": "Vous devez engager cet homme de main pour utiliser le transport."
+ },
+ "travellers.notify.worker.not_hired_village_relations": {
+  "en": "You can only manage village relations of a henchman you've hired.",
+  "hand": "Vous ne pouvez gérer les relations avec le village que pour un homme de main engagé."
  },
  "travellers.notify.worker.purse_no_room": {
   "en": "No room for the coins: free some space or carry a Millénaire purse.",
   "tr": "Pas de place pour les pièces : libérez de la place ou portez une bourse Millénaire."
  },
+ "travellers.notify.worker.respawn_cancelled": {
+  "en": "%s will not come back: their bed is gone, along with anything they kept.",
+  "hand": "%s ne reviendra pas : son lit a disparu."
+ },
+ "travellers.notify.worker.respawned": {
+  "en": "%s is back at their bed.",
+  "hand": "%s est revenu à son lit."
+ },
+ "travellers.notify.worker.retaliation_target": {
+  "en": "%s set as enemy (retaliation).",
+  "hand": "%s désigné comme ennemi (représailles)."
+ },
  "travellers.raid.bar": {
   "en": "Raid — wave %s/%s",
   "tr": "Raid — vague %s/%s"
+ },
+ "travellers.worker.barracks.delete": {
+  "en": "Delete Barrack",
+  "hand": "Supprimer la caserne"
+ },
+ "travellers.worker.barracks.dragdrop": {
+  "en": "Select a zone, then drag & drop henchmen to assign or unassign them",
+  "hand": "Sélectionnez une caserne et glissez-déposez pour assigner/désassigner des hommes de main"
  },
  "travellers.worker.barracks.dump": {
   "en": "Dump Items",
@@ -518,6 +1094,46 @@
  "travellers.worker.barracks.dump_stay.tooltip": {
   "en": "Drop off the spare items, then stay there instead of coming back.",
   "tr": "Déposez les objets de rechange, puis restez sur place au lieu de revenir."
+ },
+ "travellers.worker.barracks.equip_return": {
+  "en": "Equip and Return",
+  "hand": "S'équiper et revenir"
+ },
+ "travellers.worker.barracks.equip_return.tooltip": {
+  "en": "Fetch new equipment, then come back to its previous spot.",
+  "hand": "Récupérer l'équipement, puis revenir à sa position précédente."
+ },
+ "travellers.worker.barracks.equip_stay": {
+  "en": "Equip and Stay",
+  "hand": "S'équiper et rester"
+ },
+ "travellers.worker.barracks.equip_stay.tooltip": {
+  "en": "Fetch new equipment, then stay there instead of coming back.",
+  "hand": "Récupérer l'équipement et rester sur place au lieu de revenir."
+ },
+ "travellers.worker.barracks.equip_title": {
+  "en": "Choose mission:",
+  "hand": "Choisir la mission :"
+ },
+ "travellers.worker.barracks.full": {
+  "en": "This barrack is full (one Henchman per bed).",
+  "hand": "Cette caserne est pleine (un homme de main par lit)."
+ },
+ "travellers.worker.barracks.get_equip": {
+  "en": "Get Equipment",
+  "hand": "Obtenir l'équipement"
+ },
+ "travellers.worker.barracks.get_equip.tooltip": {
+  "en": "Send this henchman to take the best of the gear you tick and leave the rest in the chests.",
+  "hand": "Envoyer cet homme de main chercher un meilleur équipement dans un village ou une caserne."
+ },
+ "travellers.worker.barracks.list": {
+  "en": "Barracks",
+  "hand": "Casernes"
+ },
+ "travellers.worker.barracks.selected": {
+  "en": "Selected Barrack Henchmen",
+  "hand": "Hommes de main de la caserne sélectionnée"
  },
  "travellers.worker.barracks.take_horses": {
   "en": "Take Horses",
@@ -547,6 +1163,22 @@
   "en": "Zones",
   "tr": "Zones"
  },
+ "travellers.worker.barracks.unassigned": {
+  "en": "Unassigned Henchmen",
+  "hand": "Hommes de main non assignés"
+ },
+ "travellers.worker.behavior.player_enemies": {
+  "en": "Player relations",
+  "hand": "Ennemis du joueur"
+ },
+ "travellers.worker.behavior.title": {
+  "en": "Behavior",
+  "hand": "Comportement"
+ },
+ "travellers.worker.behavior.village_relations": {
+  "en": "Village relations",
+  "hand": "Relations avec les villages"
+ },
  "travellers.worker.blocked.empty_cargo": {
   "en": "Put goods in the cargo first.",
   "tr": "Mettez d'abord les marchandises dans la cargaison."
@@ -567,6 +1199,22 @@
   "en": "Cargo",
   "tr": "Cargaison"
  },
+ "travellers.worker.cost": {
+  "en": "Travel cost: %s",
+  "hand": "Coût du voyage : %s"
+ },
+ "travellers.worker.donate": {
+  "en": "Donate",
+  "hand": "Faire un don"
+ },
+ "travellers.worker.donate.tooltip": {
+  "en": "Give the cargo to this village for free. Earns more reputation, but no money.",
+  "hand": "Donner la cargaison gratuitement à ce village. Rapporte plus de réputation, mais pas d'argent."
+ },
+ "travellers.worker.enemies.hint": {
+  "en": "Your henchmen attack enemy players on sight. Select a player to change.",
+  "hand": "(que les hommes de main attaqueront à vue)"
+ },
  "travellers.worker.enemies.make_enemy": {
   "en": "Make enemy",
   "tr": "Créer un ennemi"
@@ -586,6 +1234,50 @@
  "travellers.worker.enemies.tag.friendly": {
   "en": "Friendly",
   "tr": "Amical"
+ },
+ "travellers.worker.enemies.title": {
+  "en": "Player relations",
+  "hand": "Ajouter/retirer des ennemis du joueur"
+ },
+ "travellers.worker.follow.hired_by_other": {
+  "en": "This traveller is already hired by someone else.",
+  "hand": "Ce voyageur est déjà engagé par quelqu'un d'autre."
+ },
+ "travellers.worker.follow.hired_success": {
+  "en": "The traveller is now following you.",
+  "hand": "Le voyageur vous suit désormais."
+ },
+ "travellers.worker.follow.not_enough_money": {
+  "en": "You don't have enough money.",
+  "hand": "Vous n'avez pas assez d'argent."
+ },
+ "travellers.worker.follow.title": {
+  "en": "Follower Options",
+  "hand": "Options du suivant"
+ },
+ "travellers.worker.follow.unhired_success": {
+  "en": "The traveller will no longer follow you.",
+  "hand": "Le voyageur ne vous suivra plus."
+ },
+ "travellers.worker.formation.attitude": {
+  "en": "Attitude",
+  "hand": "Attitude"
+ },
+ "travellers.worker.formation.attitude.attack": {
+  "en": "Attack",
+  "hand": "Attaque"
+ },
+ "travellers.worker.formation.attitude.defend": {
+  "en": "Defend",
+  "hand": "Défense"
+ },
+ "travellers.worker.formation.attitude.hold": {
+  "en": "Hold Position",
+  "hand": "Maintenir la position"
+ },
+ "travellers.worker.formation.attitude.tooltip": {
+  "en": "Attack: chases freely; Defend: less agressive, Hold Position: minimum movement",
+  "hand": "Attaque : poursuit sans retenue ; Défense : moins agressif ; Maintien de la position : mouvements réduits au minimum"
  },
  "travellers.worker.formation.bar.center": {
   "en": "Center",
@@ -659,9 +1351,93 @@
   "en": "Barracks",
   "tr": "Caserne"
  },
+ "travellers.worker.formation.card.busy": {
+  "en": "on a mission",
+  "hand": "en mission"
+ },
  "travellers.worker.formation.card.en_route": {
   "en": "on the way",
   "tr": "en route"
+ },
+ "travellers.worker.formation.card.followers_hint": {
+  "en": "Right click: send them somewhere, form a group, join one or have them follow you.",
+  "hand": "Clic droit sur la carte pour leur donner un ordre."
+ },
+ "travellers.worker.formation.card.followers_selected": {
+  "en": "%s selected",
+  "hand": "%s sélectionnés"
+ },
+ "travellers.worker.formation.card.following": {
+  "en": "marching",
+  "hand": "en marche"
+ },
+ "travellers.worker.formation.card.halted": {
+  "en": "halted",
+  "hand": "à l'arrêt"
+ },
+ "travellers.worker.formation.card.workers": {
+  "en": "%s henchmen",
+  "hand": "%s hommes de main"
+ },
+ "travellers.worker.formation.card.you": {
+  "en": "Your escort",
+  "hand": "Votre escorte"
+ },
+ "travellers.worker.formation.cave": {
+  "en": "Cave mode",
+  "hand": "Mode grotte"
+ },
+ "travellers.worker.formation.cave.off": {
+  "en": "Adaptive cave: OFF",
+  "hand": "Adaptation grotte : DÉSACTIVÉ"
+ },
+ "travellers.worker.formation.cave.on": {
+  "en": "Adaptive cave: ON",
+  "hand": "Adaptation grotte : ACTIVÉ"
+ },
+ "travellers.worker.formation.cohesion": {
+  "en": "Player cohesion",
+  "hand": "Cohésion avec le joueur"
+ },
+ "travellers.worker.formation.controls": {
+  "en": "Controls",
+  "hand": "Contrôles"
+ },
+ "travellers.worker.formation.escorts": {
+  "en": "Escorts",
+  "hand": "Escortes"
+ },
+ "travellers.worker.formation.follow_distance": {
+  "en": "Follow dist",
+  "hand": "Dist. de suivi"
+ },
+ "travellers.worker.formation.followers": {
+  "en": "Followers",
+  "hand": "Suiveurs"
+ },
+ "travellers.worker.formation.hint": {
+  "en": "Click: select  ·  Shift+click/drag: add followers  ·  Right click: orders  ·  Right drag: move map",
+  "hand": "Clic : choisir  ·  Maj+clic/glisser : ajouter des suiveurs  ·  Clic droit : ordres  ·  Clic droit maintenu : déplacer"
+ },
+ "travellers.worker.formation.hover.escort": {
+  "en": "Close escort #%s",
+  "hand": "Escorte rapprochée n°%s"
+ },
+ "travellers.worker.formation.hover.leader": {
+  "en": "Leader",
+  "hand": "Chef"
+ },
+ "travellers.worker.formation.hover.offset": {
+  "en": "Offset: x=%s z=%s",
+  "hand": "Décalage : x=%s z=%s"
+ },
+ "travellers.worker.formation.hover.slot": {
+  "en": "Follower slot %s",
+  "hand": "Emplacement suiveur %s"
+ },
+ "travellers.worker.formation.hub_title": {
+  "en": "Formation & Groups",
+  "hand": "Formations et Groupes"
  },
  "travellers.worker.formation.leaders": {
   "en": "Leaders",
@@ -687,6 +1463,14 @@
   "en": "Come back",
   "tr": "Revenez ici"
  },
+ "travellers.worker.formation.menu.create_group": {
+  "en": "Form a group",
+  "hand": "Former un groupe"
+ },
+ "travellers.worker.formation.menu.create_group_go": {
+  "en": "Form a group and go here",
+  "hand": "Former un groupe et aller ici"
+ },
  "travellers.worker.formation.menu.dump": {
   "en": "Dump items...",
   "tr": "Vider les objets..."
@@ -694,6 +1478,26 @@
  "travellers.worker.formation.menu.equip": {
   "en": "Get equipment...",
   "tr": "Équipez-vous..."
+ },
+ "travellers.worker.formation.menu.follow_group": {
+  "en": "Follow this group",
+  "hand": "Suivre ce groupe"
+ },
+ "travellers.worker.formation.menu.follow_me": {
+  "en": "Follow me",
+  "hand": "Me suivre"
+ },
+ "travellers.worker.formation.menu.go": {
+  "en": "Go here",
+  "hand": "Aller ici"
+ },
+ "travellers.worker.formation.menu.halt": {
+  "en": "Halt here",
+  "hand": "Halte ici"
+ },
+ "travellers.worker.formation.menu.join_group": {
+  "en": "Join this group",
+  "hand": "Rejoindre ce groupe"
  },
  "travellers.worker.formation.menu.loadout": {
   "en": "Gear to carry:",
@@ -715,17 +1519,49 @@
   "en": "Shield",
   "tr": "Bouclier"
  },
+ "travellers.worker.formation.menu.merge_escort": {
+  "en": "Merge into my escort",
+  "hand": "Fusionner avec mon escorte"
+ },
+ "travellers.worker.formation.menu.merge_group": {
+  "en": "Merge with this group",
+  "hand": "Fusionner avec ce groupe"
+ },
+ "travellers.worker.formation.menu.no_orders": {
+  "en": "No orders",
+  "hand": "Aucun ordre"
+ },
  "travellers.worker.formation.menu.no_other_group": {
   "en": "No other group",
   "tr": "Pas d'autre groupe"
+ },
+ "travellers.worker.formation.menu.reason.busy": {
+  "en": "This group is on a mission.",
+  "hand": "Ce groupe est en mission."
+ },
+ "travellers.worker.formation.menu.reason.need_two": {
+  "en": "Select at least 2 henchmen.",
+  "hand": "Sélectionnez au moins 2 hommes de main."
  },
  "travellers.worker.formation.menu.reason.no_other_group": {
   "en": "You have no other group yet.",
   "tr": "Vous n'avez pas d'autre groupe pour l'instant."
  },
+ "travellers.worker.formation.menu.reason.select_first": {
+  "en": "Select a group or some henchmen first.",
+  "hand": "Sélectionnez d'abord un groupe ou des hommes de main."
+ },
+ "travellers.worker.formation.menu.reason.target_busy": {
+  "en": "That group is on a mission.",
+  "hand": "Ce groupe est en mission."
+ },
  "travellers.worker.formation.menu.recall": {
   "en": "Call back",
   "tr": "Revenir ici"
+ },
+ "travellers.worker.formation.menu.resume": {
+  "en": "Resume marching",
+  "hand": "Reprendre la marche"
  },
  "travellers.worker.formation.menu.return_horses": {
   "en": "Return horses...",
@@ -742,6 +1578,86 @@
  "travellers.worker.formation.menu.take_horses": {
   "en": "Take horses...",
   "tr": "Prendre des chevaux..."
+ },
+ "travellers.worker.formation.orders_tab": {
+  "en": "Leader Orders",
+  "hand": "Ordres du Chef"
+ },
+ "travellers.worker.formation.preview": {
+  "en": "Radar Preview",
+  "hand": "Aperçu Radar"
+ },
+ "travellers.worker.formation.preview.count": {
+  "en": "Shown: %s",
+  "hand": "Affichés : %s"
+ },
+ "travellers.worker.formation.preview.forward": {
+  "en": "Forward",
+  "hand": "Avant"
+ },
+ "travellers.worker.formation.preview.reset": {
+  "en": "Reset",
+  "hand": "Réinitialiser"
+ },
+ "travellers.worker.formation.preview.zoom": {
+  "en": "Zoom: %s",
+  "hand": "Zoom : %s"
+ },
+ "travellers.worker.formation.preview_adaptive_cave": {
+  "en": "Cave adaptive: ON",
+  "hand": "Adaptation grotte : ACTIVÉ"
+ },
+ "travellers.worker.formation.preview_surface_bias": {
+  "en": "Cave adaptive: OFF",
+  "hand": "Adaptation grotte : DÉSACTIVÉ"
+ },
+ "travellers.worker.formation.scope": {
+  "en": "Scope",
+  "hand": "Champ d'action"
+ },
+ "travellers.worker.formation.scope.player": {
+  "en": "Player",
+  "hand": "Joueur"
+ },
+ "travellers.worker.formation.scope.worker": {
+  "en": "Henchman leader",
+  "hand": "Chef de groupe"
+ },
+ "travellers.worker.formation.scope_type": {
+  "en": "Type",
+  "hand": "Type"
+ },
+ "travellers.worker.formation.set_home": {
+  "en": "Barracks",
+  "hand": "Casernes"
+ },
+ "travellers.worker.formation.spacing": {
+  "en": "Spacing",
+  "hand": "Espacement"
+ },
+ "travellers.worker.formation.style": {
+  "en": "Style",
+  "hand": "Style"
+ },
+ "travellers.worker.formation.style.adaptive": {
+  "en": "Adaptive",
+  "hand": "Adaptatif"
+ },
+ "travellers.worker.formation.style.column": {
+  "en": "Column",
+  "hand": "Colonne"
+ },
+ "travellers.worker.formation.style.compact": {
+  "en": "Compact",
+  "hand": "Compact"
+ },
+ "travellers.worker.formation.style.line": {
+  "en": "Line",
+  "hand": "Ligne"
+ },
+ "travellers.worker.formation.style.wedge": {
+  "en": "Wedge",
+  "hand": "En coin"
  },
  "travellers.worker.formation.summary.armour": {
   "en": "Armour",
@@ -783,9 +1699,25 @@
   "en": "%s wounded",
   "tr": "%s blessés"
  },
+ "travellers.worker.formation.title": {
+  "en": "Formation & Groups",
+  "hand": "Formation et Groupes"
+ },
+ "travellers.worker.formation.turn": {
+  "en": "Turn smooth",
+  "hand": "Rotation fluide"
+ },
+ "travellers.worker.formation.width": {
+  "en": "Width",
+  "hand": "Largeur"
+ },
+ "travellers.worker.formation.you": {
+  "en": "You",
+  "hand": "Vous"
+ },
  "travellers.worker.formation.zone.at_rest": {
   "en": "%s at rest, free to group",
-  "tr": "%s au repos, libre de former un groupe"
+  "hand": "%s au repos"
  },
  "travellers.worker.formation.zone.beds": {
   "en": "%s/%s beds",
@@ -839,9 +1771,109 @@
   "en": "A henchman with a bed comes back after dying.",
   "tr": "Un homme de main avec un lit revient après sa mort."
  },
+ "travellers.worker.home_list.delete": {
+  "en": "Delete",
+  "hand": "Supprimer"
+ },
+ "travellers.worker.home_list.empty": {
+  "en": "No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.",
+  "hand": "Aucune caserne assignée. Maj+clic droit avec la baguette d'invocation pour créer une caserne."
+ },
+ "travellers.worker.home_list.equip_return_barracks": {
+  "en": "Come Back - Barracks",
+  "hand": "Revenir - Casernes"
+ },
+ "travellers.worker.home_list.equip_return_village": {
+  "en": "Come Back - Whole Village",
+  "hand": "Revenir - Tout le village"
+ },
+ "travellers.worker.home_list.equip_stay_barracks": {
+  "en": "Stay - Barracks",
+  "hand": "Rester - Casernes"
+ },
+ "travellers.worker.home_list.equip_stay_village": {
+  "en": "Stay - Whole Village",
+  "hand": "Rester - Tout le village"
+ },
+ "travellers.worker.home_list.equip_title": {
+  "en": "Choose mission:",
+  "hand": "Choisir la mission :"
+ },
+ "travellers.worker.home_list.get_equip": {
+  "en": "Get Equipment",
+  "hand": "Récupérer l'équipement"
+ },
+ "travellers.worker.home_list.set_home": {
+  "en": "Set Barrack",
+  "hand": "Définir la caserne"
+ },
+ "travellers.worker.home_list.title": {
+  "en": "Barracks",
+  "hand": "Casernes"
+ },
+ "travellers.worker.hub.barracks": {
+  "en": "Zones",
+  "hand": "Zones"
+ },
+ "travellers.worker.hub.barracks.tooltip": {
+  "en": "Open the zones menu, where you assign henchmen to a Barrack or a Stable.",
+  "hand": "Ouvrir le menu des casernes pour assigner une caserne à chaque travailleur."
+ },
+ "travellers.worker.hub.behavior": {
+  "en": "Behavior",
+  "hand": "Comportement"
+ },
+ "travellers.worker.hub.follow": {
+  "en": "Orders",
+  "hand": "Ordres"
+ },
+ "travellers.worker.hub.formation": {
+  "en": "Formations",
+  "hand": "Formations"
+ },
+ "travellers.worker.hub.formation.tooltip": {
+  "en": "Manage your units.",
+  "hand": "Gérez vos unités."
+ },
+ "travellers.worker.hub.info.health": {
+  "en": "Health %s/%s",
+  "hand": "Santé %s/%s"
+ },
  "travellers.worker.hub.info.no_bed": {
   "en": "No bed: won't come back if killed",
   "tr": "Pas de lit : il/elle ne reviendra pas si vous êtes tué(e)."
+ },
+ "travellers.worker.hub.info.village": {
+  "en": "From %s",
+  "hand": "De %s"
+ },
+ "travellers.worker.hub.inventory": {
+  "en": "Inventory",
+  "hand": "Inventaire"
+ },
+ "travellers.worker.hub.map": {
+  "en": "Map",
+  "hand": "Carte"
+ },
+ "travellers.worker.hub.mark_button": {
+  "en": "Henchman mark",
+  "hand": "Marque des hommes de main"
+ },
+ "travellers.worker.hub.mark_button.desc": {
+  "en": "Edit your hired Henchmen visual mark",
+  "hand": "Modifier la marque visuelle de vos hommes de main engagés"
+ },
+ "travellers.worker.hub.node.barracks": {
+  "en": "Zones",
+  "hand": "Zones"
+ },
+ "travellers.worker.hub.node.choir": {
+  "en": "Sing",
+  "hand": "Chanter"
+ },
+ "travellers.worker.hub.node.follow": {
+  "en": "Follow",
+  "hand": "Suivre"
  },
  "travellers.worker.hub.node.follow_him": {
   "en": "Follow him",
@@ -851,17 +1883,237 @@
   "en": "Walk behind this henchman hands-off. Press any movement key to stop.",
   "tr": "Vous pouvez marcher derrière cet homme de main, puis partir. Appuyez sur une touche de déplacement pour l'arrêter."
  },
+ "travellers.worker.hub.node.follow_player": {
+  "en": "Follow me",
+  "hand": "Me suivre"
+ },
+ "travellers.worker.hub.node.formation": {
+  "en": "Formation",
+  "hand": "Formation"
+ },
+ "travellers.worker.hub.node.go": {
+  "en": "Missions",
+  "hand": "Missions"
+ },
+ "travellers.worker.hub.node.inventory": {
+  "en": "Inventory",
+  "hand": "Inventaire"
+ },
+ "travellers.worker.hub.node.leader": {
+  "en": "Lead",
+  "hand": "Chef"
+ },
+ "travellers.worker.hub.node.management": {
+  "en": "Management",
+  "hand": "Gestion"
+ },
+ "travellers.worker.hub.node.orders": {
+  "en": "Orders",
+  "hand": "Ordres"
+ },
+ "travellers.worker.hub.node.players": {
+  "en": "Players",
+  "hand": "Joueurs"
+ },
+ "travellers.worker.hub.node.players.tooltip": {
+  "en": "Choose which players your henchmen treat as enemies. Applies to all of your henchmen, not just this one.",
+  "hand": "Les joueurs que vos serviteurs considèrent comme ennemis. S'applique à tous vos serviteurs, pas seulement à celui-ci."
+ },
+ "travellers.worker.hub.node.recruit": {
+  "en": "Recruit",
+  "hand": "Recruter"
+ },
  "travellers.worker.hub.node.recruit.tooltip": {
   "en": "Sends this leader and their group on a recruiting tour. Make them lead at least one henchman first.",
   "tr": "Il envoie ce chef et son groupe en mission de recrutement. Ils doivent diriger au moins un homme de main d'abord."
+ },
+ "travellers.worker.hub.node.relations": {
+  "en": "Relations",
+  "hand": "Relations"
+ },
+ "travellers.worker.hub.node.transport": {
+  "en": "Transport",
+  "hand": "Transport"
+ },
+ "travellers.worker.hub.node.travel": {
+  "en": "Travel",
+  "hand": "Voyager"
+ },
+ "travellers.worker.hub.node.unhire": {
+  "en": "Dismiss",
+  "hand": "Renvoyer"
+ },
+ "travellers.worker.hub.node.unhire.tooltip": {
+  "en": "Dismiss this henchman. Click twice to confirm.",
+  "hand": "Renvoie ce serviteur. Cliquez deux fois pour confirmer."
+ },
+ "travellers.worker.hub.node.unhire_confirm": {
+  "en": "Sure?",
+  "hand": "Confirmer ?"
+ },
+ "travellers.worker.hub.node.villages": {
+  "en": "Villages",
+  "hand": "Villages"
+ },
+ "travellers.worker.hub.node.villages.tooltip": {
+  "en": "How your henchmen behave towards each village. Applies to all of your henchmen, not just this one.",
+  "hand": "Le comportement de vos serviteurs envers chaque village. S'applique à tous vos serviteurs, pas seulement à celui-ci."
+ },
+ "travellers.worker.hub.title": {
+  "en": "Traveller Options",
+  "hand": "Options du voyageur"
+ },
+ "travellers.worker.hub.transport": {
+  "en": "Transport",
+  "hand": "Transport"
+ },
+ "travellers.worker.hub.transport.tooltip": {
+  "en": "Send this henchman to a village to sell or donate its cargo.",
+  "hand": "Envoyer cet homme de main vers un village pour vendre ou donner sa cargaison."
+ },
+ "travellers.worker.inventory.title": {
+  "en": "Henchman inventory",
+  "hand": "Inventaire de l'homme de main"
+ },
+ "travellers.worker.mark.color": {
+  "en": "Color: %s",
+  "hand": "Couleur : %s"
+ },
+ "travellers.worker.mark.preview": {
+  "en": "Preview",
+  "hand": "Aperçu"
+ },
+ "travellers.worker.mark.preview.follower": {
+  "en": "Henchman",
+  "hand": "Homme de main"
+ },
+ "travellers.worker.mark.preview.leader": {
+  "en": "Leader",
+  "hand": "Chef"
+ },
+ "travellers.worker.mark.preview.leader_hint": {
+  "en": "Leaders use a dedicated overlay",
+  "hand": "Les chefs utilisent un calque dédié"
+ },
+ "travellers.worker.mark.saved": {
+  "en": "Henchman mark saved",
+  "hand": "Marque de l'homme de main enregistrée"
+ },
+ "travellers.worker.mark.style": {
+  "en": "Style",
+  "hand": "Style"
+ },
+ "travellers.worker.mark.style.chevron": {
+  "en": "Chevron",
+  "hand": "Chevron"
+ },
+ "travellers.worker.mark.style.double": {
+  "en": "Double",
+  "hand": "Double"
+ },
+ "travellers.worker.mark.style.plain": {
+  "en": "Plain",
+  "hand": "Simple"
+ },
+ "travellers.worker.mark.title": {
+  "en": "Appearance",
+  "hand": "Apparence"
  },
  "travellers.worker.no_village_in_range": {
   "en": "No known village in range. Explore to discover more.",
   "tr": "Aucun village connu dans la portée. Explorez pour en découvrir davantage."
  },
+ "travellers.worker.not_enough_money": {
+  "en": "You need %s for this trip.",
+  "hand": "Vous avez besoin de %s pour ce voyage."
+ },
+ "travellers.worker.orders.choir.tooltip": {
+  "en": "Have this henchman sing along with other nearby singing henchmen (WIP ONLY 1 SONG FOR NORMANS)",
+  "hand": "Faire chanter cet homme de main avec les autres hommes de main chantant à proximité (EN COURS : UNE SEULE CHANSON POUR LES NORMANDS)"
+ },
+ "travellers.worker.orders.choir_start": {
+  "en": "Sing a Song",
+  "hand": "Chanter une chanson"
+ },
+ "travellers.worker.orders.choir_stop": {
+  "en": "Stop Singing",
+  "hand": "Arrêter de chanter"
+ },
+ "travellers.worker.orders.follow.tooltip": {
+  "en": "Toggle whether this henchman actively follows its leader or you.",
+  "hand": "Activer ou désactiver le fait que cet homme de main suive activement son chef ou vous."
+ },
+ "travellers.worker.orders.follow_off": {
+  "en": "Follow: OFF",
+  "hand": "Suivre : NON"
+ },
+ "travellers.worker.orders.follow_on": {
+  "en": "Follow: ON",
+  "hand": "Suivre : OUI"
+ },
+ "travellers.worker.orders.follow_player": {
+  "en": "Follow me",
+  "hand": "Suis-moi"
+ },
+ "travellers.worker.orders.follow_player.tooltip": {
+  "en": "Stop following its escort leader and follow you directly instead.",
+  "hand": "Arrêter de suivre son chef d'escorte pour vous suivre directement."
+ },
+ "travellers.worker.orders.following_player": {
+  "en": "Follow me",
+  "hand": "Me suivre"
+ },
+ "travellers.worker.orders.go": {
+  "en": "Go...",
+  "hand": "Aller..."
+ },
+ "travellers.worker.orders.go_home": {
+  "en": "Go to barrack",
+  "hand": "Aller à la caserne"
+ },
+ "travellers.worker.orders.go_home_no_home": {
+  "en": "Go to barrack (none)",
+  "hand": "Aller à la caserne (aucune)"
+ },
+ "travellers.worker.orders.hire": {
+  "en": "Hire · %s",
+  "hand": "Engager (%s)"
+ },
  "travellers.worker.orders.hire_group": {
   "en": "Hire all %s · %s",
   "tr": "Engager tous les %s · %s"
+ },
+ "travellers.worker.orders.hired_other": {
+  "en": "Hired by somebody",
+  "hand": "Engagé par quelqu'un"
+ },
+ "travellers.worker.orders.home": {
+  "en": "Barracks",
+  "hand": "Caserne"
+ },
+ "travellers.worker.orders.leader_count": {
+  "en": "Leader (%s)",
+  "hand": "Chef (%s)"
+ },
+ "travellers.worker.orders.make_leader": {
+  "en": "Lead",
+  "hand": "Chef"
+ },
+ "travellers.worker.orders.make_leader.tooltip": {
+  "en": "Turn this henchman into a group leader. Henchmen actively following you will follow him.",
+  "hand": "Transformer cet homme de main en chef de groupe. Les hommes de main vous suivant activement le suivront."
+ },
+ "travellers.worker.orders.recruit": {
+  "en": "Go recruit",
+  "hand": "Aller recruter"
+ },
+ "travellers.worker.orders.title": {
+  "en": "Orders",
+  "hand": "Ordres"
+ },
+ "travellers.worker.orders.unhire": {
+  "en": "Unhire",
+  "hand": "Licencier"
  },
  "travellers.worker.pickup.done": {
   "en": "Done",
@@ -971,6 +2223,10 @@
   "en": "%s, %s away",
   "tr": "%s, %s partis"
  },
+ "travellers.worker.recruit.start": {
+  "en": "Recruit",
+  "hand": "Recruter"
+ },
  "travellers.worker.recruit.tip.chance": {
   "en": "%s%% chance that each one agrees",
   "tr": "%s%% chance que chacun accepte"
@@ -995,8 +2251,112 @@
   "en": "Recruit henchmen",
   "tr": "Recruter des hommes de main"
  },
+ "travellers.worker.send": {
+  "en": "Sell",
+  "hand": "Vendre"
+ },
+ "travellers.worker.send.tooltip": {
+  "en": "Sell the cargo to this village for money and reputation.",
+  "hand": "Vendre la cargaison à ce village pour de l'argent et de la réputation."
+ },
+ "travellers.worker.title": {
+  "en": "Transaction",
+  "hand": "Transaction"
+ },
+ "travellers.worker.village_relations.hint": {
+  "en": "Select a village, then toggle enemy.",
+  "hand": "Sélectionnez un village, puis basculez l'état d'ennemi."
+ },
+ "travellers.worker.village_relations.none_known": {
+  "en": "No known villages nearby yet.",
+  "hand": "Aucun village connu à proximité pour le moment."
+ },
+ "travellers.worker.village_relations.title": {
+  "en": "Village relations",
+  "hand": "Relations avec les villages"
+ },
+ "travellers.worker.village_relations.toggle_enemy": {
+  "en": "Toggle enemy",
+  "hand": "Basculer ennemi"
+ },
+ "travellers.worker.zones.assigned_here": {
+  "en": "Assigned Here",
+  "hand": "Assignés ici"
+ },
  "travellers.worker.zones.create_hint": {
   "en": "To create a Barrack or a Stable: Shift + right-click with a Wand of Summoning where you want it.",
   "tr": "Pour créer une caserne ou une écurie : cliquez droit avec une Baguette d'invocation à l'endroit souhaité."
+ },
+ "travellers.worker.zones.list_stables": {
+  "en": "Stables",
+  "hand": "Écuries"
+ },
+ "travellers.worker.zones.list_zones": {
+  "en": "Barracks & Stables",
+  "hand": "Casernes et écuries"
+ },
+ "travellers.worker.zones.selected_duty": {
+  "en": "On Duty Here",
+  "hand": "En service ici"
+ },
+ "travellers.worker.zones.tab_duty": {
+  "en": "Duty",
+  "hand": "Service"
+ },
+ "travellers.worker.zones.tab_home": {
+  "en": "Home",
+  "hand": "Foyer"
+ },
+ "travellers.worker.zones.unassigned_any": {
+  "en": "Unassigned Henchmen",
+  "hand": "Hommes de main non assignés"
+ },
+ "travellers.worker.zones.unassigned_duty": {
+  "en": "Unassigned (no duty)",
+  "hand": "Sans service"
+ },
+ "travellers.zone.barrack.description": {
+  "en": "Housing for hired workers. Needs at least one bed and one chest. Workers assigned here call it home: they can respawn beside their bed after dying, and their capacity is one worker per bed.",
+  "hand": "Logement pour les travailleurs engagés. Nécessite au moins un lit et un coffre. Les travailleurs assignés ici la considèrent comme leur foyer : ils peuvent réapparaître près de leur lit après leur mort, avec une capacité d'un travailleur par lit."
+ },
+ "travellers.zone.barrack.title": {
+  "en": "Barrack",
+  "hand": "Caserne"
+ },
+ "travellers.zone.error.no_bed": {
+  "en": "No beds found in the area. Place at least one bed (capacity = one Henchman per bed).",
+  "hand": "Aucun lit trouvé dans la zone. Placez au moins un lit (capacité = un homme de main par lit)."
+ },
+ "travellers.zone.error.no_chest": {
+  "en": "No chests found in the area. Place at least one chest in the radius.",
+  "hand": "Aucun coffre trouvé dans la zone. Placez au moins un coffre dans le rayon."
+ },
+ "travellers.zone.error.no_hitch": {
+  "en": "No fence found in the area. Place at least one fence so horses can be hitched to it.",
+  "hand": "Aucune clôture trouvée dans la zone. Placez au moins une clôture pour y attacher des chevaux."
+ },
+ "travellers.zone.prompt.role.bed": {
+  "en": "Beds: %s (min. %s)",
+  "hand": "Lits : %s (min. %s)"
+ },
+ "travellers.zone.prompt.role.chest": {
+  "en": "Chests: %s (min. %s)",
+  "hand": "Coffres : %s (min. %s)"
+ },
+ "travellers.zone.prompt.role.hitch": {
+  "en": "Fences: %s (min. %s)",
+  "hand": "Clôtures : %s (min. %s)"
+ },
+ "travellers.zone.prompt.validate": {
+  "en": "Create %s",
+  "hand": "Créer : %s"
+ },
+ "travellers.zone.stable.description": {
+  "en": "A horse ranch for hired workers. Needs at least one chest, one fence to hitch horses to, and one bed per stable hand. Assigned stable hands tame, saddle and breed horses here for your other workers to ride, and sleep in the beds at night.",
+  "hand": "Un haras pour vos travailleurs engagés. Nécessite au moins un coffre et une clôture pour y attacher des chevaux. Les palefreniers assignés y apprivoisent, sellent et font se reproduire des chevaux pour vos autres travailleurs."
+ },
+ "travellers.zone.stable.title": {
+  "en": "Stable",
+  "hand": "Écurie"
  }
 }
