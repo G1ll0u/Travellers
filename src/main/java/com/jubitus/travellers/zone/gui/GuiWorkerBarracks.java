@@ -67,7 +67,7 @@ public class GuiWorkerBarracks extends GuiScreen
     private static final ResourceLocation TEX_HOME =
             new ResourceLocation("travellers", "textures/map/marker_home.png");
     private static final ResourceLocation TEX_STABLE =
-            new ResourceLocation("travellers", "textures/map/marker_stable.png");
+            new ResourceLocation("travellers", "textur/ces/map/marker_stable.png");
 
     /** A Barrack or Stable row in the merged left list. */
     private static final class ZoneRow {
@@ -426,8 +426,8 @@ public class GuiWorkerBarracks extends GuiScreen
         }
         zoneList.drawScrollbar(zoneRows.size());
 
-        // How to make a zone, in the room the rows leave free.
-        int y = zoneList.rowTop(zoneList.scroll() + visible) + 4;
+        if (!zoneRows.isEmpty()) return;
+        int y = zoneList.rowTop(0) + 4;
         int bottom = zoneBox[0] + zoneBox[1] - 2;
         for (String line : fontRenderer.listFormattedStringToWidth(I18n.format("travellers.worker.zones.create_hint"), listW - 8)) {
             if (y + fontRenderer.FONT_HEIGHT > bottom) break;
