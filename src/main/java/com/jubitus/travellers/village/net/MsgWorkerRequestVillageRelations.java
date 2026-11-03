@@ -5,6 +5,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.worldmap.KnownVillages;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
@@ -54,7 +55,7 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
                 double dx = center.getX() + 0.5D - fromPos.getX();
                 double dz = center.getZ() + 0.5D - fromPos.getZ();
                 int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
-                if (dist > maxRadius) continue;
+                if (dist > maxRadius || !KnownVillages.knows(ws, playerId, center)) continue;
 
                 String name = vi.displayName();
 

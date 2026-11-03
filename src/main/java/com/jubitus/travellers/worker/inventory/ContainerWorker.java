@@ -1,6 +1,8 @@
 package com.jubitus.travellers.worker.inventory;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -10,17 +12,23 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
 
+/**
+ * A worker's cargo over the player's inventory. Transport: the cargo is a staging area, given back on close unless
+ * a trip started. Pickup (back from a trip): the player can only take; what is left stays with the worker.
+ */
 public class ContainerWorker extends Container {
 
     private static final int WORKER_SLOTS = 18;
+    /** {@link #enchantItem} button id: move every cargo stack that fits into the player's inventory. */
+    public static final int TAKE_ALL = 0;
 
     private final EntityTravellerWorker worker;
-    private final InventoryPlayer playerInv;
-    private boolean jobStarted = false; // NEW
+    private final boolean pickup;
+    private boolean jobStarted = false;
 
-    public ContainerWorker(InventoryPlayer playerInv, EntityTravellerWorker worker) {
+    public ContainerWorker(InventoryPlayer playerInv, EntityTravellerWorker worker, boolean pickup) {
         this.worker = worker;
-        this.playerInv = playerInv;
+        this.pickup = pickup;
 
         // Worker inventory (2x9)
         for (int row = 0; row < 2; row++) {
@@ -28,9 +36,12 @@ public class ContainerWorker extends Container {
                 int index = col + row * 9;
                 int x = 8 + col * 18;
                 int y = 18 + row * 18;
-                this.addSlotToContainer(
-                        new SlotItemHandler(worker.getTravelInventory(), index, x, y)
-                );
+                this.addSlotToContainer(new SlotItemHandler(worker.getTravelInventory(), index, x, y) {
+                    @Override
+                    public boolean isItemValid(ItemStack stack) {
+                        return !pickup && super.isItemValid(stack);
+                    }
+                });
             }
         }
 
@@ -76,8 +87,8 @@ public class ContainerWorker extends Container {
                     return ItemStack.EMPTY;
                 }
             } else {
-                // From player -> worker
-                if (!this.mergeItemStack(stack, workerStart, workerEnd, false)) {
+                // From player -> worker (never into goods brought back)
+                if (pickup || !this.mergeItemStack(stack, workerStart, workerEnd, false)) {
                     return ItemStack.EMPTY;
                 }
             }
@@ -99,48 +110,48 @@ public class ContainerWorker extends Container {
     }
 
     @Override
+    public boolean enchantItem(EntityPlayer playerIn, int id) {
+        if (id != TAKE_ALL) return false;
+        for (int i = 0; i < WORKER_SLOTS; i++) transferStackInSlot(playerIn, i);
+        return true;
+    }
+
+    public boolean isCargoEmpty() {
+        for (int i = 0; i < WORKER_SLOTS; i++) {
+            if (getSlot(i).getHasStack()) return false;
+        }
+        return true;
+    }
+
+    @Override
     public void onContainerClosed(EntityPlayer playerIn) {
-        if (!playerIn.world.isRemote) {
-
-            // 1) If worker is idle AND no job was started, rollback cargo to player
-            if (worker != null && worker.isEntityAlive() && !jobStarted) {
-                ItemStackHandler cargo = worker.getTravelInventory();
-
-                for (int i = 0; i < cargo.getSlots(); i++) {
-                    ItemStack stack = cargo.getStackInSlot(i);
-                    if (stack.isEmpty()) continue;
-
-                    ItemStack toReturn = cargo.extractItem(i, stack.getCount(), false);
-                    if (toReturn.isEmpty()) continue;
-
-                    boolean added = playerIn.inventory.addItemStackToInventory(toReturn);
-
-                    if (!added && !toReturn.isEmpty()) {
-                        playerIn.dropItem(toReturn, false);
-                    }
-                }
-
-                // Make sure the player inventory is marked dirty
-                playerIn.inventory.markDirty();
-
-                // Force a sync to the client
-                if (playerIn instanceof EntityPlayerMP) {
-                    ((EntityPlayerMP) playerIn)
-                            .sendContainerToPlayer(playerIn.inventoryContainer);
-                }
+        if (!playerIn.world.isRemote && worker != null && worker.isEntityAlive()) {
+            if (pickup) {
+                if (isCargoEmpty()) worker.delivery.onLootCollected(playerIn);
+                else NotificationService.notify(playerIn, NotificationDefs.WORKER_GOODS_LEFT, worker.getName());
+            } else if (!jobStarted) {
+                giveCargoBack(playerIn);
             }
-
-            // 2) If this was the pickup GUI after a job, start farewell phase
-            if (worker != null && worker.delivery.isWaitingForPickup()) {
-                worker.delivery.onLootCollected(playerIn);
-            }
-
-            // Optionally also sync this container once more
             this.detectAndSendChanges();
         }
-
-        // 3) Only now call super (removes listener etc.)
         super.onContainerClosed(playerIn);
+    }
+
+    // Transport closed without sending: the staged cargo goes back to the player.
+    private void giveCargoBack(EntityPlayer playerIn) {
+        ItemStackHandler cargo = worker.getTravelInventory();
+        for (int i = 0; i < cargo.getSlots(); i++) {
+            ItemStack stack = cargo.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            ItemStack toReturn = cargo.extractItem(i, stack.getCount(), false);
+            if (!toReturn.isEmpty() && !playerIn.inventory.addItemStackToInventory(toReturn) && !toReturn.isEmpty()) {
+                playerIn.dropItem(toReturn, false);
+            }
+        }
+        playerIn.inventory.markDirty();
+        if (playerIn instanceof EntityPlayerMP) {
+            ((EntityPlayerMP) playerIn).sendContainerToPlayer(playerIn.inventoryContainer);
+        }
     }
 
     @Override

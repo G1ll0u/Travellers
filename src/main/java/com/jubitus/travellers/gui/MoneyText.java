@@ -133,8 +133,9 @@ public final class MoneyText {
 
     private static int drawText(FontRenderer fr, String s, int x, int y, int color, boolean draw) {
         if (s.isEmpty()) return x;
-        if (draw) fr.drawString(s, x, y, color);
-        return x + fr.getStringWidth(s);
+        // INVARIANT: when drawing, the next piece starts where the font really stopped, never at x + getStringWidth:
+        // the two differ with fractional glyph widths (Unicode font, HD font packs) and coins would cover the text.
+        return draw ? fr.drawString(s, x, y, color) : x + fr.getStringWidth(s);
     }
 
     private static void drawIcon(Item coin, int x, int y, int color) {

@@ -27,7 +27,7 @@ import java.util.List;
 @SideOnly(Side.CLIENT)
 public abstract class GuiMapListScreen extends GuiScreen implements ITravellersGui, IWorkerGoListReceiver, IWorkerMapScreen {
 
-    /** First button id free for the screen's own buttons (the map's nav buttons take 0..6). */
+    /** First button id free for the screen's own buttons (the map's Center button takes 0). */
     protected static final int FIRST_FREE_ID = 10;
 
     protected MapListLayout layout;

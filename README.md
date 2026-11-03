@@ -200,7 +200,8 @@ branches open at once, turn on `Keep several menu branches open at the same time
 **Transport goods**
 * Right-click a hired Henchman
 * Go to **Orders > Missions > Transport**
-* Give items → select a village → click Validate → click Sell or Donate
+* Give items → select a village → click Sell or Donate (greyed out while the trip can't start; hover to see why)
+* Back from the trip, the henchman stays by your side: talk to them and take the coins and any unsold goods; they are free for new orders once their pack is empty
 
 The Henchman will travel to the village, complete the transaction, and return to you.
 
@@ -222,6 +223,7 @@ The Henchman will travel to the village, complete the transaction, and return to
 **World map**
 * A standalone world map (showing your Henchmen) can be opened with a key you assign yourself in **Options > Controls** under the Travellers category — no key is bound by default.
 * The map starts out hidden under fog: the terrain is revealed chunk by chunk as you walk into it, separately for each player.
+* You only know the villages you have seen on your map: lists, orders and recruiting tours ignore the others (both configurable).
 * The map only shows the Overworld.
 * With **Ultreïa** installed, its roads, trails and bridges are drawn on the map, only where you have explored.
 

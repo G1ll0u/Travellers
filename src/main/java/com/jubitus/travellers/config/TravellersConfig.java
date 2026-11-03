@@ -179,6 +179,9 @@ public class TravellersConfig {
         @Config.Comment("Reveal the entire generated worldmap to every player, bypassing per-player fog of war. Only affects visibility of tiles already present in the shared tile cache; does not force generation of unexplored areas. Turning it back off restores each player's own fog of war exactly as it was. Applies the next time a player (re)opens the map.")
         public boolean showFullMap = false;
 
+        @Config.Comment("Every player knows every village, even before finding it: all lists, orders and maps offer them. Off: only villages you have seen on your map.")
+        public boolean revealAllVillages = false;
+
         @Config.Comment("Max worldmap tiles kept in memory per zoom level on the client. Higher = smoother panning/zooming with less re-fetching, more client RAM used. Default: 128.")
         @Config.RangeInt(min = 16, max = 2048)
         public int mapClientTileCacheSizePerLevel = 128;
@@ -2934,6 +2937,9 @@ public class TravellersConfig {
 
         @Config.Comment("While any village of a culture is your enemy, none of its people will join you.")
         public boolean recruitEnemyVillageBlocksCulture = true;
+
+        @Config.Comment("Recruiters only visit villages you have already seen on your map.")
+        public boolean recruitDiscoveredVillagesOnly = true;
 
         @Config.Comment("Chance in percent that a passer-by (or their whole group) agrees to join, at the lowest reputation that allows recruiting.")
         @Config.RangeInt(min = 0, max = 100)

@@ -130,6 +130,14 @@ public final class TravellersGuiTheme {
         drawBorder(x, y, w, h, border);
     }
 
+    /** Size of an item slot's box: the 16px item plus its 1px border on each side. */
+    public static final int SLOT = 18;
+
+    /** The one item-slot look; (itemX, itemY) is the item's top-left corner, as in {@code Slot.xPos/yPos}. */
+    public static void drawSlot(int itemX, int itemY) {
+        drawInnerPanel(itemX - 1, itemY - 1, SLOT, SLOT);
+    }
+
     // ── Scrollbar ─────────────────────────────────────────────────────────────
     public static final int SCROLLBAR_W = 4;
 

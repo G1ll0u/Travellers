@@ -11,6 +11,7 @@ import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
+import com.jubitus.travellers.worldmap.KnownVillages;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 
@@ -76,11 +77,17 @@ public final class RecruitCultures {
         return d >= TravellersConfig.RECRUITMENT.recruitMinVillageDistance && d <= TravellersConfig.RECRUITMENT.recruitMaxVillageRadius;
     }
 
+    /** A village this player's recruiter may plan or visit from {@code origin}: has a culture, in range, known to the player if the config asks. */
+    public static boolean isRecruitVillage(WorldServer ws, UUID playerId, BlockPos origin, MillSettlements.Settlement s) {
+        return s.cultureKey != null && !s.cultureKey.isEmpty() && inRange(origin, s.center)
+                && (!TravellersConfig.RECRUITMENT.recruitDiscoveredVillagesOnly || KnownVillages.knows(ws, playerId, s.center));
+    }
+
     /** Every culture with a village in range, recruitable ones first, then nearest first. */
     public static List<Option> around(WorldServer ws, UUID playerId, BlockPos origin) {
         Map<String, int[]> villages = new TreeMap<>(); // culture -> {count, nearest}
         for (MillSettlements.Settlement s : MillSettlements.villages(ws)) {
-            if (s.cultureKey == null || s.cultureKey.isEmpty() || !inRange(origin, s.center)) continue;
+            if (!isRecruitVillage(ws, playerId, origin, s)) continue;
             int[] v = villages.computeIfAbsent(s.cultureKey, k -> new int[]{0, Integer.MAX_VALUE});
             v[0]++;
             v[1] = Math.min(v[1], EntityTravellerWorker.dist2D(origin, s.center));

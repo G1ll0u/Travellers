@@ -92,6 +92,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_TRANSPORT);
                             return;
                         }
+                        if (worker.delivery.offerPickup(player)) return;
                         TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker, player), player);
                         player.openGui(
                                 Travellers.INSTANCE,

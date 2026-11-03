@@ -1,5 +1,8 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
+import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.worldmap.KnownVillages;
 import com.jubitus.travellers.worker.inventory.ContainerWorker;
 import com.jubitus.travellers.unit.DeliveryJob;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -68,21 +71,16 @@ public class MsgWorkerSetDestination implements IMessage {
         }
 
         private void handle(MsgWorkerSetDestination msg, EntityPlayerMP player) {
-            World world = player.world;
-            Entity e = world.getEntityByID(msg.entityId);
-            if (!(e instanceof EntityTravellerWorker)) return;
-
-            EntityTravellerWorker worker = (EntityTravellerWorker) e;
-
-            if (worker.getDistanceSq(player) > 64.0D) {
-                return; // too far
-            }
+            EntityTravellerWorker worker = WorkerLookup.ownedById(player, msg.entityId);
+            if (worker == null || worker.getDistanceSq(player) > 64.0D || worker.getUsedTravelSlots() == 0) return;
+            MillSettlements.Settlement target = MillSettlements.at(player.world, msg.targetCenter);
+            if (target == null || !target.isVillage || !KnownVillages.knows(player.world, player.getUniqueID(), target.center)) return;
             if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(worker)) {
                 com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, worker);
                 return;
             }
 
-            BlockPos villageCenter = msg.targetCenter;
+            BlockPos villageCenter = target.center;
 
             // Distance worker -> village
             BlockPos workerPos = worker.getPosition();

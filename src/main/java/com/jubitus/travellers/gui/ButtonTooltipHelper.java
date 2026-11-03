@@ -4,13 +4,13 @@ import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
-import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Shows a short I18n description next to a button after it has been hovered for
@@ -19,19 +19,24 @@ import java.util.Map;
 @SideOnly(Side.CLIENT)
 public final class ButtonTooltipHelper {
 
-    private final Map<GuiButton, String> descriptionKeys = new IdentityHashMap<>();
+    private final Map<GuiButton, Supplier<String>> descriptions = new IdentityHashMap<>();
     private GuiButton hoveredButton;
     private long hoverStartMs;
 
     public void set(GuiButton button, String i18nKey) {
+        set(button, () -> I18n.format(i18nKey));
+    }
+
+    /** Text worked out on each hover (e.g. why a button is greyed); null or empty shows nothing. */
+    public void set(GuiButton button, Supplier<String> text) {
         if (button != null) {
-            descriptionKeys.put(button, i18nKey);
+            descriptions.put(button, text);
         }
     }
 
     /** Drops every registration, for screens that rebuild their buttons. */
     public void clear() {
-        descriptionKeys.clear();
+        descriptions.clear();
         hoveredButton = null;
     }
 
@@ -42,7 +47,7 @@ public final class ButtonTooltipHelper {
         }
 
         GuiButton current = null;
-        for (Map.Entry<GuiButton, String> entry : descriptionKeys.entrySet()) {
+        for (Map.Entry<GuiButton, Supplier<String>> entry : descriptions.entrySet()) {
             GuiButton button = entry.getKey();
             if (button.visible && button.isMouseOver()) {
                 current = button;
@@ -60,11 +65,9 @@ public final class ButtonTooltipHelper {
             return;
         }
 
-        String text = I18n.format(descriptionKeys.get(hoveredButton));
-        GuiUtils.drawHoveringText(
-                Arrays.asList(text.split("\n")),
-                mouseX, mouseY, screenWidth, screenHeight, -1,
-                Minecraft.getMinecraft().fontRenderer
-        );
+        String text = descriptions.get(hoveredButton).get();
+        if (text == null || text.isEmpty()) return;
+        MoneyText.drawTooltip(Minecraft.getMinecraft().fontRenderer, Arrays.asList(text.split("\n")),
+                mouseX, mouseY, screenWidth, screenHeight);
     }
 }

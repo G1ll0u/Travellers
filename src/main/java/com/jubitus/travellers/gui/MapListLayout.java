@@ -68,7 +68,7 @@ public final class MapListLayout {
     public int listW() { return listBoxW - 2; }
     public int listH() { return listBoxH - 2; }
 
-    /** Top of the map's navigation row (zoom, Center): level with the side column's last button row. */
+    /** Top of the map's navigation row (Center): level with the side column's last button row. */
     public int navRowY() {
         return bodyY + bodyH - BTN_H;
     }

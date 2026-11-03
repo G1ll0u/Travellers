@@ -26,6 +26,12 @@ public class ClientGuiHandler extends CommonGuiHandler {
                     ? new GuiWorker(player, (EntityTravellerWorker) e)
                     : null;
         }
+        if (id == TravellersGuiIds.WORKER_PICKUP) {
+            Entity e = world.getEntityByID(x);
+            return (e instanceof EntityTravellerWorker)
+                    ? new com.jubitus.travellers.worker.gui.GuiWorkerPickup(player, (EntityTravellerWorker) e, y != 0)
+                    : null;
+        }
         if (id == TravellersGuiIds.WORKER_HUB) {
             Entity e = world.getEntityByID(x);
             return (e instanceof EntityTravellerWorker)

@@ -103,14 +103,9 @@ public final class WorldMapContentPopulator {
         return m.at(smoother.x(id, pos.getX()), smoother.z(id, pos.getZ())).forUnit(id);
     }
 
-    /**
-     * Whether a place is on the map: a settlement once its spot is discovered (lone buildings only when the player
-     * asked for them), the player's own zones always.
-     */
+    /** Whether a place is on the map: the server only sends known places; lone buildings only when the player asked for them. */
     public static boolean isShown(MsgWorkerGoList.Entry e) {
-        if (!e.isSettlement()) return true;
-        if (e.kind == MsgWorkerGoList.Kind.LONE_BUILDING && !TravellersConfig.WORLDMAP.showLoneBuildings) return false;
-        return ClientMapDiscovery.isFullMap() || ClientMapDiscovery.isChunkDiscovered(e.pos.getX() >> 4, e.pos.getZ() >> 4);
+        return e.kind != MsgWorkerGoList.Kind.LONE_BUILDING || TravellersConfig.WORLDMAP.showLoneBuildings;
     }
 
     /** An on-duty worker (e.g. a stable hand) takes no player order: it has no marker and is never selectable. */

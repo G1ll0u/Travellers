@@ -12,10 +12,10 @@ public class CommonGuiHandler implements IGuiHandler {
 
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
-        if (id == TravellersGuiIds.WORKER) {
+        if (id == TravellersGuiIds.WORKER || id == TravellersGuiIds.WORKER_PICKUP) {
             Entity e = world.getEntityByID(x);
             return (e instanceof EntityTravellerWorker)
-                    ? new ContainerWorker(player.inventory, (EntityTravellerWorker) e)
+                    ? new ContainerWorker(player.inventory, (EntityTravellerWorker) e, id == TravellersGuiIds.WORKER_PICKUP)
                     : null;
         }
 

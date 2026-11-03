@@ -131,6 +131,7 @@ public final class NotificationDefs {
     public static final NotificationDef WORKER_CARGO_WAITING = event(INFO, "travellers.notify.worker.cargo_waiting", 1);
     public static final NotificationDef WORKER_CARGO_COMING_BACK = event(INFO, "travellers.notify.worker.cargo_coming_back", 1);
     public static final NotificationDef WORKER_ALREADY_ON_JOB = reply(REFUSAL, "travellers.notify.worker.already_on_job", 0);
+    public static final NotificationDef WORKER_GOODS_LEFT = reply(INFO, "travellers.notify.worker.goods_left", 1);
     public static final NotificationDef WORKER_DIED = event(DANGER, "travellers.notify.worker.died", 1);
     public static final NotificationDef WORKER_RESPAWNED = event(SUCCESS, "travellers.notify.worker.respawned", 1);
     public static final NotificationDef WORKER_RESPAWN_CANCELLED = event(ALERT, "travellers.notify.worker.respawn_cancelled", 1);

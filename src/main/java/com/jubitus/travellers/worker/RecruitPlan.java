@@ -55,7 +55,7 @@ public final class RecruitPlan {
     public static RecruitPlan build(WorldServer ws, UUID playerId, BlockPos origin, Map<String, Integer> requested) {
         TravellersConfig.Recruitment cfg = TravellersConfig.RECRUITMENT;
         Map<String, Integer> wanted = new LinkedHashMap<>();
-        Map<String, List<BlockPos>> villagesByCulture = villagesInRange(ws, origin);
+        Map<String, List<BlockPos>> villagesByCulture = villagesInRange(ws, playerId, origin);
         int room = cfg.recruitMaxPerMission;
         for (Map.Entry<String, Integer> e : requested.entrySet()) {
             int n = Math.min(Math.max(0, e.getValue()), room);
@@ -81,10 +81,10 @@ public final class RecruitPlan {
         return new RecruitPlan(wanted, stops, travelFee, purse(ws, origin, wanted));
     }
 
-    private static Map<String, List<BlockPos>> villagesInRange(WorldServer ws, BlockPos origin) {
+    private static Map<String, List<BlockPos>> villagesInRange(WorldServer ws, UUID playerId, BlockPos origin) {
         Map<String, List<BlockPos>> out = new HashMap<>();
         for (MillSettlements.Settlement s : MillSettlements.villages(ws)) {
-            if (s.cultureKey == null || s.cultureKey.isEmpty() || !RecruitCultures.inRange(origin, s.center)) continue;
+            if (!RecruitCultures.isRecruitVillage(ws, playerId, origin, s)) continue;
             out.computeIfAbsent(s.cultureKey, k -> new ArrayList<>()).add(s.center);
         }
         return out;

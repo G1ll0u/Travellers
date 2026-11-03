@@ -5,6 +5,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.worldmap.KnownVillages;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -83,7 +84,7 @@ public class MsgWorkerRequestVillages implements IMessage {
                 double dz = center.getZ() + 0.5D - workerPos.getZ();
                 int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
 
-                if (dist > maxRadius) {
+                if (dist > maxRadius || !KnownVillages.knows(ws, player.getUniqueID(), center)) {
                     continue;
                 }
 

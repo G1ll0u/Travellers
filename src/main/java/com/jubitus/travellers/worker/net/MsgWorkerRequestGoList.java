@@ -8,6 +8,7 @@ import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.worldmap.KnownVillages;
 import com.jubitus.travellers.village.net.SettlementMapInfo;
 import com.jubitus.travellers.zone.ZoneType;
 import net.minecraft.world.WorldServer;
@@ -69,8 +70,10 @@ public class MsgWorkerRequestGoList implements IMessage {
                 : java.util.Collections.emptySet();
 
         for (MillSettlements.Settlement s : MillSettlements.all(ws)) {
+            boolean controlled = controlledVillages.contains(s.center);
+            if (!controlled && !KnownVillages.knows(ws, player.getUniqueID(), s.center)) continue;
             MsgWorkerGoList.Kind kind = !s.isVillage ? MsgWorkerGoList.Kind.LONE_BUILDING
-                    : controlledVillages.contains(s.center) ? MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
+                    : controlled ? MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
                     : MsgWorkerGoList.Kind.VILLAGE;
             MsgWorkerGoList.Entry e = MsgWorkerGoList.Entry.of(kind, s.center, s.displayName(),
                     EntityTravellerWorker.dist2D(origin, s.center));

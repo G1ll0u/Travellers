@@ -1,6 +1,8 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.gui.TravellersGuiIds;
 import com.jubitus.travellers.notify.MissionNotifications;
 import com.jubitus.travellers.notify.NotificationDef;
 import com.jubitus.travellers.notify.NotificationDefs;
@@ -38,6 +40,7 @@ public final class DeliveryJob {
     private static final int POST_JOB_FAREWELL_TICKS = 0; // 5 seconds (tweak)
     // How often (in ticks) to refresh target when returning
     private static final int RETURN_REPATH_INTERVAL_TICKS = 200; // ~10 seconds
+    private static final int PICKUP_REMINDER_TICKS = 900;
 
     private final EntityTravellerWorker worker;
 
@@ -62,6 +65,7 @@ public final class DeliveryJob {
     private int returnRepathCooldown = 0;
     private int farewellTicks = 0;
     private boolean farewellActive = false;
+    private int pickupReminderTicks = PICKUP_REMINDER_TICKS;
 
     DeliveryJob(EntityTravellerWorker worker) {
         this.worker = worker;
@@ -104,6 +108,24 @@ public final class DeliveryJob {
 
     public boolean isWaitingForPickup() {
         return worker.mode == EntityTravellerWorker.WorkerMode.RETURNING && this.jobDelivered && this.awaitingPickup;
+    }
+
+    /**
+     * Back with goods: the owner's click opens the pickup screen, or ends the job when the cargo is already empty.
+     * False when the worker is not waiting for a pickup.
+     */
+    public boolean offerPickup(EntityPlayer player) {
+        if (!isWaitingForPickup()) return false;
+        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
+            NotificationService.notify(player, NotificationDefs.WORKER_ALREADY_ON_JOB);
+        } else if (worker.getUsedTravelSlots() == 0) {
+            onLootCollected(player);
+        } else {
+            com.jubitus.travellers.debug.MissionDebugLog.loaded(worker, "pickup-gui");
+            player.openGui(Travellers.INSTANCE, TravellersGuiIds.WORKER_PICKUP, worker.world, worker.getEntityId(),
+                    hasUnsoldGoods ? 1 : 0, 0);
+        }
+        return true;
     }
 
     // Outbound trip to village + full return leg to owner
@@ -333,6 +355,12 @@ public final class DeliveryJob {
                                 ? NotificationDefs.WORKER_CARGO_ARRIVED_PARTIAL
                                 : NotificationDefs.WORKER_CARGO_ARRIVED_FULL, NoticePlace.of(worker));
                     }
+                }
+
+                // Still holding the owner's goods at their side: a word now and then.
+                if (awaitingPickup && --pickupReminderTicks <= 0) {
+                    pickupReminderTicks = PICKUP_REMINDER_TICKS;
+                    worker.voice.playTalk();
                 }
 
             } else {

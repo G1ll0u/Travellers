@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 
 /**
  * The map every worker-related screen embeds: live feed, markers, hover and selection highlight,
- * tooltips, mouse handling and the zoom / Center buttons. A screen only places it and says what is selected.
+ * tooltips, mouse handling (right-drag pans, wheel zooms) and the Center button. A screen only places it and says what is selected.
  */
 @SideOnly(Side.CLIENT)
 public final class WorkerMapView {
@@ -45,9 +45,14 @@ public final class WorkerMapView {
         controller = new WorldMapController(net.minecraft.client.Minecraft.getMinecraft(), x, y, w, h, textureKey, center);
     }
 
-    /** Adds the pan / zoom / Center buttons; the zoom row sits at rowTop. */
+    /** Adds the Center button, right-aligned under the map at rowTop. */
     public void addNav(List<GuiButton> buttons, int firstId, Supplier<BlockPos> home, int rowTop) {
         nav = new WorldMapNavButtons(controller, buttons, firstId, home, rowTop);
+    }
+
+    /** Same, with Center filling [rowLeft, rowLeft + rowW). */
+    public void addNav(List<GuiButton> buttons, int firstId, Supplier<BlockPos> home, int rowLeft, int rowTop, int rowW) {
+        nav = new WorldMapNavButtons(controller, buttons, firstId, home, rowLeft, rowTop, rowW);
     }
 
     public boolean handleButton(GuiButton button) {

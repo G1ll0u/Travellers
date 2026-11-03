@@ -1,150 +1,134 @@
 package com.jubitus.travellers.worker.gui;
 
-import com.jubitus.travellers.gui.MoneyText;
-import com.jubitus.travellers.village.MillMoney;
-import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
-import com.jubitus.travellers.gui.ITravellersGui;
-import com.jubitus.travellers.gui.ScrollList;
-import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
-import com.jubitus.travellers.gui.TravellersGuiTheme;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.gui.GuiTravellersButton;
+import com.jubitus.travellers.gui.GuiTravellersContainer;
 import com.jubitus.travellers.gui.MapListLayout;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapScreen;
-import com.jubitus.travellers.worldmap.gui.WorkerMapView;
+import com.jubitus.travellers.gui.MoneyText;
+import com.jubitus.travellers.gui.ScrollList;
+import com.jubitus.travellers.gui.TravellersGuiTheme;
+import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.unit.DeliveryJob;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
-import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellersNetwork;
+import com.jubitus.travellers.unit.WorkerLookup;
+import com.jubitus.travellers.village.MillMoney;
+import com.jubitus.travellers.worker.inventory.ContainerWorker;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
-import com.jubitus.travellers.worker.net.MsgWorkerRequestVillages;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worker.net.MsgWorkerRequestGoList;
+import com.jubitus.travellers.worker.net.MsgWorkerRequestVillages;
 import com.jubitus.travellers.worker.net.MsgWorkerSetDestination;
-import net.minecraft.client.Minecraft;
+import com.jubitus.travellers.worldmap.gui.WorkerMapView;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapScreen;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Slot;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Mouse;
-import org.millenaire.common.utilities.MillCommonUtilities;
 
-import java.awt.*;
+import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
-import com.jubitus.travellers.worker.inventory.ContainerWorker;
-@SideOnly(Side.CLIENT)
-public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IWorkerMapScreen, ITravellersGui {
 
-    private static final int GAP = 8;
-    private static final int LIST_W = 140;
+/**
+ * Transport mission: cargo and the player's inventory on the left; map, known villages with the travel cost,
+ * Sell / Donate and Back on the right. Sell and Donate stay greyed (tooltip says why) until the order can go.
+ */
+@SideOnly(Side.CLIENT)
+public class GuiWorker extends GuiTravellersContainer implements IWorkerGoListReceiver, IWorkerMapScreen {
+
+    private static final int CARGO_SLOTS = 18;
+    private static final int SIDE_W = 170;
+    private static final int GAP = MapListLayout.GAP;
+    private static final int LABEL_H = 10;
     private static final int HEADER_H = 12;
+    private static final int LIST_ROWS = 5;
+    private static final int MIN_MAP_H = 40;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
     private final List<VillageRow> villages = new ArrayList<>();
-
-    private GuiButton sendButton;
-    private GuiButton validateButton;
-    private GuiButton donateButton;
-    private GuiButton backButton;
-
-    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
-
-    private int lastCost = 0;
-    private boolean costValid = false;
-    private int validatedVillageIdx = -1;
-
-    private int mapBoxX, mapBoxW, listBoxX, listBoxH;
     private final ScrollList list = new ScrollList();
+    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
     private int selectedIndex = -1;
 
+    private GuiButton sellButton, donateButton, backButton;
     private WorkerMapView map;
+    private int sideX, mapBoxY, mapBoxH, listBoxY, listBoxH;
+    private int cargoLabelY, invLabelY;
 
     public GuiWorker(EntityPlayer player, EntityTravellerWorker worker) {
-        super(new ContainerWorker(player.inventory, worker));
+        super(new ContainerWorker(player.inventory, worker, false));
         this.player = player;
         this.worker = worker;
-        this.xSize = 176;
-        this.ySize = 150;
     }
 
     @Override
-    public void initGui() {
-        super.initGui();
+    protected String title() {
+        return I18n.format("travellers.worker.title");
+    }
 
-        this.xSize = 176;
-        this.ySize = 150;
+    @Override
+    protected int frameW() {
+        return MapListLayout.PAD * 2 + GRID_W + GAP + SIDE_W;
+    }
 
-        int mapW = Math.max(150, Math.min(240, width - 16 - xSize - LIST_W - GAP * 2));
-        int totalW = mapW + GAP + xSize + GAP + LIST_W;
-        int startX = Math.max(4, (this.width - totalW) / 2);
-        this.guiLeft = startX + mapW + GAP;
-        this.guiTop = (this.height - this.ySize) / 2;
+    @Override
+    protected int frameH() {
+        return 230;
+    }
 
-        // Map | inventory | list share their top and bottom edges; the map's nav row is level with the last button row.
+    @Override
+    protected void layoutSlots() {
+        int left = panel.bodyX, top = panel.bodyY, bottom = panel.bodyY + panel.bodyH;
         int rowH = MapListLayout.BTN_H, gap = MapListLayout.BTN_GAP;
-        mapBoxX = startX;
-        mapBoxW = mapW;
-        listBoxX = guiLeft + xSize + GAP;
-        listBoxH = ySize - 2 * (rowH + gap);
-        list.setBounds(listBoxX + 1, guiTop + 1 + HEADER_H, LIST_W - 2, listBoxH - 2 - HEADER_H);
 
-        this.buttonList.clear();
-        int buttonW = (LIST_W - gap) / 2;
-        int row0 = guiTop + listBoxH + gap, row1 = guiTop + ySize - rowH;
-        int col1 = listBoxX + buttonW + gap;
+        // Left: cargo at the top, the player's inventory sitting on the frame's bottom edge.
+        cargoLabelY = top;
+        placeGrid(0, CARGO_SLOTS, 9, left, top + LABEL_H);
+        int invY = bottom - PLAYER_INV_H;
+        invLabelY = invY - LABEL_H;
+        placePlayerInventory(CARGO_SLOTS, left, invY);
 
-        this.validateButton = this.addButton(new GuiTravellersButton(
-                0, listBoxX, row0, buttonW, rowH, I18n.format("travellers.worker.validate", "Validate")));
-        this.sendButton = this.addButton(new GuiTravellersButton(
-                1, col1, row0, buttonW, rowH, I18n.format("travellers.worker.send", "Send")));
-        this.backButton = this.addButton(new GuiTravellersButton(
-                3, listBoxX, row1, buttonW, rowH, I18n.format("travellers.gui.back", "Back")));
-        this.donateButton = this.addButton(new GuiTravellersButton(
-                2, col1, row1, buttonW, rowH, I18n.format("travellers.worker.donate", "Donate")));
+        // Right: map, list, then [Sell][Donate] and [Back][Center], bottom row level with the hotbar's bottom.
+        sideX = left + GRID_W + GAP;
+        int row1 = bottom - rowH, row0 = row1 - gap - rowH;
+        int half = (SIDE_W - gap) / 2;
+        sellButton = addButton(new GuiTravellersButton(1, sideX, row0, half, rowH, I18n.format("travellers.worker.send")));
+        donateButton = addButton(new GuiTravellersButton(2, sideX + SIDE_W - half, row0, half, rowH, I18n.format("travellers.worker.donate")));
+        backButton = addButton(new GuiTravellersButton(3, sideX, row1, half, rowH, I18n.format("travellers.gui.back")));
 
-        tooltips.set(sendButton, "travellers.worker.send.tooltip");
-        tooltips.set(donateButton, "travellers.worker.donate.tooltip");
+        int sideH = row0 - gap - top;
+        listBoxH = Math.min(HEADER_H + LIST_ROWS * list.rowH + 2, sideH - gap - MIN_MAP_H);
+        listBoxY = row0 - gap - listBoxH;
+        mapBoxY = top;
+        mapBoxH = listBoxY - gap - mapBoxY;
+        list.setBounds(sideX + 1, listBoxY + 1 + HEADER_H, SIDE_W - 2, listBoxH - 2 - HEADER_H);
+        list.resetScroll();
+
+        map = new WorkerMapView(sideX + 1, mapBoxY + 1, SIDE_W - 2, mapBoxH - 2,
+                "travellers_worker_transport_map", worker.getPosition());
+        map.addNav(buttonList, 10, worker::getPosition, sideX + SIDE_W - half, row1, half);
+        map.setSelected((BlockPos) null);
+
+        tooltips.clear();
+        tooltips.set(sellButton, () -> tooltip("travellers.worker.send.tooltip"));
+        tooltips.set(donateButton, () -> tooltip("travellers.worker.donate.tooltip"));
 
         villages.clear();
-        list.resetScroll();
         selectedIndex = -1;
-        costValid = false;
-        validatedVillageIdx = -1;
-        lastCost = 0;
-        this.sendButton.enabled = false;
-        this.donateButton.enabled = false;
-        this.validateButton.enabled = true;
-
-        boolean hired = worker.isHiredFollower();
-        UUID ownerId = worker.getFollowOwnerId();
-        boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
-        if (!hiredByMe) {
-            this.sendButton.enabled = false;
-            this.donateButton.enabled = false;
-            this.validateButton.enabled = false;
-        }
-
-        map = new WorkerMapView(mapBoxX + 1, guiTop + 1, mapW - 2, ySize - 2 - (rowH + gap),
-                "travellers_worker_transport_map", worker.getPosition());
-        map.addNav(buttonList, 10, worker::getPosition, row1);
-        map.setSelected((BlockPos) null);
+        updateButtons();
 
         map.subscribe();
         TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
-        if (hiredByMe)
-            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
+        if (isMine()) TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
     }
 
     @Override
@@ -163,64 +147,114 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         map.data.setPlaces(entries);
     }
 
-    private void refreshSelection() {
-        map.setSelected(selectedIndex >= 0 && selectedIndex < villages.size() ? villages.get(selectedIndex).center : null);
+    public void receiveVillageList(List<BlockPos> centers, List<String> labels, List<Integer> distances) {
+        villages.clear();
+        villages.addAll(VillageRow.fromServer(centers, labels, distances));
+        list.resetScroll();
+        select(villages.isEmpty() ? -1 : 0);
     }
+
+    // ── Order state ───────────────────────────────────────────────────────────
+
+    private boolean isMine() {
+        return WorkerLookup.isOwnedBy(worker, player.getUniqueID());
+    }
+
+    @Nullable
+    private VillageRow selected() {
+        return selectedIndex >= 0 && selectedIndex < villages.size() ? villages.get(selectedIndex) : null;
+    }
+
+    private int usedCargoSlots() {
+        int used = 0;
+        for (int i = 0; i < CARGO_SLOTS; i++) {
+            if (inventorySlots.getSlot(i).getHasStack()) used++;
+        }
+        return used;
+    }
+
+    private int cost() {
+        VillageRow row = selected();
+        return row == null ? 0 : DeliveryJob.computeTravelCost(row.distance, usedCargoSlots());
+    }
+
+    /** Why the order cannot go yet, or null when Sell and Donate are allowed. */
+    @Nullable
+    private String blockReason() {
+        if (!isMine()) return I18n.format("travellers.worker.blocked.not_yours");
+        if (selected() == null) return I18n.format("travellers.worker.blocked.no_village");
+        if (usedCargoSlots() == 0) return I18n.format("travellers.worker.blocked.empty_cargo");
+        int cost = cost();
+        if (!MillMoney.canAfford(player, cost)) {
+            return I18n.format("travellers.worker.blocked.money", MillMoney.format(cost),
+                    MillMoney.format(MillMoney.countPlayerMoney(player)));
+        }
+        return null;
+    }
+
+    private String tooltip(String allowedKey) {
+        String reason = blockReason();
+        return reason != null ? reason : I18n.format(allowedKey);
+    }
+
+    private void updateButtons() {
+        boolean ok = blockReason() == null;
+        sellButton.enabled = ok;
+        donateButton.enabled = ok;
+    }
+
+    private void select(int idx) {
+        selectedIndex = idx;
+        VillageRow row = selected();
+        if (row != null) map.controller.setCenter(row.center);
+        map.setSelected(row != null ? row.center : null);
+        updateButtons();
+    }
+
+    @Override
+    public void updateScreen() {
+        super.updateScreen();
+        updateButtons(); // cargo and purse change while the screen is open
+    }
+
+    // ── Drawing ───────────────────────────────────────────────────────────────
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
-
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-        TravellersGuiTheme.drawInnerPanel(mapBoxX, guiTop, map.controller.mapW + 2, ySize - (MapListLayout.BTN_H + MapListLayout.BTN_GAP));
-        TravellersGuiTheme.drawInnerPanel(listBoxX, guiTop, LIST_W, listBoxH);
-        map.draw(player, ClientOwnerVisualsCache.getColor(), mouseX, mouseY);
-
         super.drawScreen(mouseX, mouseY, partialTicks);
-
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-
-        drawVillageList(mouseX, mouseY);
-        this.renderHoveredToolTip(mouseX, mouseY);
-
         map.drawTooltip(this, mouseX, mouseY);
-        tooltips.render(mouseX, mouseY, this.width, this.height);
-    }
-
-    @Override
-    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        this.fontRenderer.drawString(TextFormatting.BOLD + I18n.format("travellers.worker.title", "Worker"), 8, 6, TravellersGuiTheme.COL_TEXT);
+        tooltips.render(mouseX, mouseY, width, height);
     }
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        int x = this.guiLeft;
-        int y = this.guiTop;
-
-        TravellersGuiTheme.drawPanel(x, y, xSize, ySize);
-
-        // Slot backgrounds
-        for (int i = 0; i < this.inventorySlots.inventorySlots.size(); i++) {
-            Slot s = this.inventorySlots.inventorySlots.get(i);
-            if (s != null) {
-                int slotX = x + s.xPos;
-                int slotY = y + s.yPos;
-                TravellersGuiTheme.drawInnerPanel(slotX - 1, slotY - 1, 18, 18);
-            }
-        }
+        super.drawGuiContainerBackgroundLayer(partialTicks, mouseX, mouseY);
+        fontRenderer.drawString(I18n.format("travellers.worker.cargo"), panel.bodyX, cargoLabelY, TravellersGuiTheme.COL_TEXT_DIM);
+        fontRenderer.drawString(I18n.format("container.inventory"), panel.bodyX, invLabelY, TravellersGuiTheme.COL_TEXT_DIM);
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        TravellersGuiTheme.drawInnerPanel(sideX, mapBoxY, SIDE_W, mapBoxH);
+        TravellersGuiTheme.drawInnerPanel(sideX, listBoxY, SIDE_W, listBoxH);
+        map.draw(player, ClientOwnerVisualsCache.getColor(), mouseX, mouseY);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        drawVillageList(mouseX, mouseY);
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
-        int hy = guiTop + 1 + (HEADER_H - fontRenderer.FONT_HEIGHT) / 2;
+        int hy = listBoxY + 1 + (HEADER_H - fontRenderer.FONT_HEIGHT) / 2;
         if (villages.isEmpty()) {
-            fontRenderer.drawString(I18n.format("travellers.worker.cost_unknown"), listBoxX + 4, hy, TravellersGuiTheme.COL_TEXT_DIM);
-            fontRenderer.drawString(fontRenderer.trimStringToWidth(I18n.format("travellers.worker.no_village_in_range"), LIST_W - 8),
-                    listBoxX + 4, list.y + 2, TravellersGuiTheme.COL_TEXT_DIM);
+            for (String line : fontRenderer.listFormattedStringToWidth(I18n.format("travellers.worker.no_village_in_range"), SIDE_W - 8)) {
+                fontRenderer.drawString(line, sideX + 4, hy, TravellersGuiTheme.COL_TEXT_DIM);
+                hy += fontRenderer.FONT_HEIGHT + 1;
+            }
             return;
         }
+        MoneyText.draw(fontRenderer, I18n.format("travellers.worker.cost", MillMoney.format(cost())), sideX + 4, hy,
+                TravellersGuiTheme.COL_TEXT);
+        TravellersGuiTheme.drawSeparator(list.x, list.y - 1, list.w);
 
         list.clamp(villages.size());
         int rowW = list.rowW(villages.size());
@@ -234,31 +268,19 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                     hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
         }
         list.drawScrollbar(villages.size());
-
-        String costStr = MillMoney.format(0);
-        if (selectedIndex >= 0 && selectedIndex < villages.size()) {
-            int usedSlots = getUsedCargoSlotsClient();
-            int cost = DeliveryJob.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
-            costStr = MillMoney.format(cost);
-        }
-        MoneyText.draw(this.fontRenderer, I18n.format("travellers.worker.cost", costStr), listBoxX + 4, hy,
-                TravellersGuiTheme.COL_TEXT);
-        TravellersGuiTheme.drawSeparator(list.x, list.y - 1, list.w);
     }
+
+    // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
     public void handleMouseInput() throws IOException {
         super.handleMouseInput();
-        int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
-        int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
-        int wheel  = Mouse.getEventDWheel();
+        int wheel = Mouse.getEventDWheel();
         if (wheel == 0) return;
-
-        if (map.isMouseOver(mouseX, mouseY)) {
-            map.wheel(mouseX, mouseY, wheel);
-        } else if (list.isOver(mouseX, mouseY)) {
-            list.scrollBy(wheel, villages.size());
-        }
+        int mouseX = Mouse.getEventX() * width / mc.displayWidth;
+        int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+        if (map.isMouseOver(mouseX, mouseY)) map.wheel(mouseX, mouseY, wheel);
+        else if (list.isOver(mouseX, mouseY)) list.scrollBy(wheel, villages.size());
     }
 
     @Override
@@ -266,18 +288,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         super.mouseClicked(mouseX, mouseY, mouseButton);
         map.mouseDown(mouseX, mouseY, mouseButton);
         if (mouseButton != 0 || list.mouseDown(mouseX, mouseY, villages.size())) return;
-
         int idx = list.rowAt(mouseX, mouseY, villages.size());
-        if (idx >= 0) {
-            selectedIndex = idx;
-            costValid = false;
-            validatedVillageIdx = -1;
-            lastCost = 0;
-            if (sendButton  != null) sendButton.enabled  = false;
-            if (donateButton != null) donateButton.enabled = false;
-            map.controller.setCenter(villages.get(idx).center);
-            refreshSelection();
-        }
+        if (idx >= 0) select(idx);
     }
 
     @Override
@@ -298,83 +310,16 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     protected void actionPerformed(GuiButton button) throws IOException {
         if (map.handleButton(button)) return;
         if (button == backButton) {
+            TravellersNetwork.CHANNEL.sendToServer(new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
+            return;
+        }
+        if ((button == sellButton || button == donateButton) && blockReason() == null) {
+            VillageRow row = selected();
             TravellersNetwork.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
+                    new MsgWorkerSetDestination(worker.getEntityId(), row.center, row.display, button == donateButton));
+            mc.player.closeScreen();
             return;
         }
-
-        if (button == sendButton) {
-            if (sendButton.enabled && selectedIndex >= 0 && selectedIndex < villages.size()) {
-                VillageRow row = villages.get(selectedIndex);
-                TravellersNetwork.CHANNEL.sendToServer(
-                        new MsgWorkerSetDestination(worker.getEntityId(), row.center, row.display, false));
-                mc.player.closeScreen();
-            }
-            return;
-        }
-
-        if (button == donateButton) {
-            if (donateButton.enabled && selectedIndex >= 0 && selectedIndex < villages.size()) {
-                VillageRow row = villages.get(selectedIndex);
-                TravellersNetwork.CHANNEL.sendToServer(
-                        new MsgWorkerSetDestination(worker.getEntityId(), row.center, row.display, true));
-                mc.player.closeScreen();
-            }
-            return;
-        }
-
-        if (button == validateButton) {
-            if (selectedIndex >= 0 && selectedIndex < villages.size()) {
-                VillageRow row = villages.get(selectedIndex);
-                int usedSlots = getUsedCargoSlotsClient();
-                int cost = DeliveryJob.computeTravelCost(row.distance, usedSlots);
-                this.lastCost = cost;
-                this.validatedVillageIdx = selectedIndex;
-                this.costValid = true;
-                int playerMoney = MillMoney.countPlayerMoney(this.player);
-                boolean canAfford = cost == 0 || playerMoney >= cost;
-                this.sendButton.enabled = canAfford;
-                this.donateButton.enabled = canAfford;
-            } else {
-                this.costValid = false;
-                this.validatedVillageIdx = -1;
-                this.lastCost = 0;
-                this.sendButton.enabled = false;
-                this.donateButton.enabled = false;
-            }
-            return;
-        }
-
         super.actionPerformed(button);
     }
-
-    public void receiveVillageList(List<BlockPos> centers, List<String> labels, List<Integer> distances) {
-        this.villages.clear();
-        this.villages.addAll(VillageRow.fromServer(centers, labels, distances));
-
-        if (villages.isEmpty()) {
-            this.selectedIndex = -1;
-        } else {
-            this.selectedIndex = 0;
-            map.controller.setCenter(villages.get(0).center);
-        }
-        if (sendButton  != null) sendButton.enabled  = false;
-        if (donateButton != null) donateButton.enabled = false;
-
-        costValid = false;
-        validatedVillageIdx = -1;
-        lastCost = 0;
-        list.resetScroll();
-        refreshSelection();
-    }
-
-    private int getUsedCargoSlotsClient() {
-        int used = 0;
-        for (int i = 0; i < 18 && i < this.inventorySlots.inventorySlots.size(); i++) {
-            Slot s = this.inventorySlots.getSlot(i);
-            if (s != null && s.getHasStack()) used++;
-        }
-        return used;
-    }
-
 }

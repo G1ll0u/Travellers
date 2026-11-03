@@ -54,6 +54,17 @@ public class MapDiscoverySavedData extends WorldSavedData {
         return data.computeIfAbsent(playerId, k -> new Long2ObjectOpenHashMap<>());
     }
 
+    public boolean isDiscovered(UUID playerId, int chunkX, int chunkZ) {
+        Long2ObjectOpenHashMap<long[]> masks = data.get(playerId);
+        if (masks == null) return false;
+        int tileX = Math.floorDiv(chunkX, WorldMapDiscovery.CHUNKS_PER_TILE);
+        int tileZ = Math.floorDiv(chunkZ, WorldMapDiscovery.CHUNKS_PER_TILE);
+        long[] mask = masks.get(TileKey.pack(tileX, tileZ));
+        if (mask == null) return false;
+        int bit = (chunkZ - tileZ * 16) * 16 + (chunkX - tileX * 16);
+        return (mask[bit >> 6] & (1L << (bit & 63))) != 0;
+    }
+
     /** Marks one chunk discovered. Returns the tile key if its mask changed, else Long.MIN_VALUE. */
     public long discoverChunk(Long2ObjectOpenHashMap<long[]> masks, int chunkX, int chunkZ) {
         int tileX = Math.floorDiv(chunkX, WorldMapDiscovery.CHUNKS_PER_TILE);

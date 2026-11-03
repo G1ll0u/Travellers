@@ -959,18 +959,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
         }
 
-        // 1) If we are back from a job and waiting for pickup, ALWAYS open the cargo GUI
-        if (this.mode == WorkerMode.RETURNING && delivery.jobDelivered && delivery.awaitingPickup && !this.isInCombat()) {
-            com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "pickup-gui");
-            player.openGui(
-                    Travellers.INSTANCE,
-                    TravellersGuiIds.WORKER,
-                    world,
-                    this.getEntityId(),
-                    0, 0
-            );
-            return true;
-        }
+        // 1) Back from a job with goods: every click opens the pickup screen until the cargo is empty
+        if (delivery.offerPickup(player)) return true;
 
         // Back from recruiting: talking to it opens the report (and the purse).
         if (recruit.isBack() && WorkerLookup.isOwnedBy(this, player.getUniqueID()) && !this.isInCombat()) {

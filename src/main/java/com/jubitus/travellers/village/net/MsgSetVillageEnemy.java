@@ -1,5 +1,7 @@
 package com.jubitus.travellers.village.net;
 
+import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.worldmap.KnownVillages;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import io.netty.buffer.ByteBuf;
@@ -53,6 +55,9 @@ public class MsgSetVillageEnemy implements IMessage {
 
             UUID pid = player.getUniqueID();
             BlockPos center = new BlockPos(msg.x, msg.y, msg.z);
+
+            // Peace is always allowed (clears stale entries); war only on a real village the player knows.
+            if (msg.enemy && (MillSettlements.at(ws, center) == null || !KnownVillages.knows(ws, pid, center))) return;
 
             TravellerVillageRelations rel = TravellerVillageRelations.get(ws);
             rel.setEnemy(pid, ws.provider.getDimension(), center, msg.enemy);

@@ -71,9 +71,8 @@ public class ContainerWorkerInventory extends Container {
         ItemStack original = stack.copy();
 
         if (index < ARMOR_END) {
-            // Armor → backpack, then player inventory
-            if (!mergeItemStack(stack, BACKPACK_START, BACKPACK_END, false)
-                    && !mergeItemStack(stack, PLAYER_START, HOTBAR_END, true)) {
+            // Gear → the player's inventory only: it stays equipped when that is full
+            if (!mergeItemStack(stack, PLAYER_START, HOTBAR_END, true)) {
                 return ItemStack.EMPTY;
             }
         } else if (index < BACKPACK_END) {

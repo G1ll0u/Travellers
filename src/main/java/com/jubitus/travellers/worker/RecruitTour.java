@@ -195,8 +195,8 @@ public final class RecruitTour {
         RecruitPlan.Stop best = null;
         double bestSq = Double.MAX_VALUE;
         for (MillSettlements.Settlement s : MillSettlements.villages(ws)) {
-            if (s.cultureKey == null || missing(s.cultureKey) == 0 || planned.contains(s.center.toLong())
-                    || !RecruitCultures.inRange(origin, s.center)
+            if (!RecruitCultures.isRecruitVillage(ws, ownerId, origin, s) || missing(s.cultureKey) == 0
+                    || planned.contains(s.center.toLong())
                     || RecruitCultures.verdict(ws, ownerId, s.cultureKey) != RecruitCultures.Verdict.OK) continue;
             double d = from.distanceSq(s.center.getX(), from.getY(), s.center.getZ());
             if (d < bestSq) {
