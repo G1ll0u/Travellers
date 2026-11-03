@@ -35,6 +35,7 @@ import com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate;
 import com.jubitus.travellers.worldmap.net.MsgMapForeignUnitsUpdate;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.zone.gui.GuiWorkerBarracks;
+import com.jubitus.travellers.debug.net.MsgTeleportToPos;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -114,6 +115,8 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     // ── Widgets / state ───────────────────────────────────────────────────────
     private GuiButton barracksButton, behaviorButton, closeButton;
+    @Nullable private GuiButton teleportButton; // operators / cheats only
+    private boolean teleportArmed = false;
 
     private boolean mapDragSelecting = false;
     private int mapDragStartX, mapDragStartY, mapDragCurrentX, mapDragCurrentY;
@@ -169,6 +172,16 @@ public class GuiWorkerFormationHub extends GuiScreen
         String barracks = I18n.format("travellers.worker.hub.barracks");
         int barracksW = fontRenderer.getStringWidth(barracks) + 10;
         barracksButton = addButton(new GuiTravellersButton(36, bx - barracksW, buttonY, barracksW, 14, barracks));
+        bx -= barracksW + PAD;
+        teleportButton = null;
+        teleportArmed = false;
+        if (player.canUseCommand(2, "travellersdebug")) {
+            // Sized for the longer of its two labels so arming it never shifts its edges.
+            int teleportW = Math.max(fontRenderer.getStringWidth(teleportLabel(false)),
+                    fontRenderer.getStringWidth(teleportLabel(true))) + 10;
+            teleportButton = addButton(new GuiTravellersButton(38, bx - teleportW, buttonY, teleportW, 14,
+                    teleportLabel(false)));
+        }
 
         // Card content, under its header: state line, style + attitude, then the four sliders
         tooltips.clear();
@@ -535,6 +548,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             mc.displayGuiScreen(new GuiWorkerBarracks(player, this));
         } else if (button == behaviorButton) {
             mc.displayGuiScreen(new GuiWorkerBehavior(player, this));
+        } else if (button == teleportButton) {
+            setTeleportArmed(!teleportArmed);
         } else {
             card.actionPerformed(button);
         }
@@ -572,6 +587,12 @@ public class GuiWorkerFormationHub extends GuiScreen
         }
 
         if (mapController.isMouseOver(mouseX, mouseY)) {
+            if (mouseButton == 0 && teleportArmed) {
+                BlockPos target = mapController.screenToWorld(mouseX, mouseY);
+                TravellersNetwork.CHANNEL.sendToServer(new MsgTeleportToPos(target.getX(), target.getZ()));
+                setTeleportArmed(false);
+                return;
+            }
             if (mouseButton == 1) {
                 mapController.onMouseClick(mouseX, mouseY, mouseButton); // pans, or opens the menu on a still release
             } else if (mouseButton == 0) {
@@ -818,6 +839,15 @@ public class GuiWorkerFormationHub extends GuiScreen
     private void centerOnSelectedGroup() {
         FormationLeaderInfo group = selection.group();
         if (group != null && mapController != null) mapController.setCenter(findCurrentLeaderPos(group));
+    }
+
+    private void setTeleportArmed(boolean armed) {
+        teleportArmed = armed;
+        if (teleportButton != null) teleportButton.displayString = teleportLabel(armed);
+    }
+
+    private static String teleportLabel(boolean armed) {
+        return armed ? I18n.format("travellers.map.teleport.active") : I18n.format("travellers.map.teleport");
     }
 
     private void refreshButtons() {
