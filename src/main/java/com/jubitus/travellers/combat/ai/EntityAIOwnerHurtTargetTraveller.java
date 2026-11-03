@@ -2,7 +2,9 @@ package com.jubitus.travellers.combat.ai;
 
 import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.combat.Hostility;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
+import com.jubitus.travellers.unit.EntityTraveller;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.combat.lists.EntityRuleList;
@@ -41,16 +43,14 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
         if (i == this.timestamp) {
             return false;
         }
+        // Each owner hit is judged once: a refused target is not re-checked every tick.
+        this.timestamp = i;
         return this.isSuitableTarget(target, false);
     }
 
     @Override
     public void startExecuting() {
         this.taskOwner.setAttackTarget(this.target);
-        EntityPlayer owner = worker.getFollowOwner();
-        if (owner != null) {
-            this.timestamp = owner.getLastAttackedEntityTime();
-        }
         super.startExecuting();
     }
 
@@ -64,8 +64,25 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
             return false;
         }
 
-        // Only enemies and aggressors: a peaceful target the owner strikes first is not our fight.
-        return Hostility.isWorkerEnemy(worker, target);
+        if (Hostility.isWorkerEnemy(worker, target)) return true;
+        return joinsOwnerAttackOn(target);
+    }
+
+    /** A target that is not an enemy: joined or not according to {@code joinOwnerAttacks}. */
+    private boolean joinsOwnerAttackOn(EntityLivingBase target) {
+        if (target instanceof EntityPlayer || target instanceof EntityTravellerWorker) return false;
+        if (Hostility.isOwnerSide(worker, target)) return false;
+        switch (TravellersConfig.COMBAT.joinOwnerAttacks.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "EVERYTHING":
+                return true;
+            case "ANIMALS_AND_VILLAGERS":
+                return !(target instanceof EntityTraveller);
+            case "ANIMALS":
+                return !(target instanceof EntityTraveller)
+                        && !(target instanceof org.millenaire.common.entity.MillVillager);
+            default:
+                return false;
+        }
     }
 
     // Hands the target off once: vanilla's continue/reset would drop it beyond FOLLOW_RANGE or after 3 s unseen.

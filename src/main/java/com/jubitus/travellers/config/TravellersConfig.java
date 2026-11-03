@@ -568,6 +568,9 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 10)
         public int hitProtectionTicks = 5;
 
+        @Config.Comment("What your henchmen attack along with you when you strike something that isn't an enemy. Options: NONE, ANIMALS (animals and neutral creatures), ANIMALS_AND_VILLAGERS (also friendly Millénaire villagers), EVERYTHING (also peaceful travellers).")
+        public String joinOwnerAttacks = "ANIMALS";
+
         @Config.Comment("If true, travellers call nearby allies for help when attacked.")
         public boolean callForHelp = true;
 
