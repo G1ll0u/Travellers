@@ -117,6 +117,9 @@ public class TravellersConfig {
 
         @Config.Comment("Enable debug logging for follower teleport rescues.")
         public boolean debugFollowTeleport = false;
+
+        @Config.Comment("Log a line when a traveller keeps a weapon or tool in hand for a long time outside combat.")
+        public boolean debugHandProbe = false;
     }
 
     public static class Rendering {
@@ -2640,6 +2643,16 @@ public class TravellersConfig {
         @Config.Comment("How often travellers sit down to enjoy the view during a break (0 = never, 1 = whenever they can).")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double sitChance = 0.5;
+
+        @Config.Comment("How often seated travellers have a drink or a bite of their homeland's food (0 = never, 1 = every time they sit).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double snackChance = 0.6;
+
+        @Config.Comment("Extra food or drink a culture enjoys on breaks, as culture=item (for example norman=minecraft:apple).")
+        public String[] snackExtraItems = new String[0];
+
+        @Config.Comment("Food or drink no traveller ever has on a break.")
+        public String[] snackExcludedItems = new String[]{"millenaire:oliveoil"};
     }
 
     public static class BattleEvents {

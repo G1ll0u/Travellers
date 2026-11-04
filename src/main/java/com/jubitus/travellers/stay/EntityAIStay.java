@@ -777,7 +777,9 @@ public class EntityAIStay extends EntityAIBase {
         if (dx * dx + dz * dz <= SEAT_SNAP_SQ && Math.abs(mob.posY - seat.feet.getY()) < 0.5D) {
             settled = true;
             mob.setPosition(cx, mob.posY, cz);
-            trace("sit", mob.sit.sitFor(seat.yaw(), lingerLeft) ? "for " + lingerLeft / 20 + "s" : "could not sit here");
+            boolean sat = mob.sit.sitFor(seat.yaw(), lingerLeft);
+            if (sat) mob.snack.planWhileSeated();
+            trace("sit", sat ? "for " + lingerLeft / 20 + "s" : "could not sit here");
             return;
         }
         if (++settleTicks > SETTLE_MAX_TICKS) {

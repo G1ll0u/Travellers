@@ -208,6 +208,7 @@ public class Travellers {
     public void onServerStarting(FMLServerStartingEvent event) {
         CultureRegistry.initMillenaireData();
         ModSounds.assignVoicesToCultures(); // ✅ add this
+        com.jubitus.travellers.village.CultureSnacks.buildAll();
     }
 
 

@@ -156,6 +156,11 @@ public class EntityTraveller extends EntityCreature {
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     static final DataParameter<Float> SIT_YAW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
+    // Snack while seated (TravellerSnack): shown only, never persisted.
+    static final DataParameter<ItemStack> SNACK =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.ITEM_STACK);
+    static final DataParameter<Boolean> SNACK_AT_MOUTH =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     // Set only by /travellersdebug path test: a throwaway entity for comparing a mounted route
     // against a hand-marked one. Never persisted - it exists for one test run and is deleted by its
     // own watchdog, never handed off to the offscreen simulation.
@@ -191,6 +196,7 @@ public class EntityTraveller extends EntityCreature {
     public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
     public final TravellerSleep sleep = new TravellerSleep(this);
     public final TravellerSit sit = new TravellerSit(this);
+    public final TravellerSnack snack = new TravellerSnack(this);
     public final TravellerVoice voice = new TravellerVoice(this);
     public final TravellerHandOff handOff = new TravellerHandOff(this);
     public final FollowCatchup catchup = new FollowCatchup(this);
@@ -986,6 +992,8 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(SLEEPING_BED_POS, BlockPos.ORIGIN);
         this.dataManager.register(SITTING, Boolean.FALSE);
         this.dataManager.register(SIT_YAW, 0.0F);
+        this.dataManager.register(SNACK, ItemStack.EMPTY);
+        this.dataManager.register(SNACK_AT_MOUTH, Boolean.FALSE);
         this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
         this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
     }
@@ -1236,7 +1244,12 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote && sleep.isSleeping()) {
             sleep.holdPosition();
         }
-        if (!world.isRemote) sit.tick();
+        if (!world.isRemote) {
+            sit.tick();
+            snack.tick();
+        } else {
+            snack.clientTick();
+        }
 
         // Clear revenge target immediately if the attacker is blacklisted
         if (!world.isRemote) {
@@ -1792,7 +1805,10 @@ public class EntityTraveller extends EntityCreature {
     // The reaction to a hit (armor wear, revenge, retaliation) lives in TravellerCombatLogic.onAttacked.
     @Override
     public boolean attackEntityFrom(DamageSource source, float amount) {
-        if (!world.isRemote) sit.stand();
+        if (!world.isRemote) {
+            sit.stand();
+            snack.stop();
+        }
         return combat.onAttacked(source, amount);
     }
 

@@ -1,5 +1,7 @@
 package com.jubitus.travellers.unit.render;
 
+import com.jubitus.travellers.unit.TravellerSit;
+
 import com.jubitus.travellers.marker.render.LayerTravellerArmband;
 import com.jubitus.travellers.unit.render.models.ModelSimpleHumanoid;
 import com.jubitus.travellers.unit.render.textures.LayerTravellerBackpack;
@@ -26,7 +28,6 @@ import javax.annotation.Nullable;
 public class RenderTraveller extends RenderBiped<EntityTraveller> {
 
     /** How far the seated model sinks, in blocks at scale 1: hip at 12px, less the slight downward slope of the legs. */
-    private static final double SEATED_DROP = 8.0D / 16.0D;
 
     private final LayerBipedArmor armorLayer;
     // Set for the duration of one doRender when this unit is drawn from its baked skin.
@@ -36,7 +37,7 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
     public RenderTraveller(RenderManager renderManagerIn) {
         super(renderManagerIn, new ModelSimpleHumanoid(), 0.5F);
 
-        this.addLayer(new LayerHeldItem(this));
+        this.addLayer(new LayerTravellerHeldItem(this));
 
         this.armorLayer = new LayerBipedArmor(this) {
             @Override
@@ -142,7 +143,7 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
             super.renderLivingAt(entity, x + offset.x, y + offset.y, z + offset.z);
         } else if (entity.isEntityAlive() && entity.sit.isSitting()) {
             // Lowers the seated model until the underside of its thighs rests on the ground.
-            super.renderLivingAt(entity, x, y - SEATED_DROP * entity.getRenderScale(), z);
+            super.renderLivingAt(entity, x, y - TravellerSit.SEATED_DROP * entity.getRenderScale(), z);
         } else {
             super.renderLivingAt(entity, x, y, z);
         }

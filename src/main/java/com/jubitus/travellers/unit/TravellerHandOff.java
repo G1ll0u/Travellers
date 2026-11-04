@@ -120,7 +120,7 @@ public final class TravellerHandOff {
      * stops existing as far as the offscreen simulation is concerned. The other is a unit vanilla has
      * stopped ticking ({@link com.jubitus.travellers.virtual.VirtualTravellerManager#isFrozenByVanilla}),
      * where the blockers are not merely inconvenient but permanent: an entity that stopped ticking
-     * mid-meal keeps {@code isHandActive()} true forever, so declining to virtualize it for that
+     * with a hand in use (a raised shield, a drawn bow) keeps {@code isHandActive()} true forever, so declining to virtualize it for that
      * reason leaves it standing at the border for good.
      *
      * <p>Anything still ineligible after that (already dead, no server world) is left alone.

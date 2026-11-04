@@ -32,7 +32,6 @@ public class EntityAIAutoEat extends EntityAIBase {
     // runtime
     private int ticksLeftThisBite = 0;
     private int betweenBiteDelay = 0;
-    private ItemStack savedMainHand = ItemStack.EMPTY;
     private FoodSpec currentFood = null;
 
     // fields
@@ -173,10 +172,7 @@ public class EntityAIAutoEat extends EntityAIBase {
 
         if (ticksLeftThisBite > 0) {
             // chew tick
-            if (ticksLeftThisBite % 24 == 0) {
-                mob.playSound(SoundEvents.ENTITY_GENERIC_EAT, 0.3F, 0.8F + mob.getRNG().nextFloat() * 0.2F);
-                spawnItemCrackAtMouth(currentFood.item);
-            }
+            if (ticksLeftThisBite % 24 == 0) mob.snack.chew();
             // gradual healing per tick (no potion particles)
             float healPerTick = currentFood.healAmount / Math.max(1, currentFood.durationTicks);
             if (healPerTick > 0f) {
@@ -219,48 +215,9 @@ public class EntityAIAutoEat extends EntityAIBase {
         betweenBiteDelay = randBetween(betweenBiteDelayMin, betweenBiteDelayMax);
     }
 
-    private void spawnItemCrackAtMouth(Item item) {
-        double x = mob.posX;
-        double y = mob.posY + mob.getEyeHeight() * 0.85D;
-        double z = mob.posZ;
-
-        double spread = 0.2D;
-        double speed = 0.02D;
-
-        int itemId = Item.getIdFromItem(item);
-        int meta = 0;
-
-        if (mob.world instanceof net.minecraft.world.WorldServer) {
-            net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) mob.world;
-            ws.spawnParticle(
-                    net.minecraft.util.EnumParticleTypes.ITEM_CRACK,
-                    x, y, z,
-                    6, // count
-                    spread, spread, spread,
-                    speed,
-                    itemId, meta
-            );
-        } else {
-            // client fallback
-            for (int i = 0; i < 6; i++) {
-                double mx = (mob.getRNG().nextDouble() - 0.5D) * speed * 2.0D;
-                double my = (mob.getRNG().nextDouble() - 0.3D) * speed * 2.0D;
-                double mz = (mob.getRNG().nextDouble() - 0.5D) * speed * 2.0D;
-                mob.world.spawnParticle(
-                        net.minecraft.util.EnumParticleTypes.ITEM_CRACK,
-                        x, y, z,
-                        mx, my, mz,
-                        itemId
-                );
-            }
-        }
-    }
-
+    // The food is only shown (TravellerSnack): the real hands are never touched, so nothing held is ever lost.
     private void finishHoldItem() {
-        mob.resetActiveHand();
-        // Always clear the main hand after eating/cancel
-        mob.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-        savedMainHand = ItemStack.EMPTY; // keep field tidy
+        mob.snack.releaseMeal();
         mob.getNavigator().clearPath();
     }
 
@@ -268,8 +225,7 @@ public class EntityAIAutoEat extends EntityAIBase {
         currentFood = foods[mob.getRNG().nextInt(foods.length)];
         ticksLeftThisBite = currentFood.durationTicks;
 
-        mob.setHeldItem(EnumHand.MAIN_HAND, new ItemStack(currentFood.item));
-        mob.setActiveHand(EnumHand.MAIN_HAND);
+        mob.snack.holdForMeal(new ItemStack(currentFood.item));
         mob.getNavigator().clearPath();
     }
 

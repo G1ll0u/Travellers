@@ -10,6 +10,9 @@ import net.minecraft.util.math.BlockPos;
  */
 public final class TravellerSit {
 
+    /** How far the seated body sits below standing height, in model units of a scale-1 unit. */
+    public static final double SEATED_DROP = 8.0D / 16.0D;
+
     private final EntityTraveller unit;
     // Server-only, like the sleep anchor: re-applied every tick so pushes never slide a sitter.
     private double anchorX, anchorY, anchorZ;

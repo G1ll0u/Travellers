@@ -121,11 +121,42 @@ public class ModelSimpleHumanoid extends ModelBiped {
             }
         }
 
+        if (!t.isAimingBow()) applySnackPose(t, ageInTicks);
+
         // Raised shield: vanilla's block pose on the left (offhand) arm
         if (!t.isAimingBow() && t.isHandActive() && t.getActiveHand() == net.minecraft.util.EnumHand.OFF_HAND) {
             this.leftArmPose = ArmPose.BLOCK;
             this.bipedLeftArm.rotateAngleX = this.bipedLeftArm.rotateAngleX * 0.5F - 0.9424779F;
             this.bipedLeftArm.rotateAngleY = 0.5235988F;
         }
+    }
+
+    // Snack in the main hand: held in front of the chest, then brought to the mouth; drinking tips the head back.
+    private void applySnackPose(EntityTraveller t, float ageInTicks) {
+        float partial = ageInTicks - t.ticksExisted;
+        float hold = t.snack.getHold(partial);
+        if (hold <= 0.0F) return;
+        float raise = t.snack.getRaise(partial);
+        boolean drinking = t.snack.isDrinking();
+        boolean right = t.getPrimaryHand() == net.minecraft.util.EnumHandSide.RIGHT;
+        ModelRenderer arm = right ? bipedRightArm : bipedLeftArm;
+        float side = right ? 1.0F : -1.0F;
+
+        float x = lerp(arm.rotateAngleX, -0.6F, hold);
+        float y = lerp(arm.rotateAngleY, -0.15F * side, hold);
+        float z = lerp(arm.rotateAngleZ, 0.0F, hold);
+        float mouthX = drinking ? -2.1F : -1.9F;
+        if (!drinking) mouthX += MathHelper.sin(ageInTicks * 1.4F) * 0.08F; // chewing bob
+        arm.rotateAngleX = lerp(x, mouthX, raise);
+        arm.rotateAngleY = lerp(y, -0.6F * side, raise);
+        arm.rotateAngleZ = z;
+        if (drinking && raise > 0.0F) {
+            bipedHead.rotateAngleX = lerp(bipedHead.rotateAngleX, -0.45F, raise);
+            copyModelAngles(bipedHead, bipedHeadwear);
+        }
+    }
+
+    private static float lerp(float from, float to, float t) {
+        return from + (to - from) * t;
     }
 }

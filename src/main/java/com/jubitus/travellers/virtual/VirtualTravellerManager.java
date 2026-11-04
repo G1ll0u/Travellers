@@ -1260,7 +1260,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
             boolean frozen = isFrozenByVanilla(world, worker);
             // INVARIANT: the gate is skipped for a frozen unit - it never ticks again, so a blocker like
-            // isHandActive() (stopped mid-meal) could never end and it would stand at the border for good.
+            // isHandActive() (a shield or bow stopped mid-use) could never end and it would stand at the border for good.
             if (!frozen && !VirtualizationGate.mayVirtualize(worker)) { virtualizeWatch.remove(id); continue; }
             if (!tickUnneededWatch(id, worker, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", worker);

@@ -52,6 +52,8 @@ public class TravellerEquipmentManager {
     private final EntityTraveller entity;
 
     private int swordHideTicks = 0;
+    // Probe (debugHandProbe): item kept in hand out of combat; open case, remove once the cause is found.
+    private int handProbeTicks = 0;
     private int pickupCooldown = 0;
     private int pickupScanTicker = 0;
 
@@ -840,8 +842,9 @@ public class TravellerEquipmentManager {
      * Must be called every server tick from {@code onLivingUpdate}.
      */
     public void handleWeaponVisibility() {
-        if (entity.isAimingBow()) return;
         if (entity.world.isRemote) return;
+        probeHeldOutOfCombat();
+        if (entity.isAimingBow()) return;
 
         // Raiders must stay visibly armed even outside combat, so players can tell them apart from
         // travellers/workers on sight rather than only after being attacked.
@@ -874,6 +877,26 @@ public class TravellerEquipmentManager {
                 }
             }
         }
+    }
+
+    // Probe (debugHandProbe): one log line when a non-raider keeps something in its main hand for 30 s out of combat.
+    private void probeHeldOutOfCombat() {
+        ItemStack cur = entity.getHeldItemMainhand();
+        if (!TravellersConfig.GENERAL.debugHandProbe || entity instanceof EntityTravellerRaider || cur.isEmpty()
+                || entity.isInCombat()) {
+            handProbeTicks = 0;
+            return;
+        }
+        if (++handProbeTicks != 600) return;
+        String ghost = isGhostWeapon(cur) ? "sword" : checkGhostTag(cur, GHOST_BOW_TAG) ? "bow"
+                : checkGhostTag(cur, GHOST_TORCH_TAG) ? "torch" : checkGhostTag(cur, GHOST_ROD_TAG) ? "rod"
+                : checkGhostTag(cur, GHOST_BLOCK_TAG) ? "block" : "no";
+        net.minecraft.entity.Entity ride = entity.getRidingEntity();
+        org.apache.logging.log4j.LogManager.getLogger("Travellers/HandProbe").info(
+                "[HandProbe] {} {} {} culture={} item={} ghost={} weapon={} combatFlag={} aiming={} handActive={} riding={} hideTicks={} pos={}",
+                entity.getClass().getSimpleName(), entity.getName(), entity.getUniqueID(), entity.getCultureId(),
+                cur.getItem().getRegistryName(), ghost, isWeapon(cur), entity.combat.getInCombatFlag(), entity.isAimingBow(),
+                entity.isHandActive(), ride == null ? "-" : ride.getClass().getSimpleName(), swordHideTicks, entity.getPosition());
     }
 
     /** Immediately equips the best available ghost weapon. Called when combat is entered. */

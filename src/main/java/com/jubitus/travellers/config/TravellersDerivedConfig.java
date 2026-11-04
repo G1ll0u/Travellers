@@ -76,6 +76,7 @@ public class TravellersDerivedConfig {
                 TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistClasses);
 
         com.jubitus.travellers.ground.BlockRules.clearCache();
+        com.jubitus.travellers.village.CultureSnacks.clear();
     }
 
 
