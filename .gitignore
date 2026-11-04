@@ -41,7 +41,6 @@ libs
 src/main/resources/assets/travellers/sounds/travellers/choir_studio*.py
 
 # personal scripts
-/deploy.sh
 /README_.md
 
 # local notes and plans

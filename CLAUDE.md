@@ -26,7 +26,6 @@ General rules are in `~/.claude/CLAUDE.md`, rules shared by all mods in `/home/u
 - **Diagnose a unit's movement with `/travellersdebug trace`** (per-entity log with automatic incident capture), not `latest.log`; `/travellersdebug profile` for population-wide health. Build the instrument before the fix.
 - **`// INVARIANT:` comments** are actively maintained and trustworthy.
 - **Player-facing text** goes in `en_us.lang`; other languages come from the `translate` skill (`tools/translate`), proposed at the end of any task that adds or changes keys.
-- **Ultreïa** (`/home/user/IdeaProjects/MillPathBuilder`): may be edited and built, never deployed — tell the user where the jar is.
 - **Code style**: before adding a class, check whether an existing manager already owns the concern rather than growing `EntityTraveller`/`EntityTravellerWorker`/`VirtualTravellerManager`. Ignore unused imports.
 - **Config fields** are for what a player or server admin would plausibly tune; purely internal tuning stays a named constant in code. A bugfix never gets an on/off toggle.
 - **README** is for players: no class names, update only for player-visible changes.

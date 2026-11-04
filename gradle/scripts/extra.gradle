@@ -309,12 +309,3 @@ tasks.register('generateDynamicSounds') {
 }
 
 processResources.dependsOn(generateDynamicSounds)
-
-tasks.register('deployToServer', Exec) {
-    group = 'deployment'
-    description = 'Copies production jar to travellers-latest.jar and deploys to server'
-    mustRunAfter 'build'
-    commandLine 'bash', "${projectDir}/deploy.sh"
-}
-
-tasks.named('build').configure { finalizedBy 'deployToServer' }
