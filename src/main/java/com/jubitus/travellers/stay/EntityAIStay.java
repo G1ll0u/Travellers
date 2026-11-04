@@ -93,6 +93,16 @@ public class EntityAIStay extends EntityAIBase {
     private static final double SEAT_SNAP_SQ = 0.3D * 0.3D;
     private static final int SETTLE_MAX_TICKS = 40;
 
+    /** How far around a counter a drinker may stand, and how close a body must be to the spot to make it taken. */
+    private static final int COUNTER_SPREAD = 4;
+    private static final double BODY_ON_SPOT = 0.8D;
+    /** Close enough to a spot someone stands on to stop there instead of pushing in. */
+    private static final double NEAR_TAKEN_SPOT_SQ = 2.5D * 2.5D;
+    /** Drinkers this close are company at the counter. */
+    private static final double COUNTER_COMPANY = 4.5D;
+    private static final int COUNTER_GAZE_MIN = 60;
+    private static final int COUNTER_GAZE_MAX = 160;
+
     private static final double HORSE_REACH_BLOCKS = 4.0D;
     private static final double GROUP_SCAN_BLOCKS = 96.0D;
 
@@ -168,6 +178,7 @@ public class EntityAIStay extends EntityAIBase {
     private boolean justWalked;
     /** The drink at the counter has begun (the snack is planned, the drink's clock runs). */
     private boolean atCounter;
+    private int counterGazeTicks;
 
     private List<EntityLivingBase> nearby = Collections.emptyList();
     private int socialTicker;
@@ -729,6 +740,7 @@ public class EntityAIStay extends EntityAIBase {
         activity = Activity.NONE;
         mob.sit.stand();
         mob.snack.stop();
+        if (atCounter) mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
         atCounter = false;
         legs.clear();
         leg = null;
@@ -792,7 +804,7 @@ public class EntityAIStay extends EntityAIBase {
         }
 
         if (moving) {
-            if (arrived(legTarget)) {
+            if (arrived(legTarget) || takenWhileNear()) {
                 moving = false;
                 mob.getNavigator().clearPath();
                 lingerLeft = leg.lingerTicks;
@@ -824,16 +836,39 @@ public class EntityAIStay extends EntityAIBase {
         StayState st = mob.getStayState();
         if (!atCounter) {
             atCounter = true;
+            counterGazeTicks = 0;
             mob.snack.planAtCounter();
             trace("drink", "at the counter for " + lingerLeft / 20 + "s");
         }
         if (st != null && st.drinkTicks > 0) st.drinkTicks--;
+        if (--counterGazeTicks <= 0) lookAroundCounter();
+    }
+
+    /** Now and then turns to someone drinking alongside (a nod for them sometimes), the counter, or lets the eyes wander. */
+    private void lookAroundCounter() {
+        counterGazeTicks = COUNTER_GAZE_MIN + mob.getRNG().nextInt(COUNTER_GAZE_MAX - COUNTER_GAZE_MIN + 1);
+        List<EntityLivingBase> company = new ArrayList<>();
+        for (EntityLivingBase e : nearby) {
+            if (e.isEntityAlive() && mob.getDistanceSq(e) <= COUNTER_COMPANY * COUNTER_COMPANY) company.add(e);
+        }
+        double roll = mob.getRNG().nextDouble();
+        if (!company.isEmpty() && roll < 0.6D) {
+            EntityLivingBase who = company.get(mob.getRNG().nextInt(company.size()));
+            mob.getGaze().focus(TravellerGaze.Kind.TALK, who);
+            if (mob.getRNG().nextDouble() < 0.35D) mob.getGaze().nod(who);
+        } else if (roll < 0.8D && leg != null) {
+            mob.getGaze().focus(TravellerGaze.Kind.POINT, leg.pos);
+        } else {
+            mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
+            mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
+        }
     }
 
     private void endCounter() {
         StayState st = mob.getStayState();
         if (st != null) st.endDrink();
         mob.snack.stop();
+        mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
         atCounter = false;
         trace("drink", "done");
     }
@@ -878,8 +913,24 @@ public class EntityAIStay extends EntityAIBase {
             lookAt = l.look;
         }
         if (target == null) target = l.pos;
+        boolean counter = activity == Activity.DRINK && l.lingerTicks > 0;
+        if (counter) {
+            BlockPos free = freeSpot(target, l.indoor, COUNTER_SPREAD);
+            if (free == null) {
+                // Every place at the counter is taken: a drink by the door, looking in, rather than pushing through.
+                trace("drink", "counter full, drinking by the door");
+                moving = false;
+                lingerLeft = l.lingerTicks;
+                legTarget = mob.getPosition();
+                lookAt = l.pos;
+                mob.getGaze().focus(TravellerGaze.Kind.POINT, l.pos);
+                StayOccupancy.claim(mob.world, mob.getUniqueID(), legTarget, l.lingerTicks + 20 * 60);
+                return true;
+            }
+            target = free;
+        }
         if (l.lingerTicks > 0 && !l.exit) {
-            if (l.seat == null) target = spreadSpot(target, l.indoor);
+            if (l.seat == null && !counter) target = spreadSpot(target, l.indoor);
             StayOccupancy.claim(mob.world, mob.getUniqueID(), target, l.lingerTicks + 20 * 60);
         }
         legTarget = target;
@@ -932,9 +983,16 @@ public class EntityAIStay extends EntityAIBase {
 
     /** Keeps a little room from other visitors: a spot someone else holds moves to a free neighbour. */
     private BlockPos spreadSpot(BlockPos target, boolean indoor) {
+        BlockPos free = freeSpot(target, indoor, 2);
+        return free != null ? free : target;
+    }
+
+    /** The closest spot within {@code reach} of {@code target} nobody holds or stands on, or null when there is none. */
+    @Nullable
+    private BlockPos freeSpot(BlockPos target, boolean indoor, int reach) {
         java.util.UUID me = mob.getUniqueID();
-        if (StayOccupancy.countNear(mob.world, target, SPOT_SPACING, me) == 0) return target;
-        for (int r = 1; r <= 2; r++) {
+        if (StayOccupancy.countNear(mob.world, target, SPOT_SPACING, me) == 0 && !bodyOn(target)) return target;
+        for (int r = 1; r <= reach; r++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
@@ -943,12 +1001,20 @@ public class EntityAIStay extends EntityAIBase {
                         // Indoor spots are the visit's own planned places inside a building.
                         if (!LandingSpots.isSafe(mob.world, feet, mob, false, indoor)) continue;
                         if (!indoor && MillFootprints.at(mob.world, feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0) != null) continue;
-                        if (StayOccupancy.countNear(mob.world, feet, SPOT_SPACING, me) == 0) return feet;
+                        if (StayOccupancy.countNear(mob.world, feet, SPOT_SPACING, me) == 0 && !bodyOn(feet)) return feet;
                     }
                 }
             }
         }
-        return target;
+        return null;
+    }
+
+    /** Someone other than us stands on this spot (a villager, a player, a visitor without a claim). */
+    private boolean bodyOn(BlockPos spot) {
+        double cx = spot.getX() + 0.5D, cz = spot.getZ() + 0.5D;
+        net.minecraft.util.math.AxisAlignedBB box = new net.minecraft.util.math.AxisAlignedBB(
+                cx - BODY_ON_SPOT, spot.getY() - 1.0D, cz - BODY_ON_SPOT, cx + BODY_ON_SPOT, spot.getY() + 2.0D, cz + BODY_ON_SPOT);
+        return !mob.world.getEntitiesWithinAABB(EntityLivingBase.class, box, e -> e != null && e != mob && e.isEntityAlive()).isEmpty();
     }
 
     private void trackProgress() {
@@ -1022,6 +1088,18 @@ public class EntityAIStay extends EntityAIBase {
         }
         trace("hop", "to " + fmt(spot));
         Relocate.teleport(mob, spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
+    }
+
+    /** Nearly there and someone now stands on the spot: stop here rather than shove them. */
+    private boolean takenWhileNear() {
+        BlockPos t = legTarget;
+        if (t == null || leg == null || leg.lingerTicks <= 0 || leg.exit || leg.seat != null || (mob.ticksExisted % 5) != 0) return false;
+        double dx = mob.posX - (t.getX() + 0.5D), dz = mob.posZ - (t.getZ() + 0.5D);
+        if (dx * dx + dz * dz > NEAR_TAKEN_SPOT_SQ || !bodyOn(t)) return false;
+        trace("spot taken", "stopping short of " + fmt(t));
+        legTarget = mob.getPosition();
+        StayOccupancy.claim(mob.world, mob.getUniqueID(), legTarget, leg.lingerTicks + 20 * 60);
+        return true;
     }
 
     private boolean arrived(@Nullable BlockPos target) {

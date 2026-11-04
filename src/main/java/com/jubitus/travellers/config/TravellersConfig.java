@@ -2663,6 +2663,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double snackChance = 0.6;
 
+        @Config.Comment("How loud eating and drinking sounds (0 = silent, 1 = as loud as a player eating).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double snackVolume = 0.4;
+
         @Config.Comment("Extra food or drink a culture enjoys on breaks, as culture=item (for example norman=minecraft:apple).")
         public String[] snackExtraItems = new String[0];
 

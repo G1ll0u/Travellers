@@ -227,14 +227,18 @@ public final class TravellerSnack {
                 && unit.getAttackTarget() == null && !unit.isHandActive() && !unit.isAutoEating();
     }
 
+    private static float volume() {
+        return (float) TravellersConfig.REST_SPOTS.snackVolume;
+    }
+
     // Mirrors EntityLivingBase.updateItemUse: a gulp for a drink, crumbs and a chew for food.
     private void sipEffects() {
         ItemStack stack = getStack();
         if (isDrinking()) {
-            unit.playSound(SoundEvents.ENTITY_GENERIC_DRINK, 0.5F, unit.world.rand.nextFloat() * 0.1F + 0.9F);
+            unit.playSound(SoundEvents.ENTITY_GENERIC_DRINK, 0.5F * volume(), unit.world.rand.nextFloat() * 0.1F + 0.9F);
             return;
         }
-        unit.playSound(SoundEvents.ENTITY_GENERIC_EAT, 0.5F + 0.5F * unit.getRNG().nextInt(2),
+        unit.playSound(SoundEvents.ENTITY_GENERIC_EAT, (0.5F + 0.5F * unit.getRNG().nextInt(2)) * volume(),
                 (unit.getRNG().nextFloat() - unit.getRNG().nextFloat()) * 0.2F + 1.0F);
         if (!(unit.world instanceof WorldServer)) return;
         float yaw = unit.rotationYawHead * 0.017453292F;
