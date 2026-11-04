@@ -518,6 +518,8 @@ travellers.notify.worker.retaliation_target=%s désigné comme ennemi (représai
 travellers.notify.mount.led_terrain_blocked=Le cheval de %s ne peut pas passer par là - il le mène à pied à la place.
 travellers.notify.mount.led_sidestep_gave_up=Le cheval de %s est resté coincé et n'a pas réussi à se dégager - il le mène à pied à la place.
 travellers.notify.mount.led_low_health=Le cheval de %s est trop blessé pour continuer à être monté - il le mène à pied à la place.
+travellers.notify.mount.horse_has_rider=Ce cheval n'est pas abandonné : il appartient à un cavalier.
+travellers.notify.mount.horse_in_stable=Ce cheval appartient à l'écurie de quelqu'un.
 
 travellers.notify.trade.refused=Le village refuse de commercer avec vous (réputation trop basse ou le village ne commerce pas actuellement).
 travellers.notify.trade.village_gone=%s n'a pas trouvé le village et ramène votre cargaison à vous.

@@ -518,6 +518,8 @@ travellers.notify.worker.retaliation_target=%s definido como inimigo (retaliaç�
 travellers.notify.mount.led_terrain_blocked=%s tem o cavalo preso aqui - vai guiá-lo a pé no lugar.
 travellers.notify.mount.led_sidestep_gave_up=%s teve o cavalo preso e não conseguiu se soltar - vai guiá-lo a pé no lugar.
 travellers.notify.mount.led_low_health=%s tem o cavalo tão machucado que não consegue mais montar - vai guiá-lo a pé no lugar.
+travellers.notify.mount.horse_has_rider=Este cavalo não está abandonado: pertence a um cavaleiro.
+travellers.notify.mount.horse_in_stable=Este cavalo pertence ao estábulo de alguém.
 
 travellers.notify.trade.refused=A vila se recusa a negociar com você (reputação baixa ou a vila não está negociando agora).
 travellers.notify.trade.village_gone=%s não conseguiu encontrar a vila e está trazendo sua carga de volta.

@@ -823,6 +823,14 @@
   "en": "%sm to the %s",
   "hand": "%s m Richtung %s"
  },
+ "travellers.notify.mount.horse_has_rider": {
+  "en": "This horse isn't abandoned: it belongs to a rider.",
+  "hand": "Dieses Pferd ist nicht herrenlos: Es gehört einem Reiter."
+ },
+ "travellers.notify.mount.horse_in_stable": {
+  "en": "This horse belongs to someone's stable.",
+  "hand": "Dieses Pferd gehört zum Stall eines anderen."
+ },
  "travellers.notify.mount.led_low_health": {
   "en": "%s's horse is too badly hurt to keep riding - leading it on foot instead.",
   "tr": "%s' Pferd ist zu schwer verletzt, um weiter zu reiten - es wird zu Fuß geführt."

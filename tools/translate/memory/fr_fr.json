@@ -823,6 +823,14 @@
   "en": "%sm to the %s",
   "hand": "%sm vers le %s"
  },
+ "travellers.notify.mount.horse_has_rider": {
+  "en": "This horse isn't abandoned: it belongs to a rider.",
+  "tr": "Ce cheval n'est pas abandonné : il appartient à un cavalier."
+ },
+ "travellers.notify.mount.horse_in_stable": {
+  "en": "This horse belongs to someone's stable.",
+  "tr": "Ce cheval appartient à l'écurie de quelqu'un."
+ },
  "travellers.notify.mount.led_low_health": {
   "en": "%s's horse is too badly hurt to keep riding - leading it on foot instead.",
   "hand": "Le cheval de %s est trop blessé pour continuer à être monté - il le mène à pied à la place."
@@ -2284,8 +2292,8 @@
   "hand": "Assignés ici"
  },
  "travellers.worker.zones.create_hint": {
-  "en": "To create a Barrack or a Stable: Shift + right-click with a Wand of Summoning where you want it.",
-  "tr": "Pour créer une caserne ou une écurie : cliquez droit avec une Baguette d'invocation à l'endroit souhaité."
+  "en": "Shift + right-click with a Wand of Summoning to create one.",
+  "hand": "Shift + clic droit avec une Baguette d'invocation pour en créer une."
  },
  "travellers.worker.zones.list_stables": {
   "en": "Stables",

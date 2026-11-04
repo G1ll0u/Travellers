@@ -823,6 +823,14 @@
   "en": "%sm to the %s",
   "tr": "%sm a %s"
  },
+ "travellers.notify.mount.horse_has_rider": {
+  "en": "This horse isn't abandoned: it belongs to a rider.",
+  "tr": "Questo cavallo non è abbandonato: appartiene a un cavaliere."
+ },
+ "travellers.notify.mount.horse_in_stable": {
+  "en": "This horse belongs to someone's stable.",
+  "tr": "Questo cavallo appartiene alla scuderia di qualcuno."
+ },
  "travellers.notify.mount.led_low_health": {
   "en": "%s's horse is too badly hurt to keep riding - leading it on foot instead.",
   "tr": "Il cavallo di %s è troppo ferito per essere montato - lo porterò a piedi."

@@ -518,6 +518,8 @@ travellers.notify.worker.retaliation_target=%s назначен как враг 
 travellers.notify.mount.led_terrain_blocked=%s лошадь не может пройти здесь — ведём её пешком вместо этого.
 travellers.notify.mount.led_sidestep_gave_up=%s лошадь застряла и не смогла вырваться — ведём её пешком вместо этого.
 travellers.notify.mount.led_low_health=%s лошадь слишком сильно ранена, чтобы продолжать ездить — ведём её пешком вместо этого.
+travellers.notify.mount.horse_has_rider=Эта лошадь не брошена: у неё есть всадник.
+travellers.notify.mount.horse_in_stable=Эта лошадь принадлежит чужой конюшне.
 
 travellers.notify.trade.refused=Сельское население отказывает в торговле с вами (репутация слишком низкая или деревня сейчас не торгует).
 travellers.notify.trade.village_gone=%s не смогла найти деревню и везёт ваш груз обратно.

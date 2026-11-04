@@ -518,6 +518,8 @@ travellers.notify.worker.retaliation_target=%s ha sido designado como enemigo (r
 travellers.notify.mount.led_terrain_blocked=%s no puede pasar por aquí - lo llevaremos a pie en su lugar.
 travellers.notify.mount.led_sidestep_gave_up=%s se quedó atascado y no pudo liberarse - lo llevaremos a pie en su lugar.
 travellers.notify.mount.led_low_health=%s tiene el caballo demasiado herido para montarlo - lo llevaremos a pie en su lugar.
+travellers.notify.mount.horse_has_rider=Este caballo no está abandonado: pertenece a un jinete.
+travellers.notify.mount.horse_in_stable=Este caballo pertenece al establo de alguien.
 
 travellers.notify.trade.refused=El pueblo se niega a comerciar contigo (reputación demasiado baja o el pueblo no está comerciando ahora mismo).
 travellers.notify.trade.village_gone=%s no pudo encontrar el pueblo y está trayendo tu carga de vuelta.

@@ -518,6 +518,8 @@ travellers.notify.worker.retaliation_target=%s als Feind gesetzt (Rache).
 travellers.notify.mount.led_terrain_blocked=%s' Pferd kommt hier nicht durch - es wird zu Fuß geführt.
 travellers.notify.mount.led_sidestep_gave_up=%s' Pferd hat sich verfangen und konnte sich nicht befreien - es wird zu Fuß geführt.
 travellers.notify.mount.led_low_health=%s' Pferd ist zu schwer verletzt, um weiter zu reiten - es wird zu Fuß geführt.
+travellers.notify.mount.horse_has_rider=Dieses Pferd ist nicht herrenlos: Es gehört einem Reiter.
+travellers.notify.mount.horse_in_stable=Dieses Pferd gehört zum Stall eines anderen.
 
 travellers.notify.trade.refused=Das Dorf weigert sich, mit dir zu handeln (Reputation zu niedrig oder das Dorf handelt gerade nicht).
 travellers.notify.trade.village_gone=%s konnte das Dorf nicht finden und bringt deine Waren zurück.
