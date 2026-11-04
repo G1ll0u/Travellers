@@ -311,7 +311,7 @@ public class EntityAIStay extends EntityAIBase {
             if (!resumeDrink(st)) st.endDrink();
         } else if (st != null && st.facing != null && !st.isLeaving()) {
             activity = Activity.STROLL;
-            legs.add(new Leg(mob.getPosition(), 60 + mob.getRNG().nextInt(80), false, false, false, st.facing));
+            legs.add(new Leg(mob.getPosition(), 60 + mob.getRNG().nextInt(80), false, false, false, st.facing.up()));
         }
         if (st != null) {
             st.spot = null;
@@ -795,7 +795,7 @@ public class EntityAIStay extends EntityAIBase {
                 if (--preTurnLeft > 0) return;
             } else if (!justWalked && needsPreTurn(next)) {
                 preTurnLeft = PRE_TURN_TICKS;
-                mob.getGaze().focus(TravellerGaze.Kind.POINT, next.pos);
+                mob.getGaze().focus(TravellerGaze.Kind.POINT, next.pos.up());
                 return;
             }
             mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
@@ -836,15 +836,28 @@ public class EntityAIStay extends EntityAIBase {
         StayState st = mob.getStayState();
         if (!atCounter) {
             atCounter = true;
+            headUpLogged = false;
             counterGazeTicks = 0;
             mob.snack.planAtCounter();
             trace("drink", "at the counter for " + lingerLeft / 20 + "s");
         }
         if (st != null && st.drinkTicks > 0) st.drinkTicks--;
         if (--counterGazeTicks <= 0) lookAroundCounter();
+        probeHeadUp();
     }
 
-    /** Now and then turns to someone drinking alongside (a nod for them sometimes), the counter, or lets the eyes wander. */
+    // Probe: one log line per drink when the head looks up at the counter; remove once the "head stays up" case is found.
+    private boolean headUpLogged;
+
+    private void probeHeadUp() {
+        if (headUpLogged || mob.rotationPitch > -15.0F || mob.snack.isActive()) return;
+        headUpLogged = true;
+        org.apache.logging.log4j.LogManager.getLogger("Travellers/HeadProbe").info(
+                "[HeadProbe] {} pitch={} gaze={} lookAt={} legPos={} pos={}", mob.getName(), (int) mob.rotationPitch,
+                mob.getGaze().describe(), fmt(lookAt), leg == null ? "-" : fmt(leg.pos), fmt(mob.getPosition()));
+    }
+
+    /** Now and then turns to someone drinking alongside, the counter, or lets the eyes wander. */
     private void lookAroundCounter() {
         counterGazeTicks = COUNTER_GAZE_MIN + mob.getRNG().nextInt(COUNTER_GAZE_MAX - COUNTER_GAZE_MIN + 1);
         List<EntityLivingBase> company = new ArrayList<>();
@@ -855,9 +868,9 @@ public class EntityAIStay extends EntityAIBase {
         if (!company.isEmpty() && roll < 0.6D) {
             EntityLivingBase who = company.get(mob.getRNG().nextInt(company.size()));
             mob.getGaze().focus(TravellerGaze.Kind.TALK, who);
-            if (mob.getRNG().nextDouble() < 0.35D) mob.getGaze().nod(who);
         } else if (roll < 0.8D && leg != null) {
-            mob.getGaze().focus(TravellerGaze.Kind.POINT, leg.pos);
+            // Visit spots are at feet level: looked at from head height, never at the floor.
+            mob.getGaze().focus(TravellerGaze.Kind.POINT, leg.pos.up());
         } else {
             mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
             mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
@@ -922,8 +935,8 @@ public class EntityAIStay extends EntityAIBase {
                 moving = false;
                 lingerLeft = l.lingerTicks;
                 legTarget = mob.getPosition();
-                lookAt = l.pos;
-                mob.getGaze().focus(TravellerGaze.Kind.POINT, l.pos);
+                lookAt = l.pos.up();
+                mob.getGaze().focus(TravellerGaze.Kind.POINT, lookAt);
                 StayOccupancy.claim(mob.world, mob.getUniqueID(), legTarget, l.lingerTicks + 20 * 60);
                 return true;
             }
@@ -949,8 +962,8 @@ public class EntityAIStay extends EntityAIBase {
                 moving = false;
                 lingerLeft = l.lingerTicks;
                 legTarget = mob.getPosition();
-                lookAt = l.pos;
-                mob.getGaze().focus(TravellerGaze.Kind.POINT, l.pos);
+                lookAt = l.pos.up();
+                mob.getGaze().focus(TravellerGaze.Kind.POINT, lookAt);
                 return true;
             }
             if (!gainsGround(path, target)) {
