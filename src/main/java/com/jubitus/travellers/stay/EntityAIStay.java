@@ -4,6 +4,7 @@ import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.ground.SeatFinder;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.gaze.TravellerGaze;
 import com.jubitus.travellers.follow.FollowRecoveryHelper;
@@ -73,7 +74,7 @@ public class EntityAIStay extends EntityAIBase {
     private static final int TALK_WALK_TICKS = 100;
 
     private enum Activity {
-        NONE, STROLL, BUILDING, PANEL, TALK,
+        NONE, STROLL, BUILDING, PANEL, TALK, SIT,
         // Leaving: out of any building, back to the horse, then (a group leader) wait for the group.
         EXIT, FETCH_HORSE, WAIT_GROUP;
 
@@ -81,6 +82,14 @@ public class EntityAIStay extends EntityAIBase {
             return this == EXIT || this == FETCH_HORSE || this == WAIT_GROUP;
         }
     }
+
+    private static final int SIT_MIN_SECONDS = 30;
+    private static final int SIT_MAX_SECONDS = 90;
+    /** Another visitor's spot this close makes a seat taken. */
+    private static final double SEAT_CLEARANCE = 1.0D;
+    /** Close enough to the seat's middle to be put exactly on it without a visible jump. */
+    private static final double SEAT_SNAP_SQ = 0.3D * 0.3D;
+    private static final int SETTLE_MAX_TICKS = 40;
 
     private static final double HORSE_REACH_BLOCKS = 4.0D;
     private static final double GROUP_SCAN_BLOCKS = 96.0D;
@@ -96,18 +105,27 @@ public class EntityAIStay extends EntityAIBase {
         /** What to face while lingering (a panel's leg faces the panel itself). */
         @Nullable
         final BlockPos look;
+        /** Sit down on this seat for the linger. */
+        @Nullable
+        final SeatFinder.Seat seat;
 
         Leg(BlockPos pos, int lingerTicks, boolean indoor, boolean exit, boolean panel) {
             this(pos, lingerTicks, indoor, exit, panel, null);
         }
 
         Leg(BlockPos pos, int lingerTicks, boolean indoor, boolean exit, boolean panel, @Nullable BlockPos look) {
+            this(pos, lingerTicks, indoor, exit, panel, look, null);
+        }
+
+        Leg(BlockPos pos, int lingerTicks, boolean indoor, boolean exit, boolean panel, @Nullable BlockPos look,
+            @Nullable SeatFinder.Seat seat) {
             this.pos = pos;
             this.lingerTicks = lingerTicks;
             this.indoor = indoor;
             this.exit = exit;
             this.panel = panel;
             this.look = look;
+            this.seat = seat;
         }
     }
 
@@ -141,6 +159,9 @@ public class EntityAIStay extends EntityAIBase {
     @Nullable
     private BlockPos exitEntrance;
     private int preTurnLeft;
+    /** The current seat leg is done getting onto its seat (seated, or gave up and lingers standing). */
+    private boolean settled;
+    private int settleTicks;
     /** The previous leg was only walked through (no linger): don't stop to turn before the next one. */
     private boolean justWalked;
 
@@ -351,6 +372,7 @@ public class EntityAIStay extends EntityAIBase {
             planLoneHalt(s);
             return;
         }
+        if (p.isRestSpot() && mob.getRNG().nextDouble() < TravellersConfig.REST_SPOTS.sitChance && planSit(p)) return;
 
         boolean streetsOnly = mob instanceof EntityTravellerRaider && !cfg.raidersVisitBuildings;
         int wStroll = cfg.weightStroll;
@@ -444,6 +466,28 @@ public class EntityAIStay extends EntityAIBase {
             return true;
         }
         return false;
+    }
+
+    /** A free seat of the place, better views preferred: walk there and sit facing the view. */
+    private boolean planSit(StayPlace p) {
+        java.util.UUID me = mob.getUniqueID();
+        List<SeatFinder.Seat> free = new ArrayList<>();
+        List<Double> weights = new ArrayList<>();
+        for (SeatFinder.Seat seat : p.seats(mob.world)) {
+            if (StayOccupancy.countNear(mob.world, seat.feet, SEAT_CLEARANCE, me) > 0) continue;
+            if (!SeatFinder.stillGood((net.minecraft.world.WorldServer) mob.world, seat)) continue;
+            free.add(seat);
+            weights.add((double) seat.score);
+        }
+        SeatFinder.Seat seat = pickWeighted(free, weights);
+        if (seat == null) return false;
+        activity = Activity.SIT;
+        int ticks = 20 * (SIT_MIN_SECONDS + mob.getRNG().nextInt(SIT_MAX_SECONDS - SIT_MIN_SECONDS + 1));
+        legs.add(new Leg(seat.feet, ticks, false, false, false, seat.viewPoint(), seat));
+        exitEntrance = null;
+        StayOccupancy.claim(mob.world, me, seat.feet, 20 * 60);
+        trace("activity", "SIT at " + fmt(seat.feet) + " view=" + seat.score);
+        return true;
     }
 
     private boolean planTarget(@Nullable VillageVisitIndex.Target t, Activity kind) {
@@ -639,6 +683,7 @@ public class EntityAIStay extends EntityAIBase {
             mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
         }
         activity = Activity.NONE;
+        mob.sit.stand();
         legs.clear();
         leg = null;
         legTarget = null;
@@ -705,6 +750,8 @@ public class EntityAIStay extends EntityAIBase {
                 moving = false;
                 mob.getNavigator().clearPath();
                 lingerLeft = leg.lingerTicks;
+                settled = false;
+                settleTicks = 0;
                 if (lookAt != null) mob.getGaze().focus(TravellerGaze.Kind.POINT, lookAt);
             } else {
                 if (tickAvoidance()) return;
@@ -713,12 +760,32 @@ public class EntityAIStay extends EntityAIBase {
             }
         }
 
+        if (leg.seat != null && !settled) settleOnSeat(leg.seat);
         if (--lingerLeft <= 0) {
+            if (leg.seat != null) mob.sit.stand();
             justWalked = leg.lingerTicks <= 0;
             leg = null;
             if (lookAt != null) mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
             lookAt = null;
         }
+    }
+
+    /** Steps onto the middle of the seat, then sits for the rest of the linger; gives up (stays standing) after a moment. */
+    private void settleOnSeat(SeatFinder.Seat seat) {
+        double cx = seat.feet.getX() + 0.5D, cz = seat.feet.getZ() + 0.5D;
+        double dx = cx - mob.posX, dz = cz - mob.posZ;
+        if (dx * dx + dz * dz <= SEAT_SNAP_SQ && Math.abs(mob.posY - seat.feet.getY()) < 0.5D) {
+            settled = true;
+            mob.setPosition(cx, mob.posY, cz);
+            trace("sit", mob.sit.sitFor(seat.yaw(), lingerLeft) ? "for " + lingerLeft / 20 + "s" : "could not sit here");
+            return;
+        }
+        if (++settleTicks > SETTLE_MAX_TICKS) {
+            settled = true;
+            trace("sit", "could not reach the seat's middle");
+            return;
+        }
+        mob.getMoveHelper().setMoveTo(cx, seat.feet.getY(), cz, UnitSpeed.nav(TravellersConfig.VILLAGE_VISIT.walkPercent) * 0.6D);
     }
 
     private boolean needsPreTurn(Leg next) {
@@ -736,12 +803,13 @@ public class EntityAIStay extends EntityAIBase {
             target = panelStandSpot(l.pos);
             lookAt = l.pos;
         } else {
-            target = l.pos.equals(mob.getPosition()) ? l.pos : VillageGround.standAt(mob.world, l.pos);
+            // A seat is an exact spot: never moved to a neighbour.
+            target = l.seat != null || l.pos.equals(mob.getPosition()) ? l.pos : VillageGround.standAt(mob.world, l.pos);
             lookAt = l.look;
         }
         if (target == null) target = l.pos;
         if (l.lingerTicks > 0 && !l.exit) {
-            target = spreadSpot(target, l.indoor);
+            if (l.seat == null) target = spreadSpot(target, l.indoor);
             StayOccupancy.claim(mob.world, mob.getUniqueID(), target, l.lingerTicks + 20 * 60);
         }
         legTarget = target;

@@ -2636,6 +2636,10 @@ public class TravellersConfig {
         @Config.Comment("Longest break at a rest spot, in minutes.")
         @Config.RangeInt(min = 1, max = 60)
         public int pauseMaxMinutes = 6;
+
+        @Config.Comment("How often travellers sit down to enjoy the view during a break (0 = never, 1 = whenever they can).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double sitChance = 0.5;
     }
 
     public static class BattleEvents {

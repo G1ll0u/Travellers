@@ -35,7 +35,7 @@ final class HazardRepulsion {
     static void tick(EntityTraveller u) {
         if (u.world.isRemote || u.isDead) return;
         if (!TravellersConfig.HAZARD_SAFETY.enabled) return;
-        if (u.isRiding() || u.sleep.isSleeping() || u.isCampingPassive()) return;
+        if (u.isRiding() || u.sleep.isSleeping() || u.sit.isSitting() || u.isCampingPassive()) return;
         // A glide is a deliberate flight over exactly the drops this nudge exists to avoid.
         if (u.elytraFlight.isActive()) return;
 

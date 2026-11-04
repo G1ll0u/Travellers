@@ -151,6 +151,11 @@ public class EntityTraveller extends EntityCreature {
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     static final DataParameter<BlockPos> SLEEPING_BED_POS =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BLOCK_POS);
+    // Sitting pose (TravellerSit): synced for render only, never persisted.
+    static final DataParameter<Boolean> SITTING =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
+    static final DataParameter<Float> SIT_YAW =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
     // Set only by /travellersdebug path test: a throwaway entity for comparing a mounted route
     // against a hand-marked one. Never persisted - it exists for one test run and is deleted by its
     // own watchdog, never handed off to the offscreen simulation.
@@ -185,6 +190,7 @@ public class EntityTraveller extends EntityCreature {
     public final com.jubitus.travellers.combat.ShieldGuard shield = new com.jubitus.travellers.combat.ShieldGuard(this);
     public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
     public final TravellerSleep sleep = new TravellerSleep(this);
+    public final TravellerSit sit = new TravellerSit(this);
     public final TravellerVoice voice = new TravellerVoice(this);
     public final TravellerHandOff handOff = new TravellerHandOff(this);
     public final FollowCatchup catchup = new FollowCatchup(this);
@@ -978,6 +984,8 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(IN_COMBAT, Boolean.FALSE);
         this.dataManager.register(SLEEPING, Boolean.FALSE);
         this.dataManager.register(SLEEPING_BED_POS, BlockPos.ORIGIN);
+        this.dataManager.register(SITTING, Boolean.FALSE);
+        this.dataManager.register(SIT_YAW, 0.0F);
         this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
         this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
     }
@@ -1228,6 +1236,7 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote && sleep.isSleeping()) {
             sleep.holdPosition();
         }
+        if (!world.isRemote) sit.tick();
 
         // Clear revenge target immediately if the attacker is blacklisted
         if (!world.isRemote) {
@@ -1659,7 +1668,7 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     public boolean canBePushed() {
-        if (sleep.isSleeping()) return false;
+        if (sleep.isSleeping() || sit.isSitting()) return false;
         return super.canBePushed();
     }
 
@@ -1783,6 +1792,7 @@ public class EntityTraveller extends EntityCreature {
     // The reaction to a hit (armor wear, revenge, retaliation) lives in TravellerCombatLogic.onAttacked.
     @Override
     public boolean attackEntityFrom(DamageSource source, float amount) {
+        if (!world.isRemote) sit.stand();
         return combat.onAttacked(source, amount);
     }
 

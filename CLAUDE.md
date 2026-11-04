@@ -111,6 +111,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Is this unit watched by a player | `isInPlayerViewDistanceApprox()` |
 | Peaceful difficulty blocks combat | `TravellersDerivedConfig.isPeacefulBlocked(world)` |
 | Can a unit be put down here | `unit/LandingSpots` |
+| Sitting pose / where to sit with a view | `unit/TravellerSit` / `ground/SeatFinder` |
 | Budget an expensive search (A*, route job, scan) | `pathing/PathBudget` |
 | Are two units on opposite sides | `combat/Hostility` |
 | Are two entities allies (friendly fire) | `combat/TravellerFriendlyFireHandler.areAllies` |

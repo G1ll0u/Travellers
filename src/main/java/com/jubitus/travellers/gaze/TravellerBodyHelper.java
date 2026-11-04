@@ -37,6 +37,14 @@ public class TravellerBodyHelper extends EntityBodyHelper {
             super.updateRenderAngles();
             return;
         }
+        if (mob.sit.isSitting()) {
+            // Seated: the body settles onto its heading and stays there; only the head looks around.
+            turning = false;
+            mob.renderYawOffset = EntityTraveller.rotlerp(mob.renderYawOffset, mob.sit.getYaw(), (float) TravellersConfig.GAZE.bodyTurnSpeed);
+            mob.rotationYawHead = clampAround(mob.renderYawOffset, mob.rotationYawHead);
+            if (!mob.world.isRemote) mob.setBodyYaw(mob.renderYawOffset);
+            return;
+        }
         double dx = mob.posX - mob.prevPosX;
         double dz = mob.posZ - mob.prevPosZ;
         if (dx * dx + dz * dz > 2.5E-7D) {

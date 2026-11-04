@@ -76,6 +76,23 @@ public final class RestSpotManager extends WorldSavedData {
         return null;
     }
 
+    /**
+     * The spot's seats, worked out the first time they are asked for on a spot found before seats
+     * existed (once its 3x3 chunks are loaded; empty until then).
+     */
+    public List<com.jubitus.travellers.ground.SeatFinder.Seat> seatsOf(WorldServer world, RestSpotRecord spot) {
+        if (spot.seats != null) return spot.seats;
+        int cx = spot.center.getX() >> 4, cz = spot.center.getZ() >> 4;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (LoadedChunks.peek(world, cx + dx, cz + dz) == null) return Collections.emptyList();
+            }
+        }
+        spot.seats = RestSpotScorer.seatsAround(world, spot.center);
+        markDirty();
+        return spot.seats;
+    }
+
     private static final int CIVIL = 1;
     private static final int RAIDERS = 2;
 

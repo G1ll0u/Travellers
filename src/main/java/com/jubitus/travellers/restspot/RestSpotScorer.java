@@ -3,6 +3,7 @@ package com.jubitus.travellers.restspot;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.ColumnGround;
+import com.jubitus.travellers.ground.SeatFinder;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.pathing.terrain.TerrainProfile;
 import com.jubitus.travellers.pathing.terrain.TerrainProfileGrid;
@@ -22,8 +23,11 @@ import net.minecraftforge.common.BiomeDictionary;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +52,7 @@ final class RestSpotScorer {
     /** Terrain grid ring compared with the spot's own height, in chunks. */
     private static final int RING_MIN = 2;
     private static final int RING_MAX = 4;
+    private static final int MAX_SEATS = 8;
 
     private static final int SPAN = ROOM_RADIUS + SCENERY_REACH;
     private static final int SIDE = 2 * SPAN + 1;
@@ -115,7 +120,29 @@ final class RestSpotScorer {
         int flowers = (int) Math.round(cfg.weightFlowers * flowerShare(world, start, feet));
         int biomeScore = biomeScore(world.getBiome(center));
         RestSpotRecord spot = new RestSpotRecord(UUID.randomUUID(), center, cells, water, height, openSky, flowers, biomeScore);
-        return new Verdict(spot, spot.score() >= cfg.minScore ? null : "not pretty enough");
+        if (spot.score() < cfg.minScore) return new Verdict(spot, "not pretty enough");
+        spot.seats = seats(world, start, feet);
+        return new Verdict(spot, null);
+    }
+
+    /** The seats of a spot found before seats existed, from its patch walked again. Call once its 3x3 chunks are loaded. */
+    static List<SeatFinder.Seat> seatsAround(WorldServer world, BlockPos center) {
+        int[] feet = new int[SIDE * SIDE];
+        Arrays.fill(feet, NOT_WALKABLE);
+        floodPatch(world, center, feet);
+        return seats(world, center, feet);
+    }
+
+    // Every other patch column (a checkerboard) is plenty: seats end up two blocks apart anyway.
+    private static List<SeatFinder.Seat> seats(WorldServer world, BlockPos start, int[] feet) {
+        List<BlockPos> candidates = new ArrayList<>();
+        for (int dz = -ROOM_RADIUS; dz <= ROOM_RADIUS; dz++) {
+            for (int dx = -ROOM_RADIUS; dx <= ROOM_RADIUS; dx++) {
+                int y = feet[index(dx, dz)];
+                if (y != NOT_WALKABLE && ((dx + dz) & 1) == 0) candidates.add(new BlockPos(start.getX() + dx, y, start.getZ() + dz));
+            }
+        }
+        return Collections.unmodifiableList(SeatFinder.best(world, candidates, MAX_SEATS));
     }
 
     @Nullable

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.stay;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.ground.SeatFinder;
 import com.jubitus.travellers.restspot.RestSpotManager;
 import com.jubitus.travellers.restspot.RestSpotRecord;
 import com.jubitus.travellers.village.VillageVisitIndex;
@@ -57,6 +58,12 @@ public final class StayPlace {
     /** A break at a rest spot: nothing to visit, no village to give to. */
     public boolean isRestSpot() {
         return restSpot != null;
+    }
+
+    /** Where to sit down with a view, best first; empty for a village or a spot whose seats aren't known yet. */
+    public List<SeatFinder.Seat> seats(World world) {
+        if (restSpot == null || !(world instanceof WorldServer)) return Collections.emptyList();
+        return RestSpotManager.get((WorldServer) world).seatsOf((WorldServer) world, restSpot);
     }
 
     /** A lone Millénaire building: a short halt in front of it rather than a stay. */

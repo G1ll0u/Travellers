@@ -1,4 +1,4 @@
-**Status: steps 1–3b done; 3c–5 built, not checked in game.**
+**Status: steps 1–5 done (checked in game); step 6 (sitting) built, not checked in game.**
 
 # Rest spots
 
@@ -70,3 +70,4 @@ Pretty, roomy places in the wild (riverbank, summit, open view, forest edge) whe
 3c. Rest spot stop: insertion in `TripPlanner` (within `maxDetour`, `stopChance`), stop recognised by position (`RestSpotManager`), audit every "stop = village" assumption (dialogue and "where are you going" name the next settlement, no gift at a rest spot, worker stuck-watchdog waits for the stay). — built
 4. Rest spot branch of `StayPlace` (reach, anchors in the patch, stay length from config, nothing to donate), loaded and offscreen. — built
 5. One side at a time (`RestSpotManager.heldByOtherSide`, checked at planning and on arrival); groups disperse and trace events come from the stay itself. — built
+6. Sitting: reusable pose `unit/TravellerSit` (stands up by itself on any move, hit, combat, mount, water, lost ground; never persisted), seats with a view found by `ground/SeatFinder` at discovery and saved on the spot (worked out on first use for older spots), stay activity SIT at rest spots (`sitChance`). — built

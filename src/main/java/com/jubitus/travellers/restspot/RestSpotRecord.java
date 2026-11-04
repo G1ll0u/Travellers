@@ -1,9 +1,16 @@
 package com.jubitus.travellers.restspot;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.ground.SeatFinder;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.common.util.Constants;
 
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /** One rest spot: where it is, how roomy, and its beauty score with the part each criterion added. */
@@ -23,6 +30,9 @@ public final class RestSpotRecord {
     public final int openSky;
     public final int flowers;
     public final int biome;
+    /** Where to sit with the best views, best first; null until worked out (spots found before seats existed). */
+    @Nullable
+    List<SeatFinder.Seat> seats;
 
     RestSpotRecord(UUID id, BlockPos center, int walkableCells, int water, int height, int openSky, int flowers, int biome) {
         this.id = id;
@@ -46,7 +56,8 @@ public final class RestSpotRecord {
                 + "\nWater +" + water + "  Height +" + height
                 + "\nOpen sky +" + openSky + "  Flowers +" + flowers
                 + "\nBiome " + (biome >= 0 ? "+" : "") + biome
-                + "\nRoom " + walkableCells + " blocks";
+                + "\nRoom " + walkableCells + " blocks"
+                + "\nSeats " + (seats == null ? "not worked out yet" : seats.size());
     }
 
     NBTTagCompound writeToNBT() {
@@ -59,12 +70,33 @@ public final class RestSpotRecord {
         tag.setInteger("Sky", openSky);
         tag.setInteger("Flowers", flowers);
         tag.setInteger("Biome", biome);
+        if (seats != null) {
+            NBTTagList list = new NBTTagList();
+            for (SeatFinder.Seat s : seats) {
+                NBTTagCompound st = new NBTTagCompound();
+                st.setLong("Pos", s.feet.toLong());
+                st.setByte("Dir", (byte) s.dir);
+                st.setInteger("Score", s.score);
+                list.appendTag(st);
+            }
+            tag.setTag("Seats", list);
+        }
         return tag;
     }
 
     static RestSpotRecord readFromNBT(NBTTagCompound tag) {
-        return new RestSpotRecord(tag.getUniqueId("Id"), BlockPos.fromLong(tag.getLong("Pos")),
+        RestSpotRecord r = new RestSpotRecord(tag.getUniqueId("Id"), BlockPos.fromLong(tag.getLong("Pos")),
                 tag.getInteger("Cells"), tag.getInteger("Water"), tag.getInteger("Height"),
                 tag.getInteger("Sky"), tag.getInteger("Flowers"), tag.getInteger("Biome"));
+        if (tag.hasKey("Seats", Constants.NBT.TAG_LIST)) {
+            NBTTagList list = tag.getTagList("Seats", Constants.NBT.TAG_COMPOUND);
+            List<SeatFinder.Seat> seats = new ArrayList<>(list.tagCount());
+            for (int i = 0; i < list.tagCount(); i++) {
+                NBTTagCompound st = list.getCompoundTagAt(i);
+                seats.add(new SeatFinder.Seat(BlockPos.fromLong(st.getLong("Pos")), st.getByte("Dir"), st.getInteger("Score")));
+            }
+            r.seats = Collections.unmodifiableList(seats);
+        }
+        return r;
     }
 }

@@ -25,6 +25,9 @@ import javax.annotation.Nullable;
 
 public class RenderTraveller extends RenderBiped<EntityTraveller> {
 
+    /** How far the seated model sinks, in blocks at scale 1: hip at 12px, less the slight downward slope of the legs. */
+    private static final double SEATED_DROP = 8.0D / 16.0D;
+
     private final LayerBipedArmor armorLayer;
     // Set for the duration of one doRender when this unit is drawn from its baked skin.
     @Nullable
@@ -92,6 +95,8 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
         // drives the item's own pulled/nocked frame independently), but the arms stay in the generic
         // one-handed idle hold instead of the real two-handed draw stance.
         ModelBiped model = (ModelBiped) this.getMainModel();
+        // Vanilla's seated-rider pose; set here because doRender resets isRiding from the mount just before.
+        if (entity.sit.isSitting()) model.isRiding = true;
         model.rightArmPose = ModelBiped.ArmPose.EMPTY;
         model.leftArmPose = ModelBiped.ArmPose.EMPTY;
         if (entity.isAimingBow()) {
@@ -135,6 +140,9 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
         if (entity.isEntityAlive() && entity.sleep.isSleeping()) {
             Vec3d offset = entity.sleep.getRenderOffset();
             super.renderLivingAt(entity, x + offset.x, y + offset.y, z + offset.z);
+        } else if (entity.isEntityAlive() && entity.sit.isSitting()) {
+            // Lowers the seated model until the underside of its thighs rests on the ground.
+            super.renderLivingAt(entity, x, y - SEATED_DROP * entity.getRenderScale(), z);
         } else {
             super.renderLivingAt(entity, x, y, z);
         }
