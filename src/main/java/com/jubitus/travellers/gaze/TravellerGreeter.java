@@ -123,13 +123,13 @@ public final class TravellerGreeter {
     }
 
     private void say(Entity to) {
-        mob.voice.playHello();
-        nodAt(mob, to);
+        mob.getGaze().glance(to, 40);
+        mob.getGaze().nod(to, true);
     }
 
     private static void nodAt(EntityTraveller t, Entity to) {
         t.getGaze().glance(to, 40);
-        t.getGaze().nod();
+        t.getGaze().nod(to);
     }
 
     /** Only while travelling, following, idling or stopped for someone - never busy or fighting. */

@@ -7,6 +7,8 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityLookHelper;
 import net.minecraft.util.math.MathHelper;
 
+import javax.annotation.Nullable;
+
 /**
  * The only thing that turns a traveller's head each tick. An AI task asking for a look this tick
  * (vanilla {@code setLookPosition}) wins; otherwise {@link TravellerGaze} picks the target. The head
@@ -17,6 +19,8 @@ public class TravellerLookHelper extends EntityLookHelper {
     private static final float EASE = 0.35F;
     private static final float ACCEL = 0.5F;
     private static final float PITCH_LIMIT = 50.0F;
+    private static final float NOD_FACING_ANGLE = 12.0F;
+    private static final float BODY_SETTLED_STEP = 1.5F;
 
     private final EntityTraveller mob;
     private final TravellerGaze gaze;
@@ -28,6 +32,7 @@ public class TravellerLookHelper extends EntityLookHelper {
     private float yawVel;
     private float pitchVel;
     private float nodPitch;
+    private float lastBodyYaw;
 
     public TravellerLookHelper(EntityTraveller mob, TravellerGaze gaze) {
         super(mob);
@@ -58,10 +63,13 @@ public class TravellerLookHelper extends EntityLookHelper {
         boolean task = requested;
         requested = false;
         if (mob.world.isRemote) return;
+        float bodyStep = Math.abs(MathHelper.wrapDegrees(mob.renderYawOffset - lastBodyYaw));
+        lastBodyYaw = mob.renderYawOffset;
         boolean combat = mob.getAttackTarget() != null || mob.isInCombat();
         // Something already turned the head directly this tick (bow, fishing...): leave it be.
         if (mob.sleep.isSleeping() || (!task && (combat || mob.hasHeadWriterThisTick()))) {
             nodPitch = 0.0F;
+            gaze.nodPitch(false);
             return;
         }
 
@@ -112,8 +120,6 @@ public class TravellerLookHelper extends EntityLookHelper {
         float pitchStep = MathHelper.clamp((pitch - mob.rotationPitch) * EASE, -speed, speed);
         pitchVel += (pitchStep - pitchVel) * ACCEL;
         mob.rotationPitch += pitchVel;
-        nodPitch = gaze.nodPitch(Math.abs(MathHelper.wrapDegrees(yaw - mob.rotationYawHead)));
-        mob.rotationPitch += nodPitch;
 
         // Walking or riding, the head can't twist further than a person's neck allows.
         if (isNeckBound(mob)) {
@@ -122,7 +128,17 @@ public class TravellerLookHelper extends EntityLookHelper {
             if (rel > limit) mob.rotationYawHead = mob.rotationYaw + limit;
             else if (rel < -limit) mob.rotationYawHead = mob.rotationYaw - limit;
         }
+        nodPitch = gaze.nodPitch(faces(gaze.pendingNodTarget(), bodyStep));
+        mob.rotationPitch += nodPitch;
         mob.noteHeadWriter("gaze");
+    }
+
+    /** Head squarely on this entity and, standing, the body done turning toward it. */
+    private boolean faces(@Nullable Entity e, float bodyStep) {
+        if (e == null) return false;
+        if (mob.getNavigator().noPath() && bodyStep > BODY_SETTLED_STEP) return false;
+        float yaw = (float) (MathHelper.atan2(e.posZ - mob.posZ, e.posX - mob.posX) * (180.0D / Math.PI)) - 90.0F;
+        return Math.abs(MathHelper.wrapDegrees(yaw - mob.rotationYawHead)) <= NOD_FACING_ANGLE;
     }
 
     /** Walking or riding, the body keeps its heading and only the neck turns. */

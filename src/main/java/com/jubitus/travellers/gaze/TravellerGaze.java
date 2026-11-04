@@ -32,8 +32,7 @@ public final class TravellerGaze {
     }
 
     private static final int SCAN_PERIOD = 30;
-    private static final int NOD_WAIT_TICKS = 20;
-    private static final float NOD_FACING_ANGLE = 20.0F;
+    private static final int NOD_WAIT_TICKS = 40;
     private static final double FOCUS_RANGE = 20.0D;
 
     private final EntityTraveller mob;
@@ -59,6 +58,9 @@ public final class TravellerGaze {
 
     private int awayTicks;
     private int nodWait;
+    @Nullable
+    private Entity nodTarget;
+    private boolean nodHello;
     private int nodTicks;
     private int nodTotal;
 
@@ -117,17 +119,38 @@ public final class TravellerGaze {
         return glanceTicks > 0 && (glanceEntity != null || hasGlancePos);
     }
 
-    /** Nods once the head faces whoever it is looking at, or after a short wait anyway. */
-    public void nod() {
-        if (nodTicks <= 0) nodWait = NOD_WAIT_TICKS;
+    /** Nods at this entity once it really faces it; skipped if that doesn't happen within a short wait. */
+    public void nod(Entity to) {
+        nod(to, false);
     }
 
-    /** The nod's extra head dip this tick (degrees), given how far the head still is from its target. */
-    float nodPitch(float facingError) {
+    /** Same, saying hello as the nod starts (silent too if the nod is skipped). */
+    public void nod(Entity to, boolean hello) {
+        if (nodTicks > 0) return;
+        nodTarget = to;
+        nodHello = hello;
+        nodWait = NOD_WAIT_TICKS;
+    }
+
+    /** Whom a pending nod is for, or null. */
+    @Nullable
+    Entity pendingNodTarget() {
+        return nodWait > 0 ? nodTarget : null;
+    }
+
+    /** The nod's extra head dip this tick (degrees); a pending nod starts on the first tick it faces its target. */
+    float nodPitch(boolean facing) {
         if (nodWait > 0) {
-            if (facingError > NOD_FACING_ANGLE && --nodWait > 0) return 0.0F;
+            if (!facing) {
+                if (--nodWait <= 0) nodTarget = null;
+                return 0.0F;
+            }
             nodWait = 0;
+            if (nodHello) mob.voice.playHello();
             nodTotal = nodTicks = Math.max(2, (int) Math.round(20.0D * TravellersConfig.GAZE.nodSeconds));
+            // The glance must outlast the nod, or the head turns away mid-nod.
+            if (glanceEntity == nodTarget) glanceTicks = Math.max(glanceTicks, nodTotal + 5);
+            nodTarget = null;
         }
         if (nodTicks <= 0) return 0.0F;
         double progress = (nodTotal - --nodTicks) / (double) nodTotal;
@@ -148,6 +171,7 @@ public final class TravellerGaze {
         hasIdlePos = false;
         holdTicks = 0;
         nodWait = 0;
+        nodTarget = null;
         nodTicks = 0;
         places = Collections.emptyList();
     }

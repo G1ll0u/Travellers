@@ -1268,9 +1268,9 @@ public class EntityAIStay extends EntityAIBase {
             int changes = c.getSpeakerChanges();
             if (changes != seenSpeakerChanges) {
                 seenSpeakerChanges = changes;
-                if (mob.getRNG().nextDouble() < 0.6D) mob.getGaze().nod();
+                if (mob.getRNG().nextDouble() < 0.6D) mob.getGaze().nod(speaker);
             } else if (mob.getRNG().nextInt(90) == 0) {
-                mob.getGaze().nod();
+                mob.getGaze().nod(speaker);
             }
         }
     }
