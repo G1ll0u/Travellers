@@ -105,6 +105,7 @@ public final class TravellerSnack {
         planned.clear();
         sipsLeft = 0;
         meal = true;
+        putAwayWeapon();
         unit.getDataManager().set(EntityTraveller.SNACK, food.copy());
         unit.getDataManager().set(EntityTraveller.SNACK_AT_MOUTH, true);
     }
@@ -178,8 +179,14 @@ public final class TravellerSnack {
         }
         sipsLeft = between(1, 3);
         TravellerTracer.event(unit, "snack", snack.stack.getItem().getRegistryName() + " x" + sipsLeft);
+        putAwayWeapon();
         unit.getDataManager().set(EntityTraveller.SNACK, snack.stack.copy());
         beginSip();
+    }
+
+    // Nobody eats or drinks with a weapon drawn; in a fight it stays out (the snack only hides it).
+    private void putAwayWeapon() {
+        if (!unit.combat.getInCombatFlag()) unit.equipment.sheatheNow();
     }
 
     private int between(int min, int max) {

@@ -868,14 +868,21 @@ public class TravellerEquipmentManager {
             if (swordHideTicks > 0) {
                 swordHideTicks--;
             } else {
-                ItemStack cur = entity.getHeldItemMainhand();
-                if (isGhostWeapon(cur)) {
-                    entity.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-                } else if (!cur.isEmpty() && isWeapon(cur)) {
-                    ItemStack remainder = ItemHandlerHelper.insertItemStacked(entity.inventory, cur.copy(), false);
-                    if (remainder.isEmpty()) entity.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-                }
+                sheatheNow();
             }
+        }
+    }
+
+    /** Puts the weapon or bow away at once: a shown copy is dropped, a real one goes back into the backpack (kept in hand only if it is full). */
+    public void sheatheNow() {
+        swordHideTicks = 0;
+        ItemStack cur = entity.getHeldItemMainhand();
+        if (cur.isEmpty()) return;
+        if (isGhostWeapon(cur) || isGhostBow(cur)) {
+            entity.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
+        } else if (!isGhost(cur) && (isWeapon(cur) || isBow(cur))) {
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(entity.inventory, cur.copy(), false);
+            if (remainder.isEmpty()) entity.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
         }
     }
 
