@@ -70,7 +70,7 @@ Packages under `src/main/java/com/jubitus/travellers/`, **one folder per feature
 | Millénaire integration, village relations | `village/` | `village/CLAUDE.md` |
 | Stays at trip stops (village visits, rest spots) | `stay/` | `stay/CLAUDE.md` |
 | Camps, block-by-block building | `camp/` | `camp/CLAUDE.md` |
-| Rest spots (discovery, scoring) | `restspot/` | `docs/rest-spots-plan.md` |
+| Rest spots (discovery, scoring, seats) | `restspot/` | `stay/CLAUDE.md` |
 | Virtual battles | `battle/` | `battle/CLAUDE.md` |
 | NPC dialogue (Ollama) | `dialogue/` | `dialogue/CLAUDE.md` |
 | Worldmap | `worldmap/` | `worldmap/CLAUDE.md` |

@@ -10,4 +10,5 @@ A stay is a unit stopping at a place of its trip: travellers, raiders (mirrored,
 - Group followers disperse while their leader stays (`isDispersedInStay`); their stay ends when the leader leaves.
 - Offscreen: `VirtualStays.tick`, same draw and sequence.
 - A rest spot is held by one side at a time (travellers + unhired workers, or raiders): `RestSpotManager.heldByOtherSide`, checked when the trip is planned and again on arrival (held = no break, the trip goes on). No gift at a rest spot.
+- Sitting is a stay activity (`SIT`) on one of the place's seats (`StayPlace.seats`, worked out when the rest spot is found). The pose (`TravellerSit`) stands itself up on any move, hit or fight; the task only stands it up when the activity ends (`clearActivity`).
 - Tuning lives in the `VILLAGE_VISIT` config category (name kept: renaming it would drop saved overrides); break length and frequency in `REST_SPOTS`.
