@@ -151,6 +151,8 @@ public final class NotificationDefs {
     public static final NotificationDef MOUNT_LED_TERRAIN_BLOCKED = event(ALERT, "travellers.notify.mount.led_terrain_blocked", 1);
     public static final NotificationDef MOUNT_LED_SIDESTEP_GAVE_UP = event(ALERT, "travellers.notify.mount.led_sidestep_gave_up", 1);
     public static final NotificationDef MOUNT_LED_LOW_HEALTH = event(ALERT, "travellers.notify.mount.led_low_health", 1);
+    public static final NotificationDef HORSE_HAS_RIDER = reply(REFUSAL, "travellers.notify.mount.horse_has_rider", 0);
+    public static final NotificationDef HORSE_IN_STABLE = reply(REFUSAL, "travellers.notify.mount.horse_in_stable", 0);
 
     // --- Virtual battles (VirtualBattleManager) ---
     public static final NotificationDef BATTLE_UNDER_ATTACK = event(DANGER, "travellers.notify.battle.under_attack", 0);

@@ -1,12 +1,21 @@
 package com.jubitus.travellers.horse;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.notify.NotificationDef;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.EntityHorse;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.EnumHand;
 import net.minecraftforge.event.entity.EntityMountEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Blocks a player from taming, feeding, or riding away a traveller/raider/worker's bonded horse -
@@ -27,6 +36,9 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 @Mod.EventBusSubscriber(modid = "travellers")
 public final class HorseTheftGuard {
 
+    private static final long NOTICE_COOLDOWN_TICKS = 60;
+    private static final Map<UUID, Long> LAST_NOTICE = new HashMap<>();
+
     private HorseTheftGuard() {
     }
 
@@ -37,7 +49,18 @@ public final class HorseTheftGuard {
 
     @SubscribeEvent
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        guard(event, event.getTarget());
+        NotificationDef refusal = guard(event, event.getTarget());
+        // One right-click reaches the server up to four times (both hands, both interact kinds): only the
+        // main-hand plain interact speaks, and a held button repeats, hence the cooldown.
+        if (refusal != null && event.getHand() == EnumHand.MAIN_HAND) tellRefused(event.getEntityPlayer(), refusal);
+    }
+
+    private static void tellRefused(EntityPlayer player, NotificationDef refusal) {
+        long now = player.world.getTotalWorldTime();
+        Long last = LAST_NOTICE.get(player.getUniqueID());
+        if (last != null && now - last >= 0 && now - last < NOTICE_COOLDOWN_TICKS) return;
+        LAST_NOTICE.put(player.getUniqueID(), now);
+        NotificationService.notify(player, refusal);
     }
 
     @SubscribeEvent
@@ -57,12 +80,13 @@ public final class HorseTheftGuard {
         }
     }
 
-    private static void guard(PlayerInteractEvent event, Entity target) {
-        if (target == null) return;
+    /** Cancels a forbidden interaction; on the server, returns the notice explaining why (else null). */
+    private static NotificationDef guard(PlayerInteractEvent event, Entity target) {
+        if (target == null) return null;
         // The client must refuse too, or it predicts the mount and the server snaps the player back off.
         if (target.world.isRemote) {
             if (HorseInteractLock.blocksClient(target, event.getEntityPlayer())) event.setCanceled(true);
-            return;
+            return null;
         }
         // A player interacting with a loose ex-mount (its rider died with nowhere to send it) claims
         // it for good - it is never a cleanup candidate again. Unrelated to the theft guard below;
@@ -70,7 +94,7 @@ public final class HorseTheftGuard {
         if (HorseMarkers.isOrphaned(target)) HorseMarkers.clearOrphanTag(target);
         if (TravellersConfig.MOUNTS.preventPlayerTheft && HorseMarkers.isBondedMount(target)) {
             event.setCanceled(true);
-            return;
+            return NotificationDefs.HORSE_HAS_RIDER;
         }
         if (isUnclaimedStableHorse(target)) {
             // The Stable's own owner may take one of their pool horses out - the EntityMountEvent
@@ -82,10 +106,12 @@ public final class HorseTheftGuard {
                     .get((net.minecraft.world.WorldServer) target.world)
                     .isPoolHorseOwnedBy((net.minecraft.world.WorldServer) target.world,
                             (EntityHorse) target, p.getUniqueID())) {
-                return;
+                return null;
             }
             event.setCanceled(true);
+            return NotificationDefs.HORSE_IN_STABLE;
         }
+        return null;
     }
 
     /**
