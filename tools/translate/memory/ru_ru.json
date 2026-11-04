@@ -1,0 +1,2362 @@
+{
+ "commands.travellers.summonworkers.badCulture": {
+  "en": "Unknown culture: %s",
+  "tr": "Неизвестная культура: %s"
+ },
+ "commands.travellers.summonworkers.badOption": {
+  "en": "Unknown option: %s",
+  "tr": "Неизвестный вариант: %s"
+ },
+ "commands.travellers.summonworkers.bowShield": {
+  "en": "A worker can't carry a bow and a shield together.",
+  "tr": "Рабочий не может носить лук и щит одновременно."
+ },
+ "commands.travellers.summonworkers.mountsDisabled": {
+  "en": "Horse mounts are disabled in the config: no horses will be given.",
+  "tr": "Маунты лошадей отключены в конфиге: лошади не будут выданы."
+ },
+ "commands.travellers.summonworkers.none": {
+  "en": "No safe spot found around %s.",
+  "tr": "Вы не нашли безопасного места вокруг %s."
+ },
+ "commands.travellers.summonworkers.partial": {
+  "en": "%s workers found no safe spot nearby and were not spawned.",
+  "tr": "Вы не нашли %s безопасного места поблизости, и оно не появилось."
+ },
+ "commands.travellers.summonworkers.success": {
+  "en": "Spawned %s hired workers (%s on horseback) for %s.",
+  "tr": "Призвано %s нанятых рабочих (%s на лошади) для %s."
+ },
+ "commands.travellers.summonworkers.usage": {
+  "en": "/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]",
+  "tr": "/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]"
+ },
+ "entity.travellers.traveller.name": {
+  "en": "Traveller",
+  "tr": "Путник"
+ },
+ "entity.travellers.traveller_raider.name": {
+  "en": "Raider",
+  "tr": "Налётчик"
+ },
+ "entity.travellers.traveller_worker.name": {
+  "en": "Henchman",
+  "tr": "Подручный"
+ },
+ "key.categories.travellers": {
+  "en": "Travellers",
+  "tr": "Путники"
+ },
+ "key.travellers.formation_hub": {
+  "en": "Open Formation Hub",
+  "tr": "Открыть штаб построений"
+ },
+ "key.travellers.world_map": {
+  "en": "Open World Map",
+  "tr": "Открыть карту мира"
+ },
+ "tile.travellers.village_of_nature.name": {
+  "en": "The Village of Nature",
+  "tr": "The Village of Nature"
+ },
+ "travellers.battle.report.ago": {
+  "en": "%s ago",
+  "tr": "%s назад"
+ },
+ "travellers.battle.report.broken_off": {
+  "en": "Broken off",
+  "tr": "Сломано"
+ },
+ "travellers.battle.report.camp_assault": {
+  "en": "Camp assault",
+  "tr": "Штурм лагеря"
+ },
+ "travellers.battle.report.enemies": {
+  "en": "Enemies",
+  "tr": "Враги"
+ },
+ "travellers.battle.report.fallen": {
+  "en": "Fallen: %s",
+  "tr": "Павшие: %s"
+ },
+ "travellers.battle.report.fallen_more": {
+  "en": "Fallen: %s and %s more",
+  "tr": "Павшие: %s и ещё %s"
+ },
+ "travellers.battle.report.lost": {
+  "en": "Defeat",
+  "tr": "Поражение"
+ },
+ "travellers.battle.report.name.henchmen": {
+  "en": "Henchmen",
+  "tr": "Подручные"
+ },
+ "travellers.battle.report.name.raiders": {
+  "en": "Raiders",
+  "tr": "Налётчики"
+ },
+ "travellers.battle.report.name.travellers": {
+  "en": "Travellers",
+  "tr": "Путники"
+ },
+ "travellers.battle.report.outlook.later": {
+  "en": "%s back in a few days",
+  "tr": "%s через несколько дней"
+ },
+ "travellers.battle.report.outlook.never": {
+  "en": "%s will not come back",
+  "tr": "%s не вернётся"
+ },
+ "travellers.battle.report.outlook.no_bed": {
+  "en": "%s had no bed (lost for good)",
+  "tr": "%s не имел постели (потеряна навсегда)"
+ },
+ "travellers.battle.report.outlook.tomorrow": {
+  "en": "%s back at their bed tomorrow",
+  "tr": "%s завтра вернётся в свою постель"
+ },
+ "travellers.battle.report.over": {
+  "en": "%s won",
+  "tr": "%s назад"
+ },
+ "travellers.battle.report.running": {
+  "en": "Battle",
+  "tr": "Битва"
+ },
+ "travellers.battle.report.won": {
+  "en": "Victory",
+  "tr": "Победа"
+ },
+ "travellers.battle.report.yours": {
+  "en": "Your henchmen",
+  "tr": "Ваши подручные"
+ },
+ "travellers.dialogue.gui.configure": {
+  "en": "Configure AI Dialogue",
+  "tr": "Настройка диалога ИИ"
+ },
+ "travellers.dialogue.gui.error_note": {
+  "en": "(Something went wrong reaching your local AI.)",
+  "tr": "(Что-то пошло не так при обращении к вашему локальному ИИ.)"
+ },
+ "travellers.dialogue.gui.follow": {
+  "en": "Follow him",
+  "tr": "Следовать за ним"
+ },
+ "travellers.dialogue.gui.generating": {
+  "en": "...",
+  "tr": "..."
+ },
+ "travellers.dialogue.gui.looking_up": {
+  "en": "...(thinking it over)...",
+  "tr": "...(задумываюсь)..."
+ },
+ "travellers.dialogue.gui.not_configured": {
+  "en": "You haven't set up AI dialogue yet.",
+  "tr": "Вы еще не настроили диалог ИИ."
+ },
+ "travellers.dialogue.gui.send": {
+  "en": "Send",
+  "tr": "Отправить"
+ },
+ "travellers.dialogue.gui.title": {
+  "en": "Talk",
+  "tr": "Разговор"
+ },
+ "travellers.dialogue.gui.tool_cap_fallback": {
+  "en": "Let me think on that a little more before I answer.",
+  "tr": "Подумаю над этим еще немного, прежде чем ответить."
+ },
+ "travellers.dialogue.gui.you": {
+  "en": "You",
+  "tr": "Вы"
+ },
+ "travellers.dialogue.gui_fallback_heading_to": {
+  "en": "I'm actually heading to %s.",
+  "tr": "Я сейчас иду в %s."
+ },
+ "travellers.dialogue.heading_to": {
+  "en": "I'm actually heading to %s in the %s.",
+  "tr": "Я сейчас иду в %s в %s."
+ },
+ "travellers.dialogue.no_destination": {
+  "en": "I don't currently have a destination.",
+  "tr": "У меня пока нет цели."
+ },
+ "travellers.dialogue.setup.advanced": {
+  "en": "Advanced (model settings)",
+  "tr": "Продвинутое (настройки модели)"
+ },
+ "travellers.dialogue.setup.advanced.intro": {
+  "en": "Leave a field blank to use the model's own default.",
+  "tr": "Оставьте поле пустым, чтобы использовать собственный дефолт модели."
+ },
+ "travellers.dialogue.setup.advanced.num_ctx": {
+  "en": "Context size (memory, num_ctx)",
+  "tr": "Размер контекста (память, num_ctx)"
+ },
+ "travellers.dialogue.setup.advanced.num_ctx_fixed": {
+  "en": "Context size: set when llama.cpp starts",
+  "tr": "Размер контекста: устанавливается при запуске llama.cpp"
+ },
+ "travellers.dialogue.setup.advanced.num_predict": {
+  "en": "Max reply length (-1 = no limit)",
+  "tr": "Максимальная длина ответа (-1 = без ограничения)"
+ },
+ "travellers.dialogue.setup.advanced.repeat_penalty": {
+  "en": "Repeat penalty",
+  "tr": "Штраф за повтор"
+ },
+ "travellers.dialogue.setup.advanced.reset": {
+  "en": "Reset to defaults",
+  "tr": "Сбросить на дефолт"
+ },
+ "travellers.dialogue.setup.advanced.temperature": {
+  "en": "Temperature (creativity)",
+  "tr": "Температура (креативность)"
+ },
+ "travellers.dialogue.setup.advanced.think": {
+  "en": "Extended thinking",
+  "tr": "Расширенное мышление"
+ },
+ "travellers.dialogue.setup.advanced.title": {
+  "en": "Advanced Model Settings",
+  "tr": "Продвинутые настройки модели"
+ },
+ "travellers.dialogue.setup.advanced.tools": {
+  "en": "Let the NPC look things up",
+  "tr": "Пусть NPC ищет"
+ },
+ "travellers.dialogue.setup.advanced.tools_warning": {
+  "en": "Not every model supports this - unsupported ones just ignore it.",
+  "tr": "Не каждая модель это поддерживает — неподдерживающие просто игнорируют это."
+ },
+ "travellers.dialogue.setup.advanced.top_k": {
+  "en": "Top K (word choices)",
+  "tr": "Топ K (выбор слов)"
+ },
+ "travellers.dialogue.setup.advanced.top_p": {
+  "en": "Top P (word focus)",
+  "tr": "Топ P (фокус слов)"
+ },
+ "travellers.dialogue.setup.debug_dump": {
+  "en": "Debug: dump raw prompts",
+  "tr": "Отладка: выгрузить сырые подсказки"
+ },
+ "travellers.dialogue.setup.debug_dump_help": {
+  "en": "Writes everything sent to the AI to a log file, for diagnosing bad answers",
+  "tr": "Записывает всё, что отправляется в AI, в файл логов для диагностики плохих ответов"
+ },
+ "travellers.dialogue.setup.detail_level": {
+  "en": "Detail: %s",
+  "tr": "Детализация: %s"
+ },
+ "travellers.dialogue.setup.detail_level.minimal": {
+  "en": "Minimal",
+  "tr": "Минимальная"
+ },
+ "travellers.dialogue.setup.detail_level.rich": {
+  "en": "Rich",
+  "tr": "Богатая"
+ },
+ "travellers.dialogue.setup.detail_level.standard": {
+  "en": "Standard",
+  "tr": "Стандартная"
+ },
+ "travellers.dialogue.setup.detail_level_help": {
+  "en": "Rich = more detail, needs a bigger local model",
+  "tr": "Богатый = больше деталей, требует более крупной локальной модели"
+ },
+ "travellers.dialogue.setup.enabled": {
+  "en": "AI Dialogue:",
+  "tr": "Диалог ИИ:"
+ },
+ "travellers.dialogue.setup.host": {
+  "en": "Server host",
+  "tr": "Хост сервера"
+ },
+ "travellers.dialogue.setup.port": {
+  "en": "Port",
+  "tr": "Порт"
+ },
+ "travellers.dialogue.setup.preload": {
+  "en": "Preload model on startup",
+  "tr": "Загрузить модель при запуске"
+ },
+ "travellers.dialogue.setup.preload_help": {
+  "en": "Warms up your chosen model when the game starts, so the first conversation isn't slow",
+  "tr": "Разогреет выбранную модель при запуске игры, чтобы первая беседа не тормозила"
+ },
+ "travellers.dialogue.setup.preload_not_needed": {
+  "en": "Not needed: llama.cpp has already loaded its model",
+  "tr": "Не нужно: llama.cpp уже загрузила свою модель"
+ },
+ "travellers.dialogue.setup.server_type": {
+  "en": "Server: %s",
+  "tr": "Сервер: %s"
+ },
+ "travellers.dialogue.setup.test_connection": {
+  "en": "Test connection",
+  "tr": "Проверить соединение"
+ },
+ "travellers.dialogue.setup.test_failed": {
+  "en": "Could not connect: %s",
+  "tr": "Не удалось подключиться: %s"
+ },
+ "travellers.dialogue.setup.test_no_models": {
+  "en": "Connected, but no models are pulled yet.",
+  "tr": "Подключено, но модели пока не загружены."
+ },
+ "travellers.dialogue.setup.test_ok": {
+  "en": "Connected - %d model(s) found.",
+  "tr": "Подключено - найдено %d моделей."
+ },
+ "travellers.dialogue.setup.testing": {
+  "en": "Testing...",
+  "tr": "Тестирование..."
+ },
+ "travellers.dialogue.setup.title": {
+  "en": "AI Dialogue Setup",
+  "tr": "Настройка диалога ИИ"
+ },
+ "travellers.dialogue.staying_in_village": {
+  "en": "I'm staying in %s for a bit.",
+  "tr": "Я пребываю в %s немного."
+ },
+ "travellers.dialogue.worker_farewell": {
+  "en": "I did what I had to do. Let me rest a bit.",
+  "tr": "Я сделал всё, что нужно было сделать. Отдохну немного."
+ },
+ "travellers.follow.choice.follow": {
+  "en": "Follow him",
+  "tr": "Следовать за ним"
+ },
+ "travellers.follow.choice.talk": {
+  "en": "Talk",
+  "tr": "Говорить"
+ },
+ "travellers.gui.add": {
+  "en": "Add",
+  "tr": "Добавить"
+ },
+ "travellers.gui.back": {
+  "en": "Back",
+  "tr": "Назад"
+ },
+ "travellers.gui.cancel": {
+  "en": "Cancel",
+  "tr": "Отменить"
+ },
+ "travellers.gui.clear": {
+  "en": "Clear",
+  "tr": "Очистить"
+ },
+ "travellers.gui.close": {
+  "en": "Close",
+  "tr": "Закрыть"
+ },
+ "travellers.gui.done": {
+  "en": "Done",
+  "tr": "Готово"
+ },
+ "travellers.gui.go": {
+  "en": "Go",
+  "tr": "Идти"
+ },
+ "travellers.gui.history.empty": {
+  "en": "No events yet.",
+  "tr": "Событий пока нет."
+ },
+ "travellers.gui.history.loading": {
+  "en": "Loading history...",
+  "tr": "Загрузка истории..."
+ },
+ "travellers.gui.history.time.days_ago": {
+  "en": "%sd ago",
+  "hand": "%s дн. назад"
+ },
+ "travellers.gui.history.time.hours_ago": {
+  "en": "%sh ago",
+  "hand": "%s ч назад"
+ },
+ "travellers.gui.history.time.just_now": {
+  "en": "just now",
+  "tr": "Только что"
+ },
+ "travellers.gui.history.time.minutes_ago": {
+  "en": "%sm ago",
+  "hand": "%s мин. назад"
+ },
+ "travellers.gui.remove": {
+  "en": "Remove",
+  "tr": "Удалить"
+ },
+ "travellers.gui.save": {
+  "en": "Save",
+  "tr": "Сохранить"
+ },
+ "travellers.gui.unnamed": {
+  "en": "(unnamed)",
+  "hand": "(без имени)"
+ },
+ "travellers.home_name_prompt.subtitle": {
+  "en": "You can assign it to hired Henchmen and send them here, more to come.",
+  "tr": "Вы можете передать это нанятым подручным и отправить сюда, остальные будут приходить."
+ },
+ "travellers.home_name_prompt.title": {
+  "en": "Name of your home",
+  "tr": "Имя вашего дома"
+ },
+ "travellers.lone_barrack.created": {
+  "en": "Zone created!",
+  "tr": "Зона создана!"
+ },
+ "travellers.lone_barrack.error.invalid": {
+  "en": "This zone cannot be created here: stand closer, keep it within the size limits, and wait for the area to load.",
+  "tr": "Зону нельзя создать здесь: подойдите ближе, удерживайтесь в пределах размеров и дождитесь загрузки области."
+ },
+ "travellers.lone_barrack.error.overlaps": {
+  "en": "This area overlaps an existing zone.",
+  "tr": "Эта зона перекрывается существующей зоной."
+ },
+ "travellers.lone_barrack.prompt.half_depth": {
+  "en": "depth",
+  "tr": "глубина"
+ },
+ "travellers.lone_barrack.prompt.half_height": {
+  "en": "height",
+  "tr": "высота"
+ },
+ "travellers.lone_barrack.prompt.half_width": {
+  "en": "width",
+  "tr": "ширина"
+ },
+ "travellers.lone_barrack.prompt.name": {
+  "en": "Name:",
+  "tr": "Имя:"
+ },
+ "travellers.lone_barrack.prompt.title": {
+  "en": "New Zone",
+  "tr": "Новая зона"
+ },
+ "travellers.map.center": {
+  "en": "Center",
+  "tr": "Центр"
+ },
+ "travellers.map.chunks.legend.center_chunk": {
+  "en": "White square = current center chunk",
+  "tr": "Белый квадрат = текущий центр чанка"
+ },
+ "travellers.map.chunks.legend.loaded_merchants": {
+  "en": "Chunks loaded by travellers Henchmen",
+  "tr": "Чанки, загруженные путниками-подручными"
+ },
+ "travellers.map.chunks.legend.loaded_normal": {
+  "en": "Loaded chunks (normal)",
+  "tr": "Загруженные чанки (обычные)"
+ },
+ "travellers.map.chunks.legend.player_pos": {
+  "en": "Green dot = your pos",
+  "tr": "Зелёная точка = ваша позиция"
+ },
+ "travellers.map.chunks.legend.villages": {
+  "en": "Village Town Halls",
+  "tr": "Залы деревень"
+ },
+ "travellers.map.legend.bridge": {
+  "en": "Bridge",
+  "tr": "Мост"
+ },
+ "travellers.map.legend.camp_firepit": {
+  "en": "Camp firepit",
+  "tr": "Костёр в лагере"
+ },
+ "travellers.map.legend.camp_slot": {
+  "en": "Camp shelter",
+  "tr": "Убежище"
+ },
+ "travellers.map.legend.controlled_village": {
+  "en": "Ctrl. Village",
+  "tr": "Ctrl. Деревня"
+ },
+ "travellers.map.legend.enemy_village": {
+  "en": "Enemy village",
+  "tr": "Враждебная деревня"
+ },
+ "travellers.map.legend.follower": {
+  "en": "Follower",
+  "tr": "Спутник"
+ },
+ "travellers.map.legend.home": {
+  "en": "Barrack",
+  "tr": "Казарма"
+ },
+ "travellers.map.legend.leader": {
+  "en": "Leader",
+  "tr": "Командир"
+ },
+ "travellers.map.legend.player": {
+  "en": "You",
+  "tr": "Вы"
+ },
+ "travellers.map.legend.rest_spot": {
+  "en": "Rest spot",
+  "tr": "Место привала"
+ },
+ "travellers.map.legend.road": {
+  "en": "Road",
+  "tr": "Дорога"
+ },
+ "travellers.map.legend.stable": {
+  "en": "Stable",
+  "tr": "Конюшня"
+ },
+ "travellers.map.legend.trail": {
+  "en": "Trail",
+  "tr": "Тропа"
+ },
+ "travellers.map.population.raider": {
+  "en": "Raiders: %d (%d loaded, %d virtual)",
+  "tr": "Налётчики: %d (%d загружены, %d виртуальные)"
+ },
+ "travellers.map.population.stable": {
+  "en": "Stables: %d (%d loaded, %d virtual)",
+  "tr": "Конюшни: %d (%d загружены, %d виртуальные)"
+ },
+ "travellers.map.population.traveller": {
+  "en": "Travellers: %d (%d loaded, %d virtual)",
+  "tr": "Путники: %d (%d загружены, %d виртуальные)"
+ },
+ "travellers.map.population.worker": {
+  "en": "Henchmen: %d (%d loaded, %d virtual)",
+  "tr": "Подручные: %d (%d загружены, %d виртуальные)"
+ },
+ "travellers.map.settlement.controlled_by": {
+  "en": "Controlled by %s",
+  "tr": "Контролируется %s"
+ },
+ "travellers.map.settlement.enemy": {
+  "en": "Enemy of your henchmen",
+  "tr": "Враг ваших подручных"
+ },
+ "travellers.map.settlement.kind": {
+  "en": "%s - %s",
+  "tr": "%s - %s"
+ },
+ "travellers.map.settlement.population": {
+  "en": "%d inhabitants",
+  "tr": "%d жителей"
+ },
+ "travellers.map.settlement.raiding": {
+  "en": "Raiding %s",
+  "tr": "Нападение %s"
+ },
+ "travellers.map.settlement.reputation": {
+  "en": "Your reputation: %s",
+  "tr": "Ваша репутация: %s"
+ },
+ "travellers.map.settlement.under_attack": {
+  "en": "Under attack!",
+  "tr": "Нападение!"
+ },
+ "travellers.map.spawn.active": {
+  "en": "Click map...",
+  "tr": "Нажмите на карту..."
+ },
+ "travellers.map.spawn_raider": {
+  "en": "Spawn raiders",
+  "tr": "Создать налётчиков"
+ },
+ "travellers.map.spawn_traveller": {
+  "en": "Spawn traveller",
+  "tr": "Создать путника"
+ },
+ "travellers.map.spawn_worker": {
+  "en": "Spawn henchmen",
+  "tr": "Создать подручных"
+ },
+ "travellers.map.teleport": {
+  "en": "Teleport",
+  "hand": "Телепорт"
+ },
+ "travellers.map.teleport.active": {
+  "en": "Click map...",
+  "tr": "Нажмите на карту..."
+ },
+ "travellers.map.title": {
+  "en": "World map",
+  "tr": "Карта мира"
+ },
+ "travellers.map.unavailable_dimension": {
+  "en": "The map only shows the Overworld.",
+  "tr": "Карта показывает только Поверхность."
+ },
+ "travellers.map.worker.following": {
+  "en": "Following: %s",
+  "tr": "Следуя: %s"
+ },
+ "travellers.map.worker.hp": {
+  "en": "§c♥§r %d/%d",
+  "tr": "§c♥§r %d/%d"
+ },
+ "travellers.map.worker.in_battle": {
+  "en": "In battle!",
+  "tr": "В битве!"
+ },
+ "travellers.map.worker.status.dump_items": {
+  "en": "Dropping off items",
+  "tr": "Сброс предметов"
+ },
+ "travellers.map.worker.status.get_equipment": {
+  "en": "Fetching equipment",
+  "tr": "Сбор снаряжения"
+ },
+ "travellers.map.worker.status.going_home": {
+  "en": "Going home",
+  "tr": "Возвращение домой"
+ },
+ "travellers.map.worker.status.going_to": {
+  "en": "Heading to a destination",
+  "tr": "Едёт к цели"
+ },
+ "travellers.map.worker.status.recruiting": {
+  "en": "On a recruit job",
+  "tr": "На вербовочной миссии"
+ },
+ "travellers.map.worker.status.return_horses": {
+  "en": "Going to return a horse",
+  "tr": "Идёт вернуть лошадь"
+ },
+ "travellers.map.worker.status.returning": {
+  "en": "Returning home",
+  "tr": "Возвращается домой"
+ },
+ "travellers.map.worker.status.take_horses": {
+  "en": "Going to take a horse",
+  "tr": "Идёт забрать лошадь"
+ },
+ "travellers.map.worker.status.transport": {
+  "en": "On a transport job",
+  "tr": "На транспортной миссии"
+ },
+ "travellers.map.worker.unknown": {
+  "en": "Somebody",
+  "tr": "Неизвестный"
+ },
+ "travellers.map.worker.unnamed": {
+  "en": "Henchman #%d",
+  "tr": "Подручный #%d"
+ },
+ "travellers.notify.battle.away_summary": {
+  "en": "While you were away: %s battles, %s of your henchmen fell",
+  "tr": "Пока вы были в пути: %s битв, %s ваших подручных погибло"
+ },
+ "travellers.notify.battle.broken_off": {
+  "en": "Battle broken off - %s of your henchmen fell",
+  "tr": "Битва прервана - %s ваших подручных погибло"
+ },
+ "travellers.notify.battle.fallen": {
+  "en": "Battle: %s of your henchmen fallen (%s)",
+  "tr": "Битва: %s ваших подручных погибло (%s)"
+ },
+ "travellers.notify.battle.fallen_more": {
+  "en": "Battle: %s of your henchmen fallen (%s and %s more)",
+  "tr": "Битва: %s ваших подручных погибло (%s и %s больше)"
+ },
+ "travellers.notify.battle.lost": {
+  "en": "Battle lost - %s of your henchmen fell",
+  "tr": "Битва проиграна - %s ваших подручных погибло"
+ },
+ "travellers.notify.battle.under_attack": {
+  "en": "Your henchmen are under attack",
+  "tr": "Ваши подручные находятся под атакой"
+ },
+ "travellers.notify.battle.won": {
+  "en": "Battle won - %s of your henchmen fell",
+  "tr": "Битва выиграна - %s ваших подручных погибло"
+ },
+ "travellers.notify.dump.done": {
+  "en": "%s items stored, dropped off by %s henchmen.",
+  "tr": "%s предметов сохранено, сброшено %s подручных."
+ },
+ "travellers.notify.dump.full": {
+  "en": "No more room: %s items stored, %s stayed in the backpacks.",
+  "tr": "Места больше нет: %s предметов сохранено, %s осталось в рюксаках."
+ },
+ "travellers.notify.dump.nothing": {
+  "en": "Nothing was dropped off.",
+  "tr": "Ничего не сброшено."
+ },
+ "travellers.notify.duty.assigned": {
+  "en": "Assigned to duty at %s.",
+  "tr": "Вы назначены на службу в %s."
+ },
+ "travellers.notify.duty.no_bed": {
+  "en": "%s has no free bed - place another bed in the Stable before assigning a stable hand there.",
+  "tr": "У %s нет свободной кровати — поставьте еще одну кровать в конюшню перед тем, как назначить конюха там."
+ },
+ "travellers.notify.equip.done": {
+  "en": "Equipment sorted: %s of %s changed their gear.",
+  "tr": "Экипировка упорядочена: %s из %s сменили снаряжение."
+ },
+ "travellers.notify.equip.nothing": {
+  "en": "Nothing better to equip was found.",
+  "tr": "Ничего лучше для экипировки не найдено."
+ },
+ "travellers.notify.follow.stopped_combat": {
+  "en": "A fight broke out: you stopped following.",
+  "tr": "Вспыхнул бой: вы остановили следование."
+ },
+ "travellers.notify.follow.stopped_hungry": {
+  "en": "You are too hungry to keep up: you stopped following.",
+  "tr": "Вы слишком голодны, чтобы идти: вы остановили следование."
+ },
+ "travellers.notify.follow.stopped_hurt": {
+  "en": "You took damage: you stopped following.",
+  "tr": "Вы получили урон: вы остановили следование."
+ },
+ "travellers.notify.follow.target_lost": {
+  "en": "You lost sight of who you were following.",
+  "tr": "Вы потеряли след за кем вы следили."
+ },
+ "travellers.notify.goto.arrived": {
+  "en": "Your henchman has arrived at its destination.",
+  "tr": "Ваш подручный прибыл в пункт назначения."
+ },
+ "travellers.notify.goto.delivery_started_donate": {
+  "en": "Alright, I'm heading to %s for %s as a donation.",
+  "tr": "Хорошо, я еду в %s за %s в качестве пожертвования."
+ },
+ "travellers.notify.goto.delivery_started_free": {
+  "en": "Alright, I'm heading to %s!",
+  "tr": "Хорошо, я еду в %s!"
+ },
+ "travellers.notify.goto.delivery_started_paid": {
+  "en": "Alright, I'm heading to %s for %s.",
+  "tr": "Хорошо, я еду в %s за %s."
+ },
+ "travellers.notify.goto.going_to": {
+  "en": "Henchman is going to: %s",
+  "tr": "Подручный едет в: %s"
+ },
+ "travellers.notify.goto.going_to_pos": {
+  "en": "Henchman is going to selected map position.",
+  "tr": "Подручный едет на выбранную позицию карты."
+ },
+ "travellers.notify.goto.group_arrived": {
+  "en": "Your group of %s henchmen has arrived at its destination.",
+  "tr": "Группа из %s подручных прибыла в пункт назначения."
+ },
+ "travellers.notify.goto.not_enough_money": {
+  "en": "You need %s for this trip.",
+  "tr": "Вам нужно %s на эту поездку."
+ },
+ "travellers.notify.goto.payment_failed": {
+  "en": "Payment failed. Try again.",
+  "tr": "Оплата не удалась. Попробуйте снова."
+ },
+ "travellers.notify.hire.already_hired_by_other": {
+  "en": "This travellers is already hired by someone else.",
+  "tr": "Этот путник уже нанят кем-то."
+ },
+ "travellers.notify.hire.dismissed": {
+  "en": "The travellers will no longer follow you.",
+  "tr": "Этот путник больше не будет следовать за вами."
+ },
+ "travellers.notify.hire.needs_village_chief": {
+  "en": "You must be chief of a Millenaire village to hire henchmen.",
+  "tr": "Чтобы нанять подручных, вы должны быть командиром деревни Millénaire."
+ },
+ "travellers.notify.hire.not_enough_money": {
+  "en": "You don't have enough money (%s needed).",
+  "tr": "У вас недостаточно денег (%s)."
+ },
+ "travellers.notify.hire.payment_failed": {
+  "en": "Hire failed: money could not be deducted.",
+  "tr": "Нанятие не удалось: деньги не смогли списать."
+ },
+ "travellers.notify.home.lone_barrack_bed_destroyed": {
+  "en": "%s lost their bed at \"%s\" and no other bed is free there: they left the zone and are coming back to you.",
+  "tr": "%s потерял свою кровать в \"%s\" и никакая другая кровать там свободна: они покинули зону и возвращаются к вам."
+ },
+ "travellers.notify.home.none_assigned": {
+  "en": "No home assigned.",
+  "tr": "Дом не назначен."
+ },
+ "travellers.notify.home.not_your_worker": {
+  "en": "Not your henchman.",
+  "tr": "Не ваш подручный."
+ },
+ "travellers.notify.hostile.added": {
+  "en": "Henchmen will attack: %s",
+  "tr": "Подручные будут атаковать: %s"
+ },
+ "travellers.notify.hostile.not_owner": {
+  "en": "You don't own this henchman.",
+  "tr": "Вы не владеете этим подручным."
+ },
+ "travellers.notify.hostile.removed": {
+  "en": "Removed enemy: %s",
+  "tr": "Удалён враг: %s"
+ },
+ "travellers.notify.hostile.war_declared_on_you": {
+  "en": "%s attacked your henchmen - you are now at war with them.",
+  "tr": "%s атаковал ваших подручных — теперь вы в состоянии войны с ними."
+ },
+ "travellers.notify.leader.no_free_followers": {
+  "en": "No free direct followers to assign.",
+  "tr": "Нет свободных подручных для назначения."
+ },
+ "travellers.notify.leader.now_leading": {
+  "en": "This henchman is now leading %s followers.",
+  "tr": "Этот подручный теперь ведет %s подручных."
+ },
+ "travellers.notify.leader.released_followers": {
+  "en": "Released %s followers back to you.",
+  "tr": "Освободить %s подручных и вернуть их вам."
+ },
+ "travellers.notify.leader.succession": {
+  "en": "%s has taken command of the group.",
+  "tr": "%s взял командование над группой."
+ },
+ "travellers.notify.location_suffix": {
+  "en": "%sm to the %s",
+  "hand": "%s м, %s"
+ },
+ "travellers.notify.mount.led_low_health": {
+  "en": "%s's horse is too badly hurt to keep riding - leading it on foot instead.",
+  "tr": "%s лошадь слишком сильно ранена, чтобы продолжать ездить — ведём её пешком вместо этого."
+ },
+ "travellers.notify.mount.led_sidestep_gave_up": {
+  "en": "%s's horse got stuck and couldn't work its way free - leading it on foot instead.",
+  "tr": "%s лошадь застряла и не смогла вырваться — ведём её пешком вместо этого."
+ },
+ "travellers.notify.mount.led_terrain_blocked": {
+  "en": "%s's horse can't get through here - leading it on foot instead.",
+  "tr": "%s лошадь не может пройти здесь — ведём её пешком вместо этого."
+ },
+ "travellers.notify.order.some_busy_skipped": {
+  "en": "%s henchmen were on a task and left alone.",
+  "tr": "%s подручные были на задании и остались одни."
+ },
+ "travellers.notify.order.worker_busy": {
+  "en": "This henchman is on a task and can't take new orders right now.",
+  "tr": "Этот подручный на задании и не может принимать новые приказы сейчас."
+ },
+ "travellers.notify.order.worker_on_duty": {
+  "en": "%s works at \"%s\" and takes no orders there. Unassign them from the zones menu first.",
+  "tr": "%s работает в \"%s\" и не принимает приказов там. Сначала отвяжите их от меню зон."
+ },
+ "travellers.notify.overflow": {
+  "en": "+%s more notices",
+  "tr": "+%s дополнительных уведомлений"
+ },
+ "travellers.notify.raid.incoming": {
+  "en": "Raid incoming!",
+  "tr": "Нападение приближается!"
+ },
+ "travellers.notify.raid.repelled": {
+  "en": "Raid repelled.",
+  "tr": "Нападение отбито."
+ },
+ "travellers.notify.raid.scattered": {
+  "en": "Raid over: the raiders scatter.",
+  "tr": "Нападение: налётчики разбежались."
+ },
+ "travellers.notify.raid.wave": {
+  "en": "Wave %s/%s incoming!",
+  "tr": "Волна %s/%s приближается!"
+ },
+ "travellers.notify.recruit.back": {
+  "en": "%s is back from recruiting: talk to them to read the report.",
+  "tr": "%s вернулся с вербовки: поговорите с ним, чтобы прочитать отчет."
+ },
+ "travellers.notify.recruit.busy": {
+  "en": "I'm busy right now.",
+  "tr": "Я сейчас занят."
+ },
+ "travellers.notify.recruit.henchmen_recruited": {
+  "en": "Recruited %s henchmen at %s.",
+  "tr": "Нанят %s подручных в %s."
+ },
+ "travellers.notify.recruit.henchmen_recruited_road": {
+  "en": "Recruited %s henchmen on the road near %s.",
+  "tr": "Нанят %s подручных на дороге рядом с %s."
+ },
+ "travellers.notify.recruit.mission_completed": {
+  "en": "Recruit mission completed.",
+  "tr": "Миссия по вербовке завершена."
+ },
+ "travellers.notify.recruit.mission_started": {
+  "en": "Recruit mission started. Fee paid: %s",
+  "tr": "Миссия по вербовке началась. Оплачена плата: %s"
+ },
+ "travellers.notify.recruit.needs_group": {
+  "en": "Only the leader of a group can go recruiting.",
+  "tr": "Только командир группы может идти вербовать."
+ },
+ "travellers.notify.recruit.no_villages_in_range": {
+  "en": "No villages in range to recruit from.",
+  "tr": "Нет деревень в радиусе для вербовки."
+ },
+ "travellers.notify.recruit.not_enough_fee": {
+  "en": "Recruit fee: %s (you have %s)",
+  "tr": "Плата за вербовку: %s (у вас %s)"
+ },
+ "travellers.notify.recruit.payment_failed": {
+  "en": "Recruit fee payment failed. Try again.",
+  "tr": "Ошибка оплаты вербовки. Попробуйте снова."
+ },
+ "travellers.notify.recruit.recalled": {
+  "en": "%s is coming back.",
+  "tr": "%s вернулся."
+ },
+ "travellers.notify.stable.foal_born": {
+  "en": "A foal was born at %s.",
+  "tr": "В %s родился жеребёнок."
+ },
+ "travellers.notify.stable.horse_saddled": {
+  "en": "A horse was saddled at %s.",
+  "tr": "Лошадь была посажена в седло в %s."
+ },
+ "travellers.notify.stable.horse_tamed": {
+  "en": "A horse was tamed at %s.",
+  "tr": "Лошадь была приручена в %s."
+ },
+ "travellers.notify.stable.horses_returned": {
+  "en": "%s of %s workers dropped off their mounts at \"%s\".",
+  "tr": "%s подручных из %s конюшни сдали свои верховые лошади в «%s»."
+ },
+ "travellers.notify.stable.horses_taken": {
+  "en": "%s of %s workers took a mount from \"%s\".",
+  "tr": "%s подручных из %s конюшни взяли верховую лошадь из «%s»."
+ },
+ "travellers.notify.stable.mount_recovered": {
+  "en": "%s's horse joined the stable it was put on duty at.",
+  "tr": "Конь %s присоединился к конюшне, в которой он был поставлен на службу."
+ },
+ "travellers.notify.stable.no_horse_to_return": {
+  "en": "No horse could be returned to the stable.",
+  "tr": "В конюшню нельзя было вернуть лошадь."
+ },
+ "travellers.notify.stable.pool_too_small_to_equip": {
+  "en": "The stable \"%s\" had no saddled horse spare to give out - it also keeps a small reserve. Tame, saddle or breed more first.",
+  "tr": "В конюшне «%s» не было запасной седла для выдачи — там же хранится небольшая запасная партия. Приручите, посадите или разведите больше в первую очередь."
+ },
+ "travellers.notify.trade.donated_summary": {
+  "en": "Donation to %s: %s items, rep +%s%s",
+  "tr": "Донесение в %s: %s предметов, репутация +%s%s"
+ },
+ "travellers.notify.trade.refused": {
+  "en": "The village refuses to trade with you (reputation too low or village is not trading right now).",
+  "tr": "Сельское население отказывает в торговле с вами (репутация слишком низкая или деревня сейчас не торгует)."
+ },
+ "travellers.notify.trade.sold_summary": {
+  "en": "Sale at %s: %s items sold for %s, rep +%s%s",
+  "tr": "Продажа у %s: %s товаров продано за %s, репутация +%s%s"
+ },
+ "travellers.notify.trade.village_gone": {
+  "en": "%s couldn't find the village and is bringing your cargo back.",
+  "tr": "%s не смогла найти деревню и везёт ваш груз обратно."
+ },
+ "travellers.notify.worker.already_on_job": {
+  "en": "I'm already on a job.",
+  "tr": "Я уже на задании."
+ },
+ "travellers.notify.worker.arrived_home": {
+  "en": "Henchman is now at home.",
+  "tr": "Подручный теперь дома."
+ },
+ "travellers.notify.worker.cargo_arrived_full": {
+  "en": "I'm here with your goods. Check my pack.",
+  "tr": "Я здесь с вашими грузами. Проверьте мою сумку."
+ },
+ "travellers.notify.worker.cargo_arrived_partial": {
+  "en": "I'm here. I couldn't sell everything, some goods are still in my pack.",
+  "tr": "Я здесь. Не смог продать всё, часть грузов всё ещё в моей сумке."
+ },
+ "travellers.notify.worker.cargo_coming_back": {
+  "en": "%s is bringing your cargo back to you.",
+  "tr": "%s везёт ваши грузы обратно к вам."
+ },
+ "travellers.notify.worker.cargo_heading_home": {
+  "en": "%s can't find you and is heading back to the Barrack with your cargo.",
+  "tr": "%s не нашёл вас и идёт обратно в казарму с вашими грузами."
+ },
+ "travellers.notify.worker.cargo_waiting": {
+  "en": "%s can't find you and is waiting with your cargo where you were last seen.",
+  "tr": "%s не нашёл вас и ждёт с вашими грузами там, где вы были в последний раз."
+ },
+ "travellers.notify.worker.death_no_bed": {
+  "en": "Had no bed: will not come back.",
+  "tr": "Не было кровати: не вернётся."
+ },
+ "travellers.notify.worker.death_respawn_days": {
+  "en": "Will be back at their bed in about %s days.",
+  "tr": "Вернётся на кровать примерно через %s дней."
+ },
+ "travellers.notify.worker.death_respawn_tomorrow": {
+  "en": "Will be back at their bed tomorrow morning.",
+  "tr": "Вернётся на кровать завтра утром."
+ },
+ "travellers.notify.worker.died": {
+  "en": "%s has died.",
+  "tr": "%s умер."
+ },
+ "travellers.notify.worker.goods_left": {
+  "en": "%s still carries goods for you: talk to them to take the rest.",
+  "tr": "%s всё ещё несёт грузы для вас: поговорите с ними, чтобы забрать остальное."
+ },
+ "travellers.notify.worker.not_hired_behavior": {
+  "en": "You can only manage behavior of a henchman you've hired.",
+  "tr": "Управлять поведением можно только нанятому подручному."
+ },
+ "travellers.notify.worker.not_hired_formation": {
+  "en": "You can only manage formation of a henchman you've hired.",
+  "tr": "Управлять построением можно только за нанятого подручного."
+ },
+ "travellers.notify.worker.not_hired_go": {
+  "en": "You can only order a henchman you've hired.",
+  "tr": "Приказы можно давать только нанятому подручному."
+ },
+ "travellers.notify.worker.not_hired_home": {
+  "en": "You can only manage home for a henchman you've hired.",
+  "tr": "Управлять домом можно только за нанятого подручного."
+ },
+ "travellers.notify.worker.not_hired_inventory": {
+  "en": "You can only access the pack of a henchman you've hired.",
+  "tr": "Доступ только к рюкзаку нанятого подручного."
+ },
+ "travellers.notify.worker.not_hired_orders": {
+  "en": "You can only give orders to a henchman you've hired.",
+  "tr": "Можно давать приказы только нанятому подручному."
+ },
+ "travellers.notify.worker.not_hired_recruit": {
+  "en": "You can only recruit with a henchman you've hired.",
+  "tr": "Вербовать можно только с помощью нанятого подручного."
+ },
+ "travellers.notify.worker.not_hired_transport": {
+  "en": "You must hire this henchman to use Transport.",
+  "tr": "Чтобы использовать Транспорт, вы должны нанять этого подручного."
+ },
+ "travellers.notify.worker.not_hired_village_relations": {
+  "en": "You can only manage village relations of a henchman you've hired.",
+  "tr": "Вы можете управлять отношениями деревни только с подручным, которого наняли."
+ },
+ "travellers.notify.worker.purse_no_room": {
+  "en": "No room for the coins: free some space or carry a Millénaire purse.",
+  "tr": "Место для монет нет: расчистите место или носите Millénaire-кошель."
+ },
+ "travellers.notify.worker.respawn_cancelled": {
+  "en": "%s will not come back: their bed is gone, along with anything they kept.",
+  "tr": "%s не вернётся: их кровать исчезла, вместе с тем, что они удерживали."
+ },
+ "travellers.notify.worker.respawned": {
+  "en": "%s is back at their bed.",
+  "tr": "%s снова на своей кровати."
+ },
+ "travellers.notify.worker.retaliation_target": {
+  "en": "%s set as enemy (retaliation).",
+  "tr": "%s назначен как враг (отмщение)."
+ },
+ "travellers.raid.bar": {
+  "en": "Raid — wave %s/%s",
+  "tr": "Набег — волна %s/%s"
+ },
+ "travellers.worker.barracks.delete": {
+  "en": "Delete Barrack",
+  "tr": "Удалите вашу казарму."
+ },
+ "travellers.worker.barracks.dragdrop": {
+  "en": "Select a zone, then drag & drop henchmen to assign or unassign them",
+  "tr": "Выберите зону, затем перетащите подручных, чтобы распределить или освободить их."
+ },
+ "travellers.worker.barracks.dump": {
+  "en": "Dump Items",
+  "tr": "Сбросить предметы"
+ },
+ "travellers.worker.barracks.dump.tooltip": {
+  "en": "Send this henchman to drop its spare items and food into the chests of a village or barrack. It keeps its best weapon and bow.",
+  "tr": "Отправьте этого подручного, чтобы он сбросил запасные предметы и еду в сундуках деревни или казармы. Он оставляет своё лучшее оружие и лук."
+ },
+ "travellers.worker.barracks.dump_return": {
+  "en": "Dump and Return",
+  "tr": "Сбросьте и вернуть"
+ },
+ "travellers.worker.barracks.dump_return.tooltip": {
+  "en": "Drop off the spare items, then come back to its previous spot.",
+  "tr": "Сбросьте запасные предметы, а затем вернитесь на её прежнее место."
+ },
+ "travellers.worker.barracks.dump_stay": {
+  "en": "Dump and Stay",
+  "tr": "Сбросьте и остаться"
+ },
+ "travellers.worker.barracks.dump_stay.tooltip": {
+  "en": "Drop off the spare items, then stay there instead of coming back.",
+  "tr": "Сбросьте запасные предметы, а затем останьтесь там вместо возврата."
+ },
+ "travellers.worker.barracks.equip_return": {
+  "en": "Equip and Return",
+  "tr": "Оснастите и вернуть"
+ },
+ "travellers.worker.barracks.equip_return.tooltip": {
+  "en": "Fetch new equipment, then come back to its previous spot.",
+  "tr": "Получите новое снаряжение, а затем вернитесь на её прежнее место."
+ },
+ "travellers.worker.barracks.equip_stay": {
+  "en": "Equip and Stay",
+  "tr": "Оснастите и остаться"
+ },
+ "travellers.worker.barracks.equip_stay.tooltip": {
+  "en": "Fetch new equipment, then stay there instead of coming back.",
+  "tr": "Получите новое снаряжение, а затем останьтесь там вместо возврата."
+ },
+ "travellers.worker.barracks.equip_title": {
+  "en": "Choose mission:",
+  "tr": "Выберите миссию:"
+ },
+ "travellers.worker.barracks.full": {
+  "en": "This barrack is full (one Henchman per bed).",
+  "tr": "Ваш казарма полон (один подручный на кровать)."
+ },
+ "travellers.worker.barracks.get_equip": {
+  "en": "Get Equipment",
+  "tr": "Получите ваше снаряжение."
+ },
+ "travellers.worker.barracks.get_equip.tooltip": {
+  "en": "Send this henchman to take the best of the gear you tick and leave the rest in the chests.",
+  "tr": "Отправьте этого подручного, чтобы забрать лучшее снаряжения, которое вы выбрали, и оставить остальное в сундуках."
+ },
+ "travellers.worker.barracks.list": {
+  "en": "Barracks",
+  "tr": "Казармы"
+ },
+ "travellers.worker.barracks.selected": {
+  "en": "Selected Barrack Henchmen",
+  "tr": "Подручные в выбранной казарме"
+ },
+ "travellers.worker.barracks.take_horses": {
+  "en": "Take Horses",
+  "tr": "Взять лошадей"
+ },
+ "travellers.worker.barracks.take_horses.tooltip": {
+  "en": "Send this henchman to take a horse from a stable.",
+  "tr": "Отправьте этого подручного, чтобы он взял лошадь из конюшни."
+ },
+ "travellers.worker.barracks.take_horses_return": {
+  "en": "Take Horse and Return",
+  "tr": "Взять лошадь и вернуть"
+ },
+ "travellers.worker.barracks.take_horses_return.tooltip": {
+  "en": "Take a horse, then come back to its previous spot.",
+  "tr": "Возьмите лошадь, а затем вернитесь на её прежнее место."
+ },
+ "travellers.worker.barracks.take_horses_stay": {
+  "en": "Take Horse and Stay",
+  "tr": "Взять лошадь и остаться"
+ },
+ "travellers.worker.barracks.take_horses_stay.tooltip": {
+  "en": "Take a horse, then stay there instead of coming back.",
+  "tr": "Возьмите лошадь, а затем останьтесь там вместо возврата."
+ },
+ "travellers.worker.barracks.title": {
+  "en": "Zones",
+  "tr": "Зоны"
+ },
+ "travellers.worker.barracks.unassigned": {
+  "en": "Unassigned Henchmen",
+  "tr": "Не назначенные подручные"
+ },
+ "travellers.worker.behavior.player_enemies": {
+  "en": "Player relations",
+  "tr": "Отношения игроков"
+ },
+ "travellers.worker.behavior.title": {
+  "en": "Behavior",
+  "tr": "Поведение"
+ },
+ "travellers.worker.behavior.village_relations": {
+  "en": "Village relations",
+  "tr": "Отношения деревень"
+ },
+ "travellers.worker.blocked.empty_cargo": {
+  "en": "Put goods in the cargo first.",
+  "tr": "Сначала положите товары в груз."
+ },
+ "travellers.worker.blocked.money": {
+  "en": "The trip costs %s; you have %s.",
+  "tr": "Поездка стоит %s; у вас есть %s."
+ },
+ "travellers.worker.blocked.no_village": {
+  "en": "Choose a village in the list.",
+  "tr": "Выберите деревню из списка."
+ },
+ "travellers.worker.blocked.not_yours": {
+  "en": "This henchman is not yours.",
+  "tr": "Этот подручный не ваш."
+ },
+ "travellers.worker.cargo": {
+  "en": "Cargo",
+  "tr": "Груз"
+ },
+ "travellers.worker.cost": {
+  "en": "Travel cost: %s",
+  "tr": "Стоимость путешествия: %s"
+ },
+ "travellers.worker.donate": {
+  "en": "Donate",
+  "tr": "Пожертвовать"
+ },
+ "travellers.worker.donate.tooltip": {
+  "en": "Give the cargo to this village for free. Earns more reputation, but no money.",
+  "tr": "Отдайте груз этой деревне бесплатно. Принесет больше репутации, но денег не будет."
+ },
+ "travellers.worker.enemies.hint": {
+  "en": "Your henchmen attack enemy players on sight. Select a player to change.",
+  "tr": "Ваши подручные атакуют вражеских игроков при встрече. Выберите игрока, чтобы изменить."
+ },
+ "travellers.worker.enemies.make_enemy": {
+  "en": "Make enemy",
+  "tr": "Создать врага"
+ },
+ "travellers.worker.enemies.make_friendly": {
+  "en": "Make friendly",
+  "tr": "Сделать дружелюбным"
+ },
+ "travellers.worker.enemies.none": {
+  "en": "No other player has joined this server yet.",
+  "tr": "На этом сервере пока нет других игроков."
+ },
+ "travellers.worker.enemies.tag.enemy": {
+  "en": "Enemy",
+  "tr": "Враг"
+ },
+ "travellers.worker.enemies.tag.friendly": {
+  "en": "Friendly",
+  "tr": "Дружелюбный"
+ },
+ "travellers.worker.enemies.title": {
+  "en": "Player relations",
+  "tr": "Отношения игроков"
+ },
+ "travellers.worker.follow.hired_by_other": {
+  "en": "This traveller is already hired by someone else.",
+  "tr": "Этот путник уже нанят кем-то."
+ },
+ "travellers.worker.follow.hired_success": {
+  "en": "The traveller is now following you.",
+  "tr": "Путник теперь следует за вами."
+ },
+ "travellers.worker.follow.not_enough_money": {
+  "en": "You don't have enough money.",
+  "tr": "У вас недостаточно денег."
+ },
+ "travellers.worker.follow.title": {
+  "en": "Follower Options",
+  "tr": "Опции последователя"
+ },
+ "travellers.worker.follow.unhired_success": {
+  "en": "The traveller will no longer follow you.",
+  "tr": "Путник больше не будет следовать за вами."
+ },
+ "travellers.worker.formation.attitude": {
+  "en": "Attitude",
+  "tr": "Настройка"
+ },
+ "travellers.worker.formation.attitude.attack": {
+  "en": "Attack",
+  "tr": "Атака"
+ },
+ "travellers.worker.formation.attitude.defend": {
+  "en": "Defend",
+  "tr": "Защита"
+ },
+ "travellers.worker.formation.attitude.hold": {
+  "en": "Hold Position",
+  "tr": "Удержание позиции"
+ },
+ "travellers.worker.formation.attitude.tooltip": {
+  "en": "Attack: chases freely; Defend: less agressive, Hold Position: minimum movement",
+  "tr": "Атака: преследовать свободно; Защита: менее агрессивно, Удержание позиции: минимальное движение"
+ },
+ "travellers.worker.formation.bar.center": {
+  "en": "Center",
+  "tr": "Центр"
+ },
+ "travellers.worker.formation.bar.center.tip": {
+  "en": "Center the map on this group.",
+  "tr": "Центр карты на этой группе."
+ },
+ "travellers.worker.formation.bar.create_group": {
+  "en": "Form group",
+  "tr": "Создать группу"
+ },
+ "travellers.worker.formation.bar.create_group.tip": {
+  "en": "Form a new group with the selected henchmen.",
+  "tr": "Создайте новую группу из выбранных подручных."
+ },
+ "travellers.worker.formation.bar.empty": {
+  "en": "Select a group or some henchmen to see their orders.",
+  "tr": "Выберите группу или подручных, чтобы увидеть их приказы."
+ },
+ "travellers.worker.formation.bar.follow": {
+  "en": "Follow...",
+  "tr": "Следуйте..."
+ },
+ "travellers.worker.formation.bar.follow.tip": {
+  "en": "Pick a group (or you) for this group to follow.",
+  "tr": "Выберите группу (или себя), которую будет следовать эта группа."
+ },
+ "travellers.worker.formation.bar.follow_me": {
+  "en": "Follow me",
+  "tr": "Следуйте за мной"
+ },
+ "travellers.worker.formation.bar.follow_me.tip": {
+  "en": "Come back to you and follow you.",
+  "tr": "Вернитесь к вам и следуйте за вами."
+ },
+ "travellers.worker.formation.bar.halt": {
+  "en": "Halt",
+  "tr": "Остановиться"
+ },
+ "travellers.worker.formation.bar.halt.tip": {
+  "en": "Stop where they are.",
+  "tr": "Остановитесь там, где они."
+ },
+ "travellers.worker.formation.bar.join": {
+  "en": "Join...",
+  "tr": "Присоединиться..."
+ },
+ "travellers.worker.formation.bar.join.tip": {
+  "en": "Pick a group for the selected henchmen to join.",
+  "tr": "Выберите группу, к которой присоединятся выбранные подручные."
+ },
+ "travellers.worker.formation.bar.merge": {
+  "en": "Merge with...",
+  "tr": "Объединить с..."
+ },
+ "travellers.worker.formation.bar.merge.tip": {
+  "en": "Pick another group to merge this one into.",
+  "tr": "Выберите другую группу, в которую объединить эту."
+ },
+ "travellers.worker.formation.bar.resume": {
+  "en": "Resume",
+  "tr": "Продолжить"
+ },
+ "travellers.worker.formation.bar.resume.tip": {
+  "en": "Start following again.",
+  "tr": "Начните следовать снова."
+ },
+ "travellers.worker.formation.barracks": {
+  "en": "Barracks",
+  "tr": "Казарма"
+ },
+ "travellers.worker.formation.card.busy": {
+  "en": "on a mission",
+  "tr": "на миссии"
+ },
+ "travellers.worker.formation.card.en_route": {
+  "en": "on the way",
+  "tr": "в пути"
+ },
+ "travellers.worker.formation.card.followers_hint": {
+  "en": "Right click: send them somewhere, form a group, join one or have them follow you.",
+  "tr": "Нажмите правой кнопкой: отправьте их куда-то, сформируйте группу, присоединитесь или заставьте следовать за вами."
+ },
+ "travellers.worker.formation.card.followers_selected": {
+  "en": "%s selected",
+  "tr": "%s выбран"
+ },
+ "travellers.worker.formation.card.following": {
+  "en": "marching",
+  "tr": "маршируют"
+ },
+ "travellers.worker.formation.card.halted": {
+  "en": "halted",
+  "tr": "остановлен"
+ },
+ "travellers.worker.formation.card.workers": {
+  "en": "%s henchmen",
+  "tr": "%s подручных"
+ },
+ "travellers.worker.formation.card.you": {
+  "en": "Your escort",
+  "tr": "Ваш эскорт"
+ },
+ "travellers.worker.formation.cave": {
+  "en": "Cave mode",
+  "tr": "Режим пещеры"
+ },
+ "travellers.worker.formation.cave.off": {
+  "en": "Adaptive cave: OFF",
+  "tr": "Адаптивная пещера: ВЫКЛ"
+ },
+ "travellers.worker.formation.cave.on": {
+  "en": "Adaptive cave: ON",
+  "tr": "Адаптивная пещера: ВКЛ"
+ },
+ "travellers.worker.formation.cohesion": {
+  "en": "Player cohesion",
+  "tr": "Связность игрока"
+ },
+ "travellers.worker.formation.controls": {
+  "en": "Controls",
+  "tr": "Управление"
+ },
+ "travellers.worker.formation.escorts": {
+  "en": "Escorts",
+  "tr": "Сопровождение"
+ },
+ "travellers.worker.formation.follow_distance": {
+  "en": "Follow dist",
+  "tr": "Дистанция преследования"
+ },
+ "travellers.worker.formation.followers": {
+  "en": "Followers",
+  "tr": "Последователи"
+ },
+ "travellers.worker.formation.hint": {
+  "en": "Click: select  ·  Shift+click/drag: add followers  ·  Right click: orders  ·  Right drag: move map",
+  "tr": "Нажмите: выбрать  ·  Shift+клик/перетаскивание: добавить подручных  ·  Правая кнопка мыши: приказы  ·  Перетаскивание справа: перемещение карты"
+ },
+ "travellers.worker.formation.hover.escort": {
+  "en": "Close escort #%s",
+  "tr": "Ближний эскорт #%s"
+ },
+ "travellers.worker.formation.hover.leader": {
+  "en": "Leader",
+  "tr": "Командир"
+ },
+ "travellers.worker.formation.hover.offset": {
+  "en": "Offset: x=%s z=%s",
+  "tr": "Смещение: x=%s z=%s"
+ },
+ "travellers.worker.formation.hover.slot": {
+  "en": "Follower slot %s",
+  "tr": "Слот спутника %s"
+ },
+ "travellers.worker.formation.hub_title": {
+  "en": "Formation & Groups",
+  "tr": "Построение и группы"
+ },
+ "travellers.worker.formation.leaders": {
+  "en": "Leaders",
+  "tr": "Командиры"
+ },
+ "travellers.worker.formation.menu.after_mission": {
+  "en": "Then:",
+  "tr": "Затем:"
+ },
+ "travellers.worker.formation.menu.choose_follow": {
+  "en": "Follow whom?",
+  "tr": "Кого следовать?"
+ },
+ "travellers.worker.formation.menu.choose_join": {
+  "en": "Join which group?",
+  "tr": "Вступить в какую группу?"
+ },
+ "travellers.worker.formation.menu.choose_merge": {
+  "en": "Merge into which group?",
+  "tr": "Влиться в какую группу?"
+ },
+ "travellers.worker.formation.menu.come_back": {
+  "en": "Come back",
+  "tr": "Вернитесь"
+ },
+ "travellers.worker.formation.menu.create_group": {
+  "en": "Form a group",
+  "tr": "Создать группу"
+ },
+ "travellers.worker.formation.menu.create_group_go": {
+  "en": "Form a group and go here",
+  "tr": "Создать группу и идти сюда"
+ },
+ "travellers.worker.formation.menu.dump": {
+  "en": "Dump items...",
+  "tr": "Выгрузить предметы..."
+ },
+ "travellers.worker.formation.menu.equip": {
+  "en": "Get equipment...",
+  "tr": "Взять экипировку..."
+ },
+ "travellers.worker.formation.menu.follow_group": {
+  "en": "Follow this group",
+  "tr": "Следуйте за этой группой"
+ },
+ "travellers.worker.formation.menu.follow_me": {
+  "en": "Follow me",
+  "tr": "Следуйте за мной"
+ },
+ "travellers.worker.formation.menu.go": {
+  "en": "Go here",
+  "tr": "Здесь"
+ },
+ "travellers.worker.formation.menu.halt": {
+  "en": "Halt here",
+  "tr": "Остановиться здесь"
+ },
+ "travellers.worker.formation.menu.join_group": {
+  "en": "Join this group",
+  "tr": "Вступить в эту группу"
+ },
+ "travellers.worker.formation.menu.loadout": {
+  "en": "Gear to carry:",
+  "tr": "Чем нести:"
+ },
+ "travellers.worker.formation.menu.loadout.armour": {
+  "en": "Armour",
+  "tr": "Броня"
+ },
+ "travellers.worker.formation.menu.loadout.bow": {
+  "en": "Bow",
+  "tr": "Лук"
+ },
+ "travellers.worker.formation.menu.loadout.melee": {
+  "en": "Melee",
+  "tr": "Ближний бой"
+ },
+ "travellers.worker.formation.menu.loadout.shield": {
+  "en": "Shield",
+  "tr": "Щит"
+ },
+ "travellers.worker.formation.menu.merge_escort": {
+  "en": "Merge into my escort",
+  "tr": "Влиться в мой эскорт"
+ },
+ "travellers.worker.formation.menu.merge_group": {
+  "en": "Merge with this group",
+  "tr": "Влиться в эту группу"
+ },
+ "travellers.worker.formation.menu.no_orders": {
+  "en": "No orders",
+  "tr": "Без приказов"
+ },
+ "travellers.worker.formation.menu.no_other_group": {
+  "en": "No other group",
+  "tr": "Нет другой группы"
+ },
+ "travellers.worker.formation.menu.reason.busy": {
+  "en": "This group is on a mission.",
+  "tr": "Эта группа на миссии."
+ },
+ "travellers.worker.formation.menu.reason.need_two": {
+  "en": "Select at least 2 henchmen.",
+  "tr": "Выберите как минимум 2 подручных."
+ },
+ "travellers.worker.formation.menu.reason.no_other_group": {
+  "en": "You have no other group yet.",
+  "tr": "У вас ещё нет другой группы."
+ },
+ "travellers.worker.formation.menu.reason.select_first": {
+  "en": "Select a group or some henchmen first.",
+  "tr": "Сначала выберите группу или подручных."
+ },
+ "travellers.worker.formation.menu.reason.target_busy": {
+  "en": "That group is on a mission.",
+  "tr": "Та группа на миссии."
+ },
+ "travellers.worker.formation.menu.recall": {
+  "en": "Call back",
+  "tr": "Отозвать"
+ },
+ "travellers.worker.formation.menu.resume": {
+  "en": "Resume marching",
+  "tr": "Возобновить марш"
+ },
+ "travellers.worker.formation.menu.return_horses": {
+  "en": "Return horses...",
+  "tr": "Вернуть лошадей..."
+ },
+ "travellers.worker.formation.menu.select": {
+  "en": "Select",
+  "tr": "Выбрать"
+ },
+ "travellers.worker.formation.menu.stay_there": {
+  "en": "Stay there",
+  "tr": "Оставайтесь здесь"
+ },
+ "travellers.worker.formation.menu.take_horses": {
+  "en": "Take horses...",
+  "tr": "Взять лошадей..."
+ },
+ "travellers.worker.formation.orders_tab": {
+  "en": "Leader Orders",
+  "tr": "Приказы командира"
+ },
+ "travellers.worker.formation.preview": {
+  "en": "Radar Preview",
+  "tr": "Предпросмотр радара"
+ },
+ "travellers.worker.formation.preview.count": {
+  "en": "Shown: %s",
+  "tr": "Показано: %s"
+ },
+ "travellers.worker.formation.preview.forward": {
+  "en": "Forward",
+  "tr": "Вперёд"
+ },
+ "travellers.worker.formation.preview.reset": {
+  "en": "Reset",
+  "tr": "Сброс"
+ },
+ "travellers.worker.formation.preview.zoom": {
+  "en": "Zoom: %s",
+  "tr": "Зум: %s"
+ },
+ "travellers.worker.formation.preview_adaptive_cave": {
+  "en": "Cave adaptive: ON",
+  "tr": "Пещера адаптивная: ВКЛ"
+ },
+ "travellers.worker.formation.preview_surface_bias": {
+  "en": "Cave adaptive: OFF",
+  "tr": "Пещера адаптивная: ВЫКЛ"
+ },
+ "travellers.worker.formation.scope": {
+  "en": "Scope",
+  "tr": "Область"
+ },
+ "travellers.worker.formation.scope.player": {
+  "en": "Player",
+  "tr": "Игрок"
+ },
+ "travellers.worker.formation.scope.worker": {
+  "en": "Henchman leader",
+  "tr": "Командир подручных"
+ },
+ "travellers.worker.formation.scope_type": {
+  "en": "Type",
+  "tr": "Тип"
+ },
+ "travellers.worker.formation.set_home": {
+  "en": "Barracks",
+  "tr": "Казарма"
+ },
+ "travellers.worker.formation.spacing": {
+  "en": "Spacing",
+  "tr": "Расстояние между"
+ },
+ "travellers.worker.formation.style": {
+  "en": "Style",
+  "tr": "Стиль"
+ },
+ "travellers.worker.formation.style.adaptive": {
+  "en": "Adaptive",
+  "tr": "Адаптивный"
+ },
+ "travellers.worker.formation.style.column": {
+  "en": "Column",
+  "tr": "Столбец"
+ },
+ "travellers.worker.formation.style.compact": {
+  "en": "Compact",
+  "tr": "Компактный"
+ },
+ "travellers.worker.formation.style.line": {
+  "en": "Line",
+  "tr": "Линия"
+ },
+ "travellers.worker.formation.style.wedge": {
+  "en": "Wedge",
+  "tr": "Клин"
+ },
+ "travellers.worker.formation.summary.armour": {
+  "en": "Armour",
+  "tr": "Броня"
+ },
+ "travellers.worker.formation.summary.armour.chain": {
+  "en": "Chain",
+  "tr": "Линя"
+ },
+ "travellers.worker.formation.summary.armour.diamond": {
+  "en": "Diamond",
+  "tr": "Алмаз"
+ },
+ "travellers.worker.formation.summary.armour.gold": {
+  "en": "Gold",
+  "tr": "Золото"
+ },
+ "travellers.worker.formation.summary.armour.iron": {
+  "en": "Iron",
+  "tr": "Железо"
+ },
+ "travellers.worker.formation.summary.armour.leather": {
+  "en": "Leather",
+  "tr": "Кожа"
+ },
+ "travellers.worker.formation.summary.armour.none": {
+  "en": "None",
+  "tr": "Нет"
+ },
+ "travellers.worker.formation.summary.armour.other": {
+  "en": "Other",
+  "tr": "Другое"
+ },
+ "travellers.worker.formation.summary.members": {
+  "en": "%s henchmen",
+  "tr": "%s подручных"
+ },
+ "travellers.worker.formation.summary.wounded": {
+  "en": "%s wounded",
+  "tr": "%s раненых"
+ },
+ "travellers.worker.formation.title": {
+  "en": "Formation & Groups",
+  "tr": "Построение и группы"
+ },
+ "travellers.worker.formation.turn": {
+  "en": "Turn smooth",
+  "tr": "Плавный ход"
+ },
+ "travellers.worker.formation.width": {
+  "en": "Width",
+  "tr": "Ширина"
+ },
+ "travellers.worker.formation.you": {
+  "en": "You",
+  "tr": "Вы"
+ },
+ "travellers.worker.formation.zone.at_rest": {
+  "en": "%s at rest, free to group",
+  "tr": "%s в покое, свободны для группировки"
+ },
+ "travellers.worker.formation.zone.beds": {
+  "en": "%s/%s beds",
+  "tr": "%s/%s кроватей"
+ },
+ "travellers.worker.formation.zone.hands": {
+  "en": "%s stable hands · %s here",
+  "tr": "%s конюшники · %s здесь"
+ },
+ "travellers.worker.formation.zone.here_away": {
+  "en": "%s here · %s away",
+  "tr": "%s здесь · %s там"
+ },
+ "travellers.worker.formation.zone.horse_state": {
+  "en": "%s tamed · %s saddled",
+  "tr": "%s приручены · %s в седле"
+ },
+ "travellers.worker.formation.zone.horses": {
+  "en": "%s/%s horses",
+  "tr": "%s/%s лошадей"
+ },
+ "travellers.worker.formation.zone.nobody": {
+  "en": "Nobody lives here.",
+  "tr": "Здесь никто не живёт."
+ },
+ "travellers.worker.go.title": {
+  "en": "Send to a place",
+  "tr": "Отправить в место"
+ },
+ "travellers.worker.hire.hint.assign": {
+  "en": "After hiring, give them a bed in the Zones menu.",
+  "tr": "После найма дайте им кровать в меню Зон."
+ },
+ "travellers.worker.hire.hint.beds_missing": {
+  "en": "Free beds in your Barracks: %s, needed: %s.",
+  "tr": "Свободные казармы: %s, нужно: %s."
+ },
+ "travellers.worker.hire.hint.chief": {
+  "en": "Only the chief of a Millénaire village can hire henchmen.",
+  "tr": "Только командир деревни Millénaire может нанимать подручных."
+ },
+ "travellers.worker.hire.hint.money": {
+  "en": "Not enough money: you have %s.",
+  "tr": "Недостаточно денег: у вас %s."
+ },
+ "travellers.worker.hire.hint.wand": {
+  "en": "Shift + right-click with a Wand of Summoning to build a Barrack (needs a bed and a chest).",
+  "tr": "Shift + правый клик Жезла Создания, чтобы построить Казарму (нужны кровать и сундук)."
+ },
+ "travellers.worker.hire.hint.why_bed": {
+  "en": "A henchman with a bed comes back after dying.",
+  "tr": "Подручный с кроватью вернётся после смерти."
+ },
+ "travellers.worker.home_list.delete": {
+  "en": "Delete",
+  "tr": "Удалить"
+ },
+ "travellers.worker.home_list.empty": {
+  "en": "No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.",
+  "tr": "Казарма не назначена. Зажмите Shift и кликните правой кнопкой мыши в любом месте с палочкой призыва, чтобы создать казарму."
+ },
+ "travellers.worker.home_list.equip_return_barracks": {
+  "en": "Come Back - Barracks",
+  "tr": "Вернуться - Казарма"
+ },
+ "travellers.worker.home_list.equip_return_village": {
+  "en": "Come Back - Whole Village",
+  "tr": "Вернуться - Целая деревня"
+ },
+ "travellers.worker.home_list.equip_stay_barracks": {
+  "en": "Stay - Barracks",
+  "tr": "Остаться - Казарма"
+ },
+ "travellers.worker.home_list.equip_stay_village": {
+  "en": "Stay - Whole Village",
+  "tr": "Остаться - Целая деревня"
+ },
+ "travellers.worker.home_list.equip_title": {
+  "en": "Choose mission:",
+  "tr": "Выбрать миссию:"
+ },
+ "travellers.worker.home_list.get_equip": {
+  "en": "Get Equipment",
+  "tr": "Получить снаряжение"
+ },
+ "travellers.worker.home_list.set_home": {
+  "en": "Set Barrack",
+  "tr": "Установить казарму"
+ },
+ "travellers.worker.home_list.title": {
+  "en": "Barracks",
+  "tr": "Казарма"
+ },
+ "travellers.worker.hub.barracks": {
+  "en": "Zones",
+  "tr": "Зоны"
+ },
+ "travellers.worker.hub.barracks.tooltip": {
+  "en": "Open the zones menu, where you assign henchmen to a Barrack or a Stable.",
+  "tr": "Откройте меню зон, где вы распределяете подручных в казарму или конюшню."
+ },
+ "travellers.worker.hub.behavior": {
+  "en": "Behavior",
+  "tr": "Поведение"
+ },
+ "travellers.worker.hub.follow": {
+  "en": "Orders",
+  "tr": "Приказы"
+ },
+ "travellers.worker.hub.formation": {
+  "en": "Formations",
+  "tr": "Построения"
+ },
+ "travellers.worker.hub.formation.tooltip": {
+  "en": "Manage your units.",
+  "tr": "Управляйте своими отрядами."
+ },
+ "travellers.worker.hub.info.health": {
+  "en": "Health %s/%s",
+  "tr": "Здоровье %s/%s"
+ },
+ "travellers.worker.hub.info.no_bed": {
+  "en": "No bed: won't come back if killed",
+  "tr": "Без кровати: не вернётся при смерти."
+ },
+ "travellers.worker.hub.info.village": {
+  "en": "From %s",
+  "tr": "Из %s"
+ },
+ "travellers.worker.hub.inventory": {
+  "en": "Inventory",
+  "tr": "Инвентарь"
+ },
+ "travellers.worker.hub.map": {
+  "en": "Map",
+  "tr": "Карта"
+ },
+ "travellers.worker.hub.mark_button": {
+  "en": "Henchman mark",
+  "tr": "Метка подручного"
+ },
+ "travellers.worker.hub.mark_button.desc": {
+  "en": "Edit your hired Henchmen visual mark",
+  "tr": "Вы измените визуальную метку ваших нанятых подручных"
+ },
+ "travellers.worker.hub.node.barracks": {
+  "en": "Zones",
+  "tr": "Зоны"
+ },
+ "travellers.worker.hub.node.choir": {
+  "en": "Sing",
+  "tr": "Петь"
+ },
+ "travellers.worker.hub.node.follow": {
+  "en": "Follow",
+  "tr": "Следовать"
+ },
+ "travellers.worker.hub.node.follow_him": {
+  "en": "Follow him",
+  "tr": "Следовать ему"
+ },
+ "travellers.worker.hub.node.follow_him.tooltip": {
+  "en": "Walk behind this henchman hands-off. Press any movement key to stop.",
+  "tr": "Встаньте позади этого подручного, не держите его за руку. Нажмите любую клавишу передвижения, чтобы остановиться."
+ },
+ "travellers.worker.hub.node.follow_player": {
+  "en": "Follow me",
+  "tr": "Следовать мне"
+ },
+ "travellers.worker.hub.node.formation": {
+  "en": "Formation",
+  "tr": "Построение"
+ },
+ "travellers.worker.hub.node.go": {
+  "en": "Missions",
+  "tr": "Миссии"
+ },
+ "travellers.worker.hub.node.inventory": {
+  "en": "Inventory",
+  "tr": "Инвентарь"
+ },
+ "travellers.worker.hub.node.leader": {
+  "en": "Lead",
+  "tr": "Вести"
+ },
+ "travellers.worker.hub.node.management": {
+  "en": "Management",
+  "tr": "Управление"
+ },
+ "travellers.worker.hub.node.orders": {
+  "en": "Orders",
+  "tr": "Приказы"
+ },
+ "travellers.worker.hub.node.players": {
+  "en": "Players",
+  "tr": "Игроки"
+ },
+ "travellers.worker.hub.node.players.tooltip": {
+  "en": "Choose which players your henchmen treat as enemies. Applies to all of your henchmen, not just this one.",
+  "tr": "Выберите, каких игроков ваши подручные считают врагами. Действует на всех ваших подручных, а не только на этого."
+ },
+ "travellers.worker.hub.node.recruit": {
+  "en": "Recruit",
+  "tr": "Вербовать"
+ },
+ "travellers.worker.hub.node.recruit.tooltip": {
+  "en": "Sends this leader and their group on a recruiting tour. Make them lead at least one henchman first.",
+  "tr": "Отправляет этого командира и его группу на вербующий тур. Сделайте так, чтобы они сначала вели хотя бы одного подручного."
+ },
+ "travellers.worker.hub.node.relations": {
+  "en": "Relations",
+  "tr": "Отношения"
+ },
+ "travellers.worker.hub.node.transport": {
+  "en": "Transport",
+  "tr": "Транспорт"
+ },
+ "travellers.worker.hub.node.travel": {
+  "en": "Travel",
+  "tr": "Путешествие"
+ },
+ "travellers.worker.hub.node.unhire": {
+  "en": "Dismiss",
+  "tr": "Отпустить"
+ },
+ "travellers.worker.hub.node.unhire.tooltip": {
+  "en": "Dismiss this henchman. Click twice to confirm.",
+  "tr": "Отпустить этого подручного. Нажмите дважды, чтобы подтвердить."
+ },
+ "travellers.worker.hub.node.unhire_confirm": {
+  "en": "Sure?",
+  "tr": "Уверены?"
+ },
+ "travellers.worker.hub.node.villages": {
+  "en": "Villages",
+  "tr": "Поселения"
+ },
+ "travellers.worker.hub.node.villages.tooltip": {
+  "en": "How your henchmen behave towards each village. Applies to all of your henchmen, not just this one.",
+  "tr": "Как ваши подручные ведут себя к каждому поселению. Действует на всех ваших подручных, а не только к этому."
+ },
+ "travellers.worker.hub.title": {
+  "en": "Traveller Options",
+  "tr": "Опции путника"
+ },
+ "travellers.worker.hub.transport": {
+  "en": "Transport",
+  "tr": "Транспорт"
+ },
+ "travellers.worker.hub.transport.tooltip": {
+  "en": "Send this henchman to a village to sell or donate its cargo.",
+  "tr": "Отправьте этого подручного в деревню, чтобы продать или пожертвовать грузом."
+ },
+ "travellers.worker.inventory.title": {
+  "en": "Henchman inventory",
+  "tr": "Инвентарь подручных"
+ },
+ "travellers.worker.mark.color": {
+  "en": "Color: %s",
+  "tr": "Цвет: %s"
+ },
+ "travellers.worker.mark.preview": {
+  "en": "Preview",
+  "tr": "Предпросмотр"
+ },
+ "travellers.worker.mark.preview.follower": {
+  "en": "Henchman",
+  "tr": "Подручный"
+ },
+ "travellers.worker.mark.preview.leader": {
+  "en": "Leader",
+  "tr": "Командир"
+ },
+ "travellers.worker.mark.preview.leader_hint": {
+  "en": "Leaders use a dedicated overlay",
+  "tr": "Командиры используют выделенный слой"
+ },
+ "travellers.worker.mark.saved": {
+  "en": "Henchman mark saved",
+  "tr": "Маркер подручного сохранён"
+ },
+ "travellers.worker.mark.style": {
+  "en": "Style",
+  "tr": "Стиль"
+ },
+ "travellers.worker.mark.style.chevron": {
+  "en": "Chevron",
+  "tr": "Шеврон"
+ },
+ "travellers.worker.mark.style.double": {
+  "en": "Double",
+  "tr": "Двойной"
+ },
+ "travellers.worker.mark.style.plain": {
+  "en": "Plain",
+  "tr": "Простой"
+ },
+ "travellers.worker.mark.title": {
+  "en": "Appearance",
+  "tr": "Внешний вид"
+ },
+ "travellers.worker.no_village_in_range": {
+  "en": "No known village in range. Explore to discover more.",
+  "tr": "В радиусе неизвестных деревень. Исследуйте, чтобы найти больше."
+ },
+ "travellers.worker.not_enough_money": {
+  "en": "You need %s for this trip.",
+  "tr": "Вам нужно %s на эту поездку."
+ },
+ "travellers.worker.orders.choir.tooltip": {
+  "en": "Have this henchman sing along with other nearby singing henchmen (WIP ONLY 1 SONG FOR NORMANS)",
+  "tr": "Пусть этот подручный подпевает другим ближайшим поющими подручными (WIP — только 1 песня для норманнов)"
+ },
+ "travellers.worker.orders.choir_start": {
+  "en": "Sing a Song",
+  "tr": "Пойте песню"
+ },
+ "travellers.worker.orders.choir_stop": {
+  "en": "Stop Singing",
+  "tr": "Остановить пение"
+ },
+ "travellers.worker.orders.follow.tooltip": {
+  "en": "Toggle whether this henchman actively follows its leader or you.",
+  "tr": "Переключатель: активно ли этот подручный следует за командиром или за вами."
+ },
+ "travellers.worker.orders.follow_off": {
+  "en": "Follow: OFF",
+  "tr": "Следовать: ВЫКЛ"
+ },
+ "travellers.worker.orders.follow_on": {
+  "en": "Follow: ON",
+  "tr": "Следовать: ВКЛ"
+ },
+ "travellers.worker.orders.follow_player": {
+  "en": "Follow me",
+  "tr": "Следуйте за мной."
+ },
+ "travellers.worker.orders.follow_player.tooltip": {
+  "en": "Stop following its escort leader and follow you directly instead.",
+  "tr": "Перестаньте следить за её эскорт лидером и следите за вами напрямую вместо этого."
+ },
+ "travellers.worker.orders.following_player": {
+  "en": "Follow me",
+  "tr": "Следуйте за мной."
+ },
+ "travellers.worker.orders.go": {
+  "en": "Go...",
+  "tr": "Идти..."
+ },
+ "travellers.worker.orders.go_home": {
+  "en": "Go to barrack",
+  "tr": "Идти в казарму"
+ },
+ "travellers.worker.orders.go_home_no_home": {
+  "en": "Go to barrack (none)",
+  "tr": "Идти в казарму (без назначения)"
+ },
+ "travellers.worker.orders.hire": {
+  "en": "Hire · %s",
+  "tr": "Нанять · %s"
+ },
+ "travellers.worker.orders.hire_group": {
+  "en": "Hire all %s · %s",
+  "tr": "Нанять всех %s · %s"
+ },
+ "travellers.worker.orders.hired_other": {
+  "en": "Hired by somebody",
+  "tr": "Нанят кем-то"
+ },
+ "travellers.worker.orders.home": {
+  "en": "Barracks",
+  "tr": "Казарма"
+ },
+ "travellers.worker.orders.leader_count": {
+  "en": "Leader (%s)",
+  "tr": "Командир (%s)"
+ },
+ "travellers.worker.orders.make_leader": {
+  "en": "Lead",
+  "tr": "Командир"
+ },
+ "travellers.worker.orders.make_leader.tooltip": {
+  "en": "Turn this henchman into a group leader. Henchmen actively following you will follow him.",
+  "tr": "Сделайте этого подручного лидером группы. Подручные, активно следующие за вами, будут следовать за ним."
+ },
+ "travellers.worker.orders.recruit": {
+  "en": "Go recruit",
+  "tr": "Нанять"
+ },
+ "travellers.worker.orders.title": {
+  "en": "Orders",
+  "tr": "Приказы"
+ },
+ "travellers.worker.orders.unhire": {
+  "en": "Unhire",
+  "tr": "Уволить"
+ },
+ "travellers.worker.pickup.done": {
+  "en": "Done",
+  "tr": "Готово"
+ },
+ "travellers.worker.pickup.earnings": {
+  "en": "Here is what the trip brought in. Take it so I can set off again.",
+  "tr": "Вот что принесла поездка. Возьмите это, чтобы я снова отправилась."
+ },
+ "travellers.worker.pickup.take_all": {
+  "en": "Take all",
+  "tr": "Забрать всё"
+ },
+ "travellers.worker.pickup.title": {
+  "en": "Back from the trip",
+  "tr": "Возвращение из поездки"
+ },
+ "travellers.worker.pickup.unsold": {
+  "en": "I couldn't sell everything. Take back what is left so I can set off again.",
+  "tr": "Я не смогла продать всё. Заберите оставшееся, чтобы я снова отправилась."
+ },
+ "travellers.worker.recruit.blocked.enemy": {
+  "en": "Enemy",
+  "tr": "Враг"
+ },
+ "travellers.worker.recruit.blocked.reputation": {
+  "en": "Distrusted",
+  "tr": "Недоверчивый"
+ },
+ "travellers.worker.recruit.cost": {
+  "en": "Mission cost: %s",
+  "tr": "Стоимость миссии: %s"
+ },
+ "travellers.worker.recruit.cost.purse": {
+  "en": "Purse for the recruits: %s",
+  "tr": "Кошель для вербовок: %s"
+ },
+ "travellers.worker.recruit.cost.refund": {
+  "en": "What the purse does not spend comes back to you.",
+  "tr": "То, что кошелек не потратил, вернется вам."
+ },
+ "travellers.worker.recruit.cost.travel": {
+  "en": "Travel: %s",
+  "tr": "Путешествие: %s"
+ },
+ "travellers.worker.recruit.count": {
+  "en": "Recruits: %s/%s",
+  "tr": "Вербовать: %s/%s"
+ },
+ "travellers.worker.recruit.none": {
+  "en": "No village in range",
+  "tr": "В радиусе деревень нет"
+ },
+ "travellers.worker.recruit.report.dead_short": {
+  "en": "+%s dead",
+  "tr": "+%s погибших"
+ },
+ "travellers.worker.recruit.report.left": {
+  "en": "Left in the purse",
+  "tr": "Осталось в кошеле"
+ },
+ "travellers.worker.recruit.report.map.death": {
+  "en": "A recruit died here",
+  "tr": "Здесь погиб вербованный"
+ },
+ "travellers.worker.recruit.report.map.not_reached": {
+  "en": "%s: not reached",
+  "tr": "%s: не достигнут"
+ },
+ "travellers.worker.recruit.report.map.road": {
+  "en": "%s recruits joined on the road",
+  "tr": "%s присоединились на дороге"
+ },
+ "travellers.worker.recruit.report.map.skipped": {
+  "en": "%s: skipped",
+  "tr": "%s пропущены"
+ },
+ "travellers.worker.recruit.report.map.visited": {
+  "en": "%s. %s: %s recruits",
+  "tr": "%s. %s: %s вербовок"
+ },
+ "travellers.worker.recruit.report.spent": {
+  "en": "Spent",
+  "tr": "Потрачено"
+ },
+ "travellers.worker.recruit.report.take": {
+  "en": "Take %s",
+  "tr": "Забирать %s"
+ },
+ "travellers.worker.recruit.report.taken": {
+  "en": "Purse empty",
+  "tr": "Кошель пуст"
+ },
+ "travellers.worker.recruit.report.tip.dead": {
+  "en": "%s died on the way",
+  "tr": "%s погибло по пути"
+ },
+ "travellers.worker.recruit.report.tip.found": {
+  "en": "%s found of %s wanted",
+  "tr": "%s найдено из %s желаемых"
+ },
+ "travellers.worker.recruit.report.tip.where": {
+  "en": "%s in villages, %s on the road",
+  "tr": "%s в деревнях, %s на дороге"
+ },
+ "travellers.worker.recruit.report.title": {
+  "en": "%s, %s away",
+  "tr": "%s, %s в радиусе"
+ },
+ "travellers.worker.recruit.start": {
+  "en": "Recruit",
+  "tr": "Вербовать"
+ },
+ "travellers.worker.recruit.tip.chance": {
+  "en": "%s%% chance that each one agrees",
+  "tr": "%s%%: каждый согласится"
+ },
+ "travellers.worker.recruit.tip.enemy": {
+  "en": "One of their villages is your enemy",
+  "tr": "Одна из их деревень — ваш враг"
+ },
+ "travellers.worker.recruit.tip.free": {
+  "en": "About %s of their people around",
+  "tr": "Около %s своих жителей вокруг"
+ },
+ "travellers.worker.recruit.tip.reputation": {
+  "en": "Your reputation with them is too low",
+  "tr": "Ваша репутация с ними слишком низка"
+ },
+ "travellers.worker.recruit.tip.villages": {
+  "en": "%s villages, nearest %sm away",
+  "tr": "%s деревень, ближайшая %s в радиусе"
+ },
+ "travellers.worker.recruit.title": {
+  "en": "Recruit henchmen",
+  "tr": "Вербовать подручных"
+ },
+ "travellers.worker.send": {
+  "en": "Sell",
+  "tr": "Продать"
+ },
+ "travellers.worker.send.tooltip": {
+  "en": "Sell the cargo to this village for money and reputation.",
+  "tr": "Продайте груз этой деревне за деньги и репутацию."
+ },
+ "travellers.worker.title": {
+  "en": "Transaction",
+  "tr": "Транзакция"
+ },
+ "travellers.worker.village_relations.hint": {
+  "en": "Select a village, then toggle enemy.",
+  "tr": "Выберите деревню, затем переключите врага."
+ },
+ "travellers.worker.village_relations.none_known": {
+  "en": "No known villages nearby yet.",
+  "tr": "Пока нет известных деревень поблизости."
+ },
+ "travellers.worker.village_relations.title": {
+  "en": "Village relations",
+  "tr": "Отношения деревень"
+ },
+ "travellers.worker.village_relations.toggle_enemy": {
+  "en": "Toggle enemy",
+  "tr": "Переключить врага"
+ },
+ "travellers.worker.zones.assigned_here": {
+  "en": "Assigned Here",
+  "tr": "Назначены здесь"
+ },
+ "travellers.worker.zones.create_hint": {
+  "en": "Shift + right-click with a Wand of Summoning to create one.",
+  "hand": "Shift + правый клик Жезлом Создания, чтобы создать зону."
+ },
+ "travellers.worker.zones.list_stables": {
+  "en": "Stables",
+  "tr": "Конюшни"
+ },
+ "travellers.worker.zones.list_zones": {
+  "en": "Barracks & Stables",
+  "tr": "Казармы и конюшни"
+ },
+ "travellers.worker.zones.selected_duty": {
+  "en": "On Duty Here",
+  "tr": "На службе здесь"
+ },
+ "travellers.worker.zones.tab_duty": {
+  "en": "Duty",
+  "tr": "Служба"
+ },
+ "travellers.worker.zones.tab_home": {
+  "en": "Home",
+  "tr": "Дом"
+ },
+ "travellers.worker.zones.unassigned_any": {
+  "en": "Unassigned Henchmen",
+  "tr": "Не назначенные подручные"
+ },
+ "travellers.worker.zones.unassigned_duty": {
+  "en": "Unassigned (no duty)",
+  "tr": "Не назначенные (без службы)"
+ },
+ "travellers.zone.barrack.description": {
+  "en": "Housing for hired workers. Needs at least one bed and one chest. Workers assigned here call it home: they can respawn beside their bed after dying, and their capacity is one worker per bed.",
+  "tr": "Жилье для нанятых рабочих. Нужно как минимум одна кровать и один сундук. Рабочие, назначенные здесь, называют это домом: они могут возродиться рядом со своей кроватью после смерти, а их емкость — один рабочий на кровать."
+ },
+ "travellers.zone.barrack.title": {
+  "en": "Barrack",
+  "tr": "Барак"
+ },
+ "travellers.zone.error.no_bed": {
+  "en": "No beds found in the area. Place at least one bed (capacity = one Henchman per bed).",
+  "tr": "В области не найдено кроватей. Разместите по крайней мере одну кровать (емкость = один подручный на кровать)."
+ },
+ "travellers.zone.error.no_chest": {
+  "en": "No chests found in the area. Place at least one chest in the radius.",
+  "tr": "В области не найдено сундуков. Разместите по крайней мере один сундук в радиусе."
+ },
+ "travellers.zone.error.no_hitch": {
+  "en": "No fence found in the area. Place at least one fence so horses can be hitched to it.",
+  "tr": "В области не найдено заборов. Разместите по крайней мере один забор, чтобы к конюсам можно было привязывать лошадей."
+ },
+ "travellers.zone.prompt.role.bed": {
+  "en": "Beds: %s (min. %s)",
+  "tr": "Кровати: %s (мин. %s)"
+ },
+ "travellers.zone.prompt.role.chest": {
+  "en": "Chests: %s (min. %s)",
+  "tr": "Сундуки: %s (мин. %s)"
+ },
+ "travellers.zone.prompt.role.hitch": {
+  "en": "Fences: %s (min. %s)",
+  "tr": "Заборы: %s (мин. %s)"
+ },
+ "travellers.zone.prompt.validate": {
+  "en": "Create %s",
+  "tr": "Создайте %s"
+ },
+ "travellers.zone.stable.description": {
+  "en": "A horse ranch for hired workers. Needs at least one chest, one fence to hitch horses to, and one bed per stable hand. Assigned stable hands tame, saddle and breed horses here for your other workers to ride, and sleep in the beds at night.",
+  "tr": "Ферма лошадей для нанятых рабочих. Нужно как минимум один сундук, забор для привязки лошадей и одна кровать на конюшного. Назначенные конюхи приручат, оседлают и разводят лошадей здесь для ваших других рабочих, чтобы они ездили верхом, и спят в кроватях ночью."
+ },
+ "travellers.zone.stable.title": {
+  "en": "Stable",
+  "tr": "Конюшня"
+ }
+}

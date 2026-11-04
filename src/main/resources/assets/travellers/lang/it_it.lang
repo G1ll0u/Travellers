@@ -1,0 +1,654 @@
+entity.travellers.traveller.name=Viaggiatore
+entity.travellers.traveller_worker.name=Sgherro
+entity.travellers.traveller_raider.name=Predone
+
+travellers.worker.title=Transazione
+travellers.worker.send=Vendi
+travellers.worker.not_enough_money=Hai bisogno di %s per questo viaggio.
+travellers.worker.cost=Costo viaggio: %s
+travellers.worker.no_village_in_range=Nessun villaggio noto in giro. Esplora per scoprire di più.
+travellers.worker.cargo=Carico
+travellers.worker.blocked.not_yours=Questo sgherro non è tuo.
+travellers.worker.blocked.no_village=Scegli un villaggio nella lista.
+travellers.worker.blocked.empty_cargo=Metti la merce nel carico prima.
+travellers.worker.blocked.money=Il viaggio costa %s; tu ne hai %s.
+travellers.worker.donate=Dona
+travellers.worker.send.tooltip=Vendi il carico a questo villaggio per soldi e reputazione.
+travellers.worker.donate.tooltip=Dai il carico a questo villaggio gratis. Ottieni più reputazione, ma nessun denaro.
+travellers.worker.pickup.title=Ritorno dal viaggio
+travellers.worker.pickup.unsold=Non sono riuscito a vendere tutto. Riprendi ciò che resta così posso partire di nuovo.
+travellers.worker.pickup.earnings=Ecco ciò che il viaggio ha incassato. Prendilo così posso partire di nuovo.
+travellers.worker.pickup.take_all=Prendi tutto
+travellers.worker.pickup.done=Fatto
+
+travellers.worker.hub.title=Opzioni del viaggiatore
+travellers.worker.hub.transport=Trasporto
+travellers.worker.hub.transport.tooltip=Invia questo sgherro a un villaggio per vendere o donare il suo carico.
+travellers.worker.hub.follow=Ordini
+travellers.worker.follow.title=Opzioni per i seguaci
+travellers.worker.orders.hire=Assumere · %s
+travellers.worker.orders.hire_group=Assumere tutti %s · %s
+travellers.worker.hire.hint.chief=Solo il capo di un villaggio di Millénaire può assumere sgherri.
+travellers.worker.hire.hint.beds_missing=Letto gratuiti nella tua caserma: %s, necessari: %s.
+travellers.worker.hire.hint.why_bed=Un sgherro con un letto torna indietro dopo essere morto.
+travellers.worker.hire.hint.wand=Maiusc + clic destro con una Bacchetta magica per costruire una caserma (serve un letto e un baule).
+travellers.worker.hire.hint.assign=Dopo l'assunzione, dà loro un letto nel menu Zone.
+travellers.worker.hire.hint.money=Fondi insufficienti: ne hai %s.
+travellers.worker.hub.info.no_bed=Nessun letto: non tornerà indietro se ucciso
+travellers.worker.zones.create_hint=Premi Maiusc + clic destro con una Bacchetta magica per crearne una.
+travellers.worker.orders.unhire=Congedere
+travellers.worker.orders.hired_other=Assunto da qualcuno
+travellers.worker.follow.hired_success=Il viaggiatore ti sta ora seguendo.
+travellers.worker.follow.unhired_success=Il viaggiatore non seguirà più te.
+travellers.worker.follow.not_enough_money=Non hai abbastanza denaro.
+travellers.worker.follow.hired_by_other=Questo viaggiatore è già assunto da un altro.
+travellers.worker.hub.inventory=Inventario
+travellers.worker.orders.make_leader=Capo
+travellers.worker.orders.make_leader.tooltip=Trasforma questo sgherro in un capo di gruppo. I sgherri che ti seguono attivamente seguiranno lui.
+travellers.worker.orders.follow_on=Seguire: ON
+travellers.worker.orders.follow_off=Seguire: OFF
+travellers.worker.orders.follow.tooltip=Attiva o disattiva se questo sgherro segue attivamente il suo capo o te.
+travellers.worker.inventory.title=Inventario sgherri
+travellers.worker.orders.recruit=Recluta
+travellers.worker.orders.follow_player=Segui me
+travellers.worker.orders.following_player=Segui me
+travellers.worker.orders.follow_player.tooltip=Fermati a seguirne il capo della scorta e seguimi direttamente al posto tuo.
+travellers.worker.orders.title=Ordini
+travellers.worker.hub.behavior=Comportamento
+travellers.worker.hub.map=Mappa
+travellers.worker.hub.barracks=Zone
+travellers.worker.hub.barracks.tooltip=Apri il menu delle zone, dove assegni sgherri a una caserma o a una scuderia.
+
+travellers.worker.barracks.list=Caserma
+travellers.worker.barracks.unassigned=Sgherri senza assegnazione
+travellers.worker.barracks.selected=Sgherri selezionati nella caserma
+travellers.worker.zones.tab_home=Casa
+travellers.worker.zones.tab_duty=Servizio
+travellers.worker.zones.list_stables=Scuderie
+travellers.worker.zones.unassigned_duty=Senza servizio
+travellers.worker.zones.selected_duty=In servizio qui
+travellers.worker.zones.list_zones=Caserma e scuderie
+travellers.worker.zones.unassigned_any=Sgherri senza assegnazione
+travellers.worker.zones.assigned_here=Assegnati qui
+travellers.notify.duty.assigned=Assegnato al servizio il %s.
+travellers.notify.duty.no_bed=%s non ha letto libero - metti un altro letto nella scuderia prima di assegnare uno stalliere lì.
+travellers.notify.stable.horse_tamed=Un cavallo è stato domato il %s.
+travellers.notify.stable.horse_saddled=Un cavallo è stato imbracato il %s.
+travellers.notify.stable.foal_born=Un puledro è nato il %s.
+travellers.notify.stable.mount_recovered=%s del cavallo si è unito alla scuderia in cui era stato messo in servizio.
+travellers.notify.stable.pool_too_small_to_equip=La scuderia "%s" non aveva cavalli di riserva da sella da regalare - conserva anche una piccola riserva. Addestra, monta o alleva prima.
+travellers.notify.stable.horses_returned=%s di %s sgherri hanno lasciato i loro cavalli alla "%s".
+travellers.notify.stable.horses_taken=%s di %s sgherri hanno preso un cavallo da "%s".
+travellers.notify.stable.no_horse_to_return=Nessun cavallo poteva essere restituito alla scuderia.
+travellers.worker.barracks.dragdrop=Seleziona una zona, poi trascina e lascia cadere gli sgherri per assegnarli o disimmettere.
+travellers.worker.barracks.delete=Cancella la caserma
+travellers.worker.barracks.get_equip=Ottieni l'attrezzatura
+travellers.worker.barracks.take_horses=Prendi Cavalli
+travellers.worker.barracks.take_horses.tooltip=Invia questo sgherro a prendere un cavallo da una scuderia.
+travellers.worker.barracks.take_horses_stay=Prendi Cavallo e Resta
+travellers.worker.barracks.take_horses_stay.tooltip=Prendi un cavallo, poi resta lì invece di tornare indietro.
+travellers.worker.barracks.take_horses_return=Prendi Cavallo e Torna
+travellers.worker.barracks.take_horses_return.tooltip=Prendi un cavallo, poi torna al suo posto precedente.
+travellers.worker.barracks.get_equip.tooltip=Invia questo sgherro a prendere la migliore parte dell'attrezzatura che hai segnato e lasciare il resto nelle cassette.
+travellers.worker.barracks.equip_title=Scegli missione:
+travellers.worker.barracks.dump=Scarica gli oggetti
+travellers.worker.barracks.dump.tooltip=Invia questo sgherro a lasciare i suoi pezzi di ricambio e il cibo nelle cassette di un villaggio o scuderia. Conserva la sua migliore arma e arco.
+travellers.worker.barracks.dump_stay=Scarica e Resta
+travellers.worker.barracks.dump_stay.tooltip=Lascia cadere i pezzi di ricambio, poi resta lì invece di tornare indietro.
+travellers.worker.barracks.dump_return=Scarica e Torna
+travellers.worker.barracks.dump_return.tooltip=Lascia cadere i pezzi di ricambio, poi torna al suo posto precedente.
+travellers.worker.barracks.equip_stay=Arma e Resta
+travellers.worker.barracks.equip_stay.tooltip=Prendi nuova attrezzatura, poi resta lì invece di tornare indietro.
+travellers.worker.barracks.equip_return=Arma e Torna
+travellers.worker.barracks.equip_return.tooltip=Prendi nuova attrezzatura, poi torna al suo posto precedente.
+travellers.worker.barracks.full=Questo caserma è piena (un sgherro per letto).
+
+travellers.gui.back=Indietro
+travellers.gui.close=Chiudi
+travellers.gui.add=Aggiungi
+travellers.gui.remove=Rimuovi
+travellers.gui.done=Fatto
+travellers.gui.save=Salva
+travellers.gui.cancel=Annulla
+travellers.gui.clear=Svuota
+travellers.gui.go=Vai
+travellers.gui.unnamed=(senza nome)
+
+travellers.map.center=Centro
+travellers.map.unavailable_dimension=La mappa mostra solo l'Overworld.
+travellers.map.teleport=Teletrasporta
+travellers.map.teleport.active=Clicca sulla mappa...
+travellers.map.spawn_traveller=Spawn viaggiatore
+travellers.map.spawn_worker=Spawn sgherri
+travellers.map.spawn_raider=Spawn predoni
+travellers.map.spawn.active=Clicca sulla mappa...
+travellers.map.chunks.legend.loaded_normal=Chunk caricati (normale)
+travellers.map.chunks.legend.loaded_merchants=Chunk caricati dagli sgherri
+travellers.map.chunks.legend.villages=Saloni dei villaggi
+travellers.map.chunks.legend.center_chunk=Quadrato bianco = chunk centrale corrente
+travellers.map.chunks.legend.player_pos=Punto verde = la tua posizione
+
+travellers.worker.behavior.title=Comportamento
+travellers.worker.behavior.player_enemies=Relazioni giocatori
+travellers.worker.behavior.village_relations=Relazioni villaggio
+
+travellers.worker.enemies.title=Relazioni giocatori
+travellers.worker.enemies.hint=I tuoi sgherri attaccano i giocatori nemici a vista. Seleziona un giocatore per cambiarlo.
+travellers.worker.enemies.none=Nessun altro giocatore si è unito a questo server finora.
+travellers.worker.enemies.make_enemy=Crea nemico
+travellers.worker.enemies.make_friendly=Crea amico
+travellers.worker.enemies.tag.enemy=Nemico
+travellers.worker.enemies.tag.friendly=Amico
+
+travellers.worker.village_relations.title=Relazioni villaggio
+travellers.worker.village_relations.hint=Seleziona un villaggio, poi attiva il nemico.
+travellers.worker.village_relations.toggle_enemy=Attiva il nemico
+travellers.worker.village_relations.none_known=Nessun villaggio noto nelle vicinanze.
+
+travellers.home_name_prompt.title=Nome della tua casa
+travellers.home_name_prompt.subtitle=Puoi assegnarlo agli sgherri assunti e inviarli qui, altri verranno.
+
+travellers.worker.home_list.title=Caserma
+travellers.worker.home_list.set_home=Imposta caserma
+
+travellers.worker.orders.go=Vai...
+travellers.worker.orders.home=Caserma
+travellers.worker.orders.go_home=Vai alla caserma
+travellers.worker.orders.go_home_no_home=Vai alla caserma (nessuna)
+travellers.worker.orders.leader_count=Capo (%s)
+travellers.worker.orders.choir_start=Canta una canzone
+travellers.worker.orders.choir_stop=Ferma di cantare
+travellers.worker.orders.choir.tooltip=Fai cantare questo sgherro insieme ad altri sgherri vicini che cantano (WIP SOLO 1 CANZONE PER I NORMANS)
+
+travellers.worker.recruit.start=Recluta
+travellers.worker.recruit.cost=Costo missione: %s
+travellers.worker.recruit.count=Recluti: %s/%s
+travellers.worker.recruit.cost.travel=Viaggio: %s
+travellers.worker.recruit.cost.purse=Borsa per i reclutati: %s
+travellers.worker.recruit.cost.refund=Quello che la borsa non spende torna a te.
+travellers.worker.recruit.none=Nessun villaggio in giro
+travellers.worker.recruit.blocked.enemy=Nemico
+travellers.worker.recruit.blocked.reputation=Sospettoso
+travellers.worker.recruit.tip.villages=%s villaggi, il più vicino a %sm
+travellers.worker.recruit.tip.free=Circa %s dei loro abitanti intorno
+travellers.worker.recruit.tip.chance=%s%% di possibilità che ciascuno sia d'accordo
+travellers.worker.recruit.tip.enemy=Uno dei loro villaggi è il tuo nemico
+travellers.worker.recruit.tip.reputation=La tua reputazione con loro è troppo bassa
+travellers.worker.recruit.report.title=%s, %s lontano
+travellers.worker.recruit.report.take=Prendi %s
+travellers.worker.recruit.report.taken=Borsa vuota
+travellers.worker.recruit.report.spent=Speso
+travellers.worker.recruit.report.left=Rimasta nella borsa
+travellers.worker.recruit.report.dead_short=+%s morti
+travellers.worker.recruit.report.tip.found=%s trovati su %s cercati
+travellers.worker.recruit.report.tip.where=%s nei villaggi, %s sulla strada
+travellers.worker.recruit.report.tip.dead=%s morti sul cammino
+travellers.worker.recruit.report.map.visited=%s. %s: %s reclute
+travellers.worker.recruit.report.map.skipped=%s: saltata
+travellers.worker.recruit.report.map.not_reached=%s: non raggiunto
+travellers.worker.recruit.report.map.road=%s: i reclutati si sono uniti sulla strada
+travellers.worker.recruit.report.map.death=Un recluta è morto qui
+
+travellers.worker.home_list.empty=Nessuna caserma assegnata. Tocca con Shift+click destro da qualche parte con la bacchetta di invocazione per creare una caserma.
+
+travellers.worker.hub.formation=Formazioni
+travellers.worker.hub.formation.tooltip=Gestisci le tue unità.
+
+travellers.worker.formation.title=Formazione e gruppi
+travellers.worker.formation.preview=Previsione radar
+travellers.worker.formation.preview_adaptive_cave=Cave adattiva: ON
+travellers.worker.formation.preview_surface_bias=Cave adattiva: OFF
+
+travellers.worker.formation.scope=Ambito
+travellers.worker.formation.scope_type=Tipo
+travellers.worker.formation.scope.player=Giocatore
+travellers.worker.formation.scope.worker=Capo sgherro
+travellers.worker.formation.followers=Seguitori
+
+travellers.worker.formation.style=Stile
+travellers.worker.formation.follow_distance=Distanza di inseguimento
+travellers.worker.formation.spacing=Distanza
+travellers.worker.formation.width=Larghezza
+travellers.worker.formation.turn=Giro fluido
+travellers.worker.formation.cave=Modalità grotta
+
+travellers.worker.formation.cave.on=Cave adattiva: ON
+travellers.worker.formation.cave.off=Cave adattiva: OFF
+travellers.worker.formation.escorts=Scorte
+travellers.worker.formation.cohesion=Coesione del giocatore
+
+travellers.worker.formation.attitude=Atteggiamento
+travellers.worker.formation.attitude.tooltip=Attacco: insegue liberamente; Difesa: meno aggressiva, Mantenere la posizione: movimento minimo
+travellers.worker.formation.attitude.attack=Attacco
+travellers.worker.formation.attitude.defend=Difesa
+travellers.worker.formation.attitude.hold=Mantenere la posizione
+
+travellers.worker.formation.style.compact=Compatto
+travellers.worker.formation.style.line=Linea
+travellers.worker.formation.style.column=Colonna
+travellers.worker.formation.style.wedge=Cuneo
+travellers.worker.formation.style.adaptive=Adattivo
+
+travellers.worker.formation.controls=Controlli
+travellers.worker.formation.preview.forward=Avanti
+travellers.worker.formation.preview.zoom=Zoom: %s
+travellers.worker.formation.preview.count=Visualizzato: %s
+travellers.worker.formation.preview.reset=Ripristina
+travellers.worker.formation.hover.leader=Capo
+travellers.worker.formation.hover.slot=Slot del seguace %s
+travellers.worker.formation.hover.escort=Scorta ravvicinata #%s
+travellers.worker.formation.hover.offset=Offset: x=%s z=%s
+
+travellers.worker.hub.mark_button=Segnalino sgherro
+travellers.worker.hub.mark_button.desc=Modifica il segnalino dei tuoi sgherri assunti
+
+travellers.worker.mark.title=Aspetto
+travellers.worker.mark.style=Stile
+travellers.worker.mark.color=Colore: %s
+travellers.worker.mark.preview=Anticipo
+travellers.worker.mark.preview.follower=Sgherro
+travellers.worker.mark.preview.leader=Capo
+travellers.worker.mark.preview.leader_hint=Gli capi usano un sovrapposto dedicato
+travellers.worker.mark.saved=Marchio dello sgherro salvato
+
+travellers.worker.mark.style.plain=Semplice
+travellers.worker.mark.style.double=Doppio
+travellers.worker.mark.style.chevron=Freccia a V
+travellers.worker.formation.hub_title=Formazione e gruppi
+travellers.worker.formation.hint=Clicca: seleziona  ·  Maiusc+clic/trascina: aggiungi sgherri  ·  Clic destro: ordini  ·  Trascina a destra: muovi la mappa
+travellers.worker.formation.card.you=La tua scorta
+travellers.worker.formation.card.workers=%s sgherri
+travellers.worker.formation.card.following=in marcia
+travellers.worker.formation.card.halted=fermo
+travellers.worker.formation.card.en_route=in viaggio
+travellers.worker.formation.leaders=Capi
+travellers.worker.formation.barracks=Caserma
+travellers.worker.formation.zone.beds=%s/%s letti
+travellers.worker.formation.zone.horses=%s/%s cavalli
+travellers.worker.formation.zone.horse_state=%s domato · %s sella
+travellers.worker.formation.zone.hands=%s mani di scuderia · %s qui
+travellers.worker.formation.zone.nobody=Nessuno vive qui.
+travellers.worker.formation.zone.here_away=%s qui · %s là
+travellers.worker.formation.zone.at_rest=%s a riposo, libero per gruppo
+travellers.worker.formation.card.busy=in missione
+travellers.worker.formation.card.followers_selected=%s selezionato
+travellers.worker.formation.card.followers_hint=Fai clic destro: mandali da qualche parte, forma un gruppo, unisciti a uno o fallo seguirti.
+travellers.worker.formation.menu.go=Vai qui
+travellers.worker.formation.menu.equip=Ottieni attrezzatura...
+travellers.worker.formation.menu.loadout=Equipaggiamento da portare:
+travellers.worker.formation.menu.loadout.melee=Corpo a corpo
+travellers.worker.formation.menu.loadout.bow=Arco
+travellers.worker.formation.menu.loadout.shield=Scudo
+travellers.worker.formation.menu.loadout.armour=Armature
+travellers.worker.formation.summary.members=%s sgherri
+travellers.worker.formation.summary.wounded=%s feriti
+travellers.worker.formation.summary.armour=Armature
+travellers.worker.formation.summary.armour.diamond=Diamante
+travellers.worker.formation.summary.armour.iron=Ferro
+travellers.worker.formation.summary.armour.chain=Catena
+travellers.worker.formation.summary.armour.gold=Oro
+travellers.worker.formation.summary.armour.leather=Pelle
+travellers.worker.formation.summary.armour.other=Altro
+travellers.worker.formation.summary.armour.none=Nessuno
+travellers.worker.formation.menu.dump=Scarica oggetti...
+travellers.worker.formation.menu.take_horses=Prendi cavalli...
+travellers.worker.formation.menu.return_horses=Ritorna cavalli...
+travellers.worker.formation.menu.after_mission=Poi:
+travellers.worker.formation.menu.stay_there=Rimani qui
+travellers.worker.formation.menu.come_back=Torna indietro
+travellers.worker.formation.menu.follow_me=Segui me
+travellers.worker.formation.menu.merge_escort=Fondi con la mia scorta
+travellers.worker.formation.menu.follow_group=Segui questo gruppo
+travellers.worker.formation.menu.merge_group=Fondi con questo gruppo
+travellers.worker.formation.menu.halt=Ferma qui
+travellers.worker.formation.menu.recall=Richiamati
+travellers.worker.formation.menu.resume=Riprendi la marcia
+travellers.worker.formation.menu.create_group=Forma un gruppo
+travellers.worker.formation.menu.create_group_go=Forma un gruppo e vai qui
+travellers.worker.formation.menu.join_group=Unisciti a questo gruppo
+travellers.worker.formation.menu.no_orders=Nessun ordine
+travellers.worker.formation.menu.select=Seleziona
+travellers.worker.formation.menu.reason.busy=Questo gruppo è in missione.
+travellers.worker.formation.menu.reason.target_busy=Quel gruppo è in missione.
+travellers.worker.formation.menu.reason.need_two=Seleziona almeno 2 sgherri.
+travellers.worker.formation.menu.reason.select_first=Seleziona prima un gruppo o alcuni sgherri.
+travellers.worker.formation.orders_tab=Ordini del capo
+travellers.worker.formation.menu.choose_follow=Segui chi?
+travellers.worker.formation.menu.choose_merge=Fondi in quale gruppo?
+travellers.worker.formation.menu.choose_join=Unisciti a quale gruppo?
+travellers.worker.formation.menu.no_other_group=Nessun altro gruppo
+travellers.worker.formation.menu.reason.no_other_group=Non hai ancora un altro gruppo.
+travellers.worker.formation.bar.empty=Seleziona un gruppo o alcuni sgherri per vedere i loro ordini.
+travellers.worker.formation.bar.follow_me=Segui me
+travellers.worker.formation.bar.follow_me.tip=Ritorna da te e seguimi.
+travellers.worker.formation.bar.halt=Ferma
+travellers.worker.formation.bar.halt.tip=Fermati dove sono.
+travellers.worker.formation.bar.resume=Riprendi
+travellers.worker.formation.bar.resume.tip=Riprendi a seguire.
+travellers.worker.formation.bar.follow=Segui...
+travellers.worker.formation.bar.follow.tip=Scegli un gruppo (o tu) per far seguire questo gruppo.
+travellers.worker.formation.bar.merge=Fondi con...
+travellers.worker.formation.bar.merge.tip=Scegli un altro gruppo e unisci questo ad esso.
+travellers.worker.formation.bar.center=Centra
+travellers.worker.formation.bar.center.tip=Centra la mappa su questo gruppo.
+travellers.worker.formation.bar.create_group=Forma un gruppo
+travellers.worker.formation.bar.create_group.tip=Forma un nuovo gruppo con gli sgherri selezionati.
+travellers.worker.formation.bar.join=Unisciti...
+travellers.worker.formation.bar.join.tip=Scegli un gruppo per far entrare gli sgherri selezionati.
+travellers.worker.formation.you=Tu
+travellers.worker.formation.set_home=Caserma
+
+travellers.worker.home_list.delete=Cancella
+travellers.worker.home_list.get_equip=Ottieni equipaggiamento
+travellers.worker.home_list.equip_title=Scegli la missione:
+travellers.worker.home_list.equip_stay_barracks=Rimani - caserma
+travellers.worker.home_list.equip_stay_village=Rimani - Villaggio intero
+travellers.worker.home_list.equip_return_barracks=Ritorna - caserma
+travellers.worker.home_list.equip_return_village=Ritorna - Villaggio intero
+
+key.travellers.formation_hub=Apri centro formazioni
+key.travellers.world_map=Apri mappa mondiale
+key.categories.travellers=Viaggiatori
+
+# Player zones (Barrack / Stable)
+travellers.lone_barrack.prompt.title=Nuova zona
+travellers.lone_barrack.prompt.name=Nome:
+travellers.lone_barrack.prompt.half_width=larghezza
+travellers.lone_barrack.prompt.half_depth=profondità
+travellers.lone_barrack.prompt.half_height=altezza
+travellers.lone_barrack.error.overlaps=Questa zona sovrappone una zona esistente.
+travellers.lone_barrack.error.invalid=Questa zona non può essere creata qui: avvicinati, tienila entro i limiti di dimensione e aspetta che l'area si carichi.
+travellers.lone_barrack.created=Zona creata!
+
+travellers.zone.prompt.validate=Crea %s
+travellers.zone.prompt.role.chest=Borse: %s (min. %s)
+travellers.zone.prompt.role.bed=Letto: %s (min. %s)
+travellers.zone.prompt.role.hitch=Recinzioni: %s (min. %s)
+travellers.zone.error.no_chest=Nessuna borsa trovata nell'area. Posiziona almeno una borsa nel raggio.
+travellers.zone.error.no_bed=Nessun letto trovato nell'area. Posiziona almeno un letto (capacità = un sgherro per letto).
+travellers.zone.error.no_hitch=Nessuna recinzione trovata nell'area. Posiziona almeno una recinzione affinché i cavalli possano essere agganciati ad essa.
+
+travellers.zone.barrack.title=Caserma
+travellers.zone.barrack.description=Alloggio per sgherri assunti. Serve almeno una borsa e un letto. Gli sgherri assegnati qui la chiamano casa: possono resuscitare accanto al loro letto dopo essere morti, e la loro capacità è un sgherro per letto.
+
+travellers.zone.stable.title=Scuderia
+travellers.zone.stable.description=Ranch per cavalli per sgherri assunti. Serve almeno una borsa, una recinzione per agganciare i cavalli e un letto per ogni stalliere. Gli stallieri assegnati qui domano, sella e fanno riprodurre i cavalli per i tuoi altri sgherri da cavalcare, e dormono nei letti di notte.
+
+# Map legend
+travellers.map.legend.controlled_village=Ctrl. Villaggio
+travellers.map.legend.enemy_village=Villaggio nemico
+travellers.map.settlement.population=%d abitanti
+travellers.map.settlement.kind=%s - %s
+travellers.map.settlement.reputation=La tua reputazione: %s
+travellers.map.settlement.controlled_by=Controllato da %s
+travellers.map.settlement.under_attack=Sotto attacco!
+travellers.map.settlement.raiding=Incursione %s
+travellers.map.settlement.enemy=Nemico dei tuoi sgherri
+travellers.map.legend.home=Caserma
+travellers.map.legend.stable=Scuderia
+travellers.map.legend.follower=Seguace
+travellers.map.legend.leader=Capo
+travellers.map.legend.player=Tu
+travellers.map.legend.camp_firepit=Focolare da campo
+travellers.map.legend.camp_slot=Rifugio di campo
+travellers.map.legend.rest_spot=Luogo di sosta
+travellers.map.legend.road=Strada
+travellers.map.legend.trail=Sentiero
+travellers.map.legend.bridge=Ponte
+travellers.battle.report.running=Battaglia
+travellers.battle.report.camp_assault=Assalto di campo
+travellers.battle.report.won=Vittoria
+travellers.battle.report.lost=Sconfitta
+travellers.battle.report.broken_off=Spezzato
+travellers.battle.report.over=%s vinto
+travellers.battle.report.ago=%s fa
+travellers.battle.report.yours=I tuoi sgherri
+travellers.battle.report.enemies=Nemici
+travellers.battle.report.name.raiders=Predoni
+travellers.battle.report.name.travellers=Viaggiatori
+travellers.battle.report.name.henchmen=Sgherri
+travellers.battle.report.fallen=Caduti: %s
+travellers.battle.report.fallen_more=Caduti: %s e %s in più
+travellers.battle.report.outlook.tomorrow=%s al loro letto domani
+travellers.battle.report.outlook.later=%s tra qualche giorno
+travellers.battle.report.outlook.no_bed=%s non aveva letto (perso per sempre)
+travellers.battle.report.outlook.never=%s non tornerà
+
+# Population map
+travellers.map.population.traveller=Viaggiatori: %d (%d caricati, %d virtuali)
+travellers.map.population.raider=Predoni: %d (%d caricati, %d virtuali)
+travellers.map.population.worker=Sgherri: %d (%d caricati, %d virtuali)
+travellers.map.population.stable=Stalle: %d (%d caricati, %d virtuali)
+
+# Henchman/unit hover tooltips
+travellers.map.worker.unnamed=Sgherro #%d
+travellers.map.worker.unknown=Qualcuno
+travellers.map.worker.hp=§c♥§r %d/%d
+travellers.map.worker.in_battle=In battaglia!
+travellers.map.worker.following=Seguendo: %s
+travellers.map.worker.status.transport=Sul lavoro di trasporto
+travellers.map.worker.status.returning=Ritorno a casa
+travellers.map.worker.status.recruiting=In missione di reclutamento
+travellers.map.worker.status.get_equipment=Raccogliendo l'equipaggiamento
+travellers.map.worker.status.dump_items=Lasciando gli oggetti
+travellers.map.worker.status.take_horses=Andrà a prendere un cavallo
+travellers.map.worker.status.return_horses=Andrà a restituire un cavallo
+travellers.map.worker.status.going_home=Ritorno a casa
+travellers.map.worker.status.going_to=In viaggio verso una destinazione
+
+# On-screen notifications
+travellers.notify.hire.already_hired_by_other=Questo viaggiatore è già assunto da qualcun altro.
+travellers.notify.hire.needs_village_chief=Devi essere il capo di un villaggio di Millénaire per assumere sgherri.
+travellers.notify.hire.not_enough_money=Non hai abbastanza denaro (%s necessario).
+travellers.notify.hire.payment_failed=Assunzione fallita: i soldi non sono stati prelevati.
+travellers.notify.hire.dismissed=Il viaggiatore non ti seguirà più.
+
+travellers.notify.recruit.busy=Sono impegnato adesso.
+travellers.notify.recruit.needs_group=Solo il capo di un gruppo può andare a reclutare.
+travellers.notify.recruit.no_villages_in_range=Nessun villaggio in raggio per reclutare.
+travellers.notify.recruit.not_enough_fee=Tariffa di reclutamento: %s (ne hai %s)
+travellers.notify.recruit.payment_failed=Il pagamento della tariffa di reclutamento è fallito. Riprova.
+travellers.notify.recruit.recalled=%s sta tornando.
+travellers.notify.recruit.mission_started=Missione di reclutamento iniziata. Tariffa pagata: %s
+travellers.notify.recruit.henchmen_recruited=Reclutati %s sgherri a %s.
+travellers.notify.recruit.henchmen_recruited_road=Reclutati %s sgherri sulla strada vicino a %s.
+travellers.notify.recruit.mission_completed=Missione di reclutamento completata.
+travellers.notify.recruit.back=%s è tornato dal reclutamento: parla con loro per leggere il rapporto.
+travellers.notify.worker.purse_no_room=Nessuno spazio per le monete: libera un po' di spazio o porta una borsa di Millénaire.
+
+travellers.notify.worker.not_hired_transport=Devi assumere questo sgherro per usare il Transport.
+travellers.notify.worker.not_hired_inventory=Puoi accedere solo all'inventario di un sgherro che hai assunto.
+travellers.notify.worker.not_hired_orders=Puoi dare ordini solo a un sgherro che hai assunto.
+travellers.notify.worker.not_hired_behavior=Puoi gestire il comportamento solo di un sgherro che hai assunto.
+travellers.notify.worker.not_hired_recruit=Puoi reclutare solo con un sgherro che hai assunto.
+travellers.notify.worker.not_hired_home=Puoi gestire la casa solo per un sgherro che hai assunto.
+travellers.notify.worker.not_hired_go=Puoi ordinare solo un sgherro che hai assunto.
+travellers.notify.worker.not_hired_formation=Puoi gestire la formazione solo di un sgherro che hai assunto.
+travellers.notify.worker.not_hired_village_relations=Puoi gestire solo le relazioni di villaggio di un sgherro che hai assoldato.
+
+travellers.notify.leader.released_followers=Libera %s sgherri e restituiscili a te.
+travellers.notify.leader.now_leading=Questo sgherro comanda %s sgherri adesso.
+travellers.notify.leader.no_free_followers=Nessun sgherro libero da assegnare.
+travellers.notify.leader.succession=%s ha preso il comando del gruppo.
+
+travellers.follow.choice.talk=Parla
+travellers.follow.choice.follow=Segui lui
+travellers.dialogue.gui.follow=Segui lui
+travellers.notify.follow.stopped_hurt=Hai subito danni: hai smesso di seguirti.
+travellers.notify.follow.stopped_combat=Si è scatenata una battaglia: hai smesso di seguirti.
+travellers.notify.follow.stopped_hungry=Hai troppa fame per tenerti il passo: hai smesso di seguirti.
+travellers.notify.follow.target_lost=Hai perso di vista chi seguivi.
+
+travellers.notify.home.not_your_worker=Non è tuo sgherro.
+travellers.notify.home.none_assigned=Nessuna casa assegnata.
+travellers.notify.home.lone_barrack_bed_destroyed=%s ha perso il letto a "%s" e non ci sono altri letti liberi lì: se ne sono andati dalla zona e tornano da te.
+
+travellers.notify.order.worker_busy=Questo sgherro è impegnato in un compito e non può prendere nuovi ordini in questo momento.
+travellers.notify.order.worker_on_duty=%s lavora a "%s" e non prende ordini lì. Assegnatelo prima dal menu delle zone.
+travellers.notify.order.some_busy_skipped=%s sgherri erano impegnati in un compito e lasciati soli.
+travellers.notify.goto.going_to=Il sgherro sta andando a: %s
+travellers.notify.goto.going_to_pos=Il sgherro si dirigerà alla posizione della mappa selezionata.
+travellers.notify.goto.not_enough_money=Ti servono %s per questo viaggio.
+travellers.notify.goto.payment_failed=Pagamento fallito. Riprova.
+travellers.notify.goto.delivery_started_free=Bene, parto per %s!
+travellers.notify.goto.delivery_started_paid=Bene, parto per %s a %s.
+travellers.notify.goto.delivery_started_donate=Bene, parto per %s a %s in donazione.
+
+travellers.notify.hostile.not_owner=Non possiedi questo sgherro.
+travellers.notify.hostile.added=Gli sgherri attaccheranno: %s
+travellers.notify.hostile.removed=Nemico rimosso: %s
+travellers.notify.hostile.war_declared_on_you=%s ha attaccato i tuoi sgherri - ora siete in guerra con loro.
+
+travellers.notify.worker.arrived_home=Lo sgherro è ora a casa.
+travellers.notify.worker.cargo_arrived_full=Sono qui con i tuoi beni. Controlla il mio zaino.
+travellers.notify.worker.cargo_arrived_partial=Sono qui. Non sono riuscito a vendere tutto, alcuni beni sono ancora nel mio zaino.
+travellers.notify.worker.goods_left=%s porta ancora i tuoi beni: parla con loro per prendere il resto.
+travellers.notify.worker.cargo_heading_home=%s non ti trova e sta tornando alla caserma con il tuo carico.
+travellers.notify.worker.cargo_waiting=%s non ti trova e aspetta con il tuo carico dove sei stato visto per l'ultima volta.
+travellers.notify.worker.cargo_coming_back=%s sta riportando indietro il tuo carico.
+travellers.notify.worker.already_on_job=Sono già al lavoro.
+travellers.notify.worker.died=%s è morto.
+travellers.notify.worker.respawn_cancelled=%s non tornerà indietro: il loro letto è sparito, insieme a tutto ciò che hanno tenuto.
+travellers.notify.worker.respawned=%s è di nuovo al loro letto.
+travellers.notify.worker.death_no_bed=Non aveva letto: non tornerà indietro.
+travellers.notify.worker.death_respawn_tomorrow=Sarà di nuovo al loro letto domani mattina.
+travellers.notify.worker.death_respawn_days=Sarà di nuovo al loro letto tra circa %s giorni.
+travellers.notify.worker.retaliation_target=%s è stato designato come nemico (ritalio).
+
+travellers.notify.mount.led_terrain_blocked=%s non riesce a passare da qui - lo porterò a piedi.
+travellers.notify.mount.led_sidestep_gave_up=Il cavallo di %s si è impigliato e non è riuscito a liberarsi - lo porterò a piedi.
+travellers.notify.mount.led_low_health=Il cavallo di %s è troppo ferito per essere montato - lo porterò a piedi.
+
+travellers.notify.trade.refused=Il villaggio rifiuta di commerciare con te (reputazione troppo bassa o il villaggio non sta commerciando in questo momento).
+travellers.notify.trade.village_gone=%s non ha trovato il villaggio e sta riportando indietro il tuo carico.
+travellers.notify.trade.sold_summary=Vendita a %s: %s oggetti venduti per %s, rep +%s%s
+travellers.notify.trade.donated_summary=Donazione a %s: %s oggetti, riparazione +%s%s
+travellers.notify.goto.arrived=Il tuo sgherro è arrivato alla sua destinazione.
+travellers.notify.goto.group_arrived=Il tuo gruppo di %s sgherri è arrivato alla sua destinazione.
+travellers.notify.equip.done=Equipaggiamento ordinato: %s di %s hanno cambiato l'attrezzatura.
+travellers.notify.equip.nothing=Non c'era niente di meglio da equipaggiare.
+travellers.notify.dump.done=%s oggetti salvati, consegnati da %s sgherri.
+travellers.notify.dump.full=Nessuno spazio in più: %s oggetti salvati, %s rimasti negli zaini.
+travellers.notify.dump.nothing=Niente è stato consegnato.
+
+travellers.notify.battle.under_attack=I tuoi sgherri sono sotto attacco
+travellers.notify.battle.fallen=Battaglia: %s dei tuoi sgherri caduti (%s)
+travellers.notify.battle.fallen_more=Battaglia: %s dei tuoi sgherri caduti (%s e %s in più)
+travellers.notify.battle.won=Battaglia vinta - %s dei tuoi sgherri caduti
+travellers.notify.battle.lost=Battaglia persa - %s dei tuoi sgherri caduti
+travellers.notify.battle.broken_off=Battaglia interrotta - %s dei tuoi sgherri caduti
+travellers.notify.battle.away_summary=Mentre eri via: %s battaglie, %s dei tuoi sgherri caduti
+travellers.notify.overflow=+%s più notifiche
+travellers.notify.location_suffix=%sm a %s
+
+travellers.gui.history.loading=Caricamento storia...
+travellers.gui.history.empty=Nessun evento finora.
+travellers.gui.history.time.just_now=appena ora
+travellers.gui.history.time.minutes_ago=%s minuti fa
+travellers.gui.history.time.hours_ago=%s ore fa
+travellers.gui.history.time.days_ago=%s giorni fa
+
+travellers.dialogue.worker_farewell=Ho fatto quello che dovevo fare. Lasciami riposare un po'.
+travellers.dialogue.staying_in_village=Sto rimanendo in %s per un po'.
+travellers.dialogue.no_destination=Non ho ancora una destinazione.
+travellers.dialogue.heading_to=Sto andando davvero a %s nel %s.
+travellers.dialogue.gui_fallback_heading_to=Sto andando davvero verso %s.
+
+# --- Dialogue GUI (AI conversation) ---
+travellers.dialogue.gui.title=Parla
+travellers.dialogue.gui.not_configured=Non hai ancora configurato il dialogo AI.
+travellers.dialogue.gui.configure=Configura il dialogo AI
+travellers.dialogue.gui.send=Invia
+travellers.dialogue.gui.you=Tu
+travellers.dialogue.gui.generating=...
+travellers.dialogue.gui.looking_up=(Riflettendoci su...)
+travellers.dialogue.gui.tool_cap_fallback=Lascia che ci pensi un po' di più prima di rispondere.
+travellers.dialogue.gui.error_note=(Qualcosa è andato storto raggiungendo l'IA locale.)
+
+# --- Dialogue setup screen (client-local AI server connection) ---
+travellers.dialogue.setup.title=Configurazione dialogo AI
+travellers.dialogue.setup.server_type=Server: %s
+travellers.dialogue.setup.host=Host del server
+travellers.dialogue.setup.port=Porta
+travellers.dialogue.setup.enabled=Dialogo AI:
+travellers.dialogue.setup.preload=Precarica il modello all'avvio
+travellers.dialogue.setup.preload_help=Riscalda il tuo modello scelto quando il gioco inizia, così la prima conversazione non è lenta
+travellers.dialogue.setup.preload_not_needed=Non necessario: llama.cpp ha già caricato il suo modello
+travellers.dialogue.setup.test_connection=Testa la connessione
+travellers.dialogue.setup.testing=Test in corso...
+travellers.dialogue.setup.test_ok=Connesso - %d modello(i) trovato.
+travellers.dialogue.setup.test_no_models=Connesso, ma nessun modello è stato caricato.
+travellers.dialogue.setup.test_failed=Impossibile connettersi: %s
+travellers.dialogue.setup.detail_level=Dettaglio: %s
+travellers.dialogue.setup.detail_level.minimal=Minimo
+travellers.dialogue.setup.detail_level.standard=Standard
+travellers.dialogue.setup.detail_level.rich=Ricco
+travellers.dialogue.setup.detail_level_help=Ricco = più dettaglio, richiede un modello locale più grande
+travellers.dialogue.setup.debug_dump=Debug: svuota i prompt grezzi
+travellers.dialogue.setup.debug_dump_help=Scrive tutto ciò che viene inviato all'AI in un file di log, per diagnosticare risposte errate
+travellers.dialogue.setup.advanced=Avanzato (impostazioni del modello)
+
+travellers.dialogue.setup.advanced.title=Impostazioni avanzate del modello
+travellers.dialogue.setup.advanced.intro=Lascia un campo vuoto per usare il default del modello stesso.
+travellers.dialogue.setup.advanced.think=Pensiero esteso
+travellers.dialogue.setup.advanced.tools=Fai cercare alle NPC
+travellers.dialogue.setup.advanced.tools_warning=Non tutti i modelli lo supportano - quelli non supportati lo ignorano semplicemente.
+travellers.dialogue.setup.advanced.reset=Ripristina ai default
+travellers.dialogue.setup.advanced.num_ctx=Dimensione contesto (memoria, num_ctx)
+travellers.dialogue.setup.advanced.num_ctx_fixed=Dimensione contesto: impostata quando inizia llama.cpp
+travellers.dialogue.setup.advanced.temperature=Temperatura (creatività)
+travellers.dialogue.setup.advanced.top_p=Top P (focalizzazione sulle parole)
+travellers.dialogue.setup.advanced.top_k=Top K (scelte delle parole)
+travellers.dialogue.setup.advanced.repeat_penalty=Penalità di ripetizione
+travellers.dialogue.setup.advanced.num_predict=Lunghezza risposta massima (-1 = nessun limite)
+
+# --- Worker hub menu tree ---
+travellers.worker.hub.node.orders=Ordini
+travellers.worker.hub.node.follow=Segui
+travellers.worker.hub.node.follow_player=Segui me
+travellers.worker.hub.node.follow_him=Segui lui
+travellers.worker.hub.node.follow_him.tooltip=Segui questo sgherro da dietro, lasciandolo fare. Premi un tasto di movimento per fermarti.
+travellers.worker.hub.node.leader=Guida
+travellers.worker.hub.node.go=Missioni
+travellers.worker.hub.node.travel=Viaggia
+travellers.worker.hub.node.recruit=Recluta
+travellers.worker.hub.node.recruit.tooltip=Invia questo capo e il suo gruppo in un giro di reclutamento. Fallo guidare almeno un sgherro.
+travellers.worker.hub.node.choir=Canta
+travellers.worker.hub.node.transport=Trasporta
+travellers.worker.hub.node.unhire=Congera
+travellers.worker.hub.node.unhire_confirm=Sicuro?
+travellers.worker.hub.node.unhire.tooltip=Congera questo sgherro. Clicca due volte per confermare.
+travellers.worker.hub.node.management=Gestione
+travellers.worker.hub.node.players=Giocatori
+travellers.worker.hub.node.players.tooltip=Scegli quali giocatori i tuoi sgherri considerano nemici. Si applica a tutti i tuoi sgherri, non solo a questo.
+travellers.worker.hub.node.relations=Relazioni
+travellers.worker.hub.node.villages=Villaggi
+travellers.worker.hub.node.villages.tooltip=Come si comportano i tuoi sgherri verso ogni villaggio. Si applica a tutti i tuoi sgherri, non solo a questo.
+travellers.worker.hub.node.barracks=Zone
+travellers.worker.hub.node.inventory=Inventario
+travellers.worker.hub.node.formation=Formazione
+travellers.worker.hub.info.health=Salute %s/%s
+travellers.worker.hub.info.village=Da %s
+travellers.notify.raid.incoming=Razzia in arrivo!
+travellers.notify.raid.wave=Onda %s/%s in arrivo!
+travellers.notify.raid.repelled=Razzia respinta.
+travellers.notify.raid.scattered=Scacco: i predoni si spargono.
+travellers.raid.bar=Raid — ondata %s/%s
+
+# /summonworkers
+commands.travellers.summonworkers.usage=/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]
+commands.travellers.summonworkers.success=Spawnati %s operai assunti (%s a cavallo) per %s.
+commands.travellers.summonworkers.partial=%s operai non hanno trovato un posto sicuro nelle vicinanze e non sono stati spawnati.
+commands.travellers.summonworkers.none=Nessun posto sicuro trovato intorno a %s.
+commands.travellers.summonworkers.bowShield=Un sgherro non può portare arco e scudo insieme.
+commands.travellers.summonworkers.badOption=Opzione sconosciuta: %s
+commands.travellers.summonworkers.badCulture=Cultura sconosciuta: %s
+commands.travellers.summonworkers.mountsDisabled=Monta a cavallo è disattivato nella configurazione: nessun cavallo verrà dato.
+
+tile.travellers.village_of_nature.name=Il Villaggio della Natura
+
+# GUI unification: screen titles and hints
+travellers.map.title=Mappa mondiale
+travellers.worker.go.title=Inviare a un posto
+travellers.worker.recruit.title=Reclutare sgherri
+travellers.worker.barracks.title=Zone

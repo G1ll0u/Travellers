@@ -1,0 +1,654 @@
+entity.travellers.traveller.name=Путник
+entity.travellers.traveller_worker.name=Подручный
+entity.travellers.traveller_raider.name=Налётчик
+
+travellers.worker.title=Транзакция
+travellers.worker.send=Продать
+travellers.worker.not_enough_money=Вам нужно %s на эту поездку.
+travellers.worker.cost=Стоимость путешествия: %s
+travellers.worker.no_village_in_range=В радиусе неизвестных деревень. Исследуйте, чтобы найти больше.
+travellers.worker.cargo=Груз
+travellers.worker.blocked.not_yours=Этот подручный не ваш.
+travellers.worker.blocked.no_village=Выберите деревню из списка.
+travellers.worker.blocked.empty_cargo=Сначала положите товары в груз.
+travellers.worker.blocked.money=Поездка стоит %s; у вас есть %s.
+travellers.worker.donate=Пожертвовать
+travellers.worker.send.tooltip=Продайте груз этой деревне за деньги и репутацию.
+travellers.worker.donate.tooltip=Отдайте груз этой деревне бесплатно. Принесет больше репутации, но денег не будет.
+travellers.worker.pickup.title=Возвращение из поездки
+travellers.worker.pickup.unsold=Я не смогла продать всё. Заберите оставшееся, чтобы я снова отправилась.
+travellers.worker.pickup.earnings=Вот что принесла поездка. Возьмите это, чтобы я снова отправилась.
+travellers.worker.pickup.take_all=Забрать всё
+travellers.worker.pickup.done=Готово
+
+travellers.worker.hub.title=Опции путника
+travellers.worker.hub.transport=Транспорт
+travellers.worker.hub.transport.tooltip=Отправьте этого подручного в деревню, чтобы продать или пожертвовать грузом.
+travellers.worker.hub.follow=Приказы
+travellers.worker.follow.title=Опции последователя
+travellers.worker.orders.hire=Нанять · %s
+travellers.worker.orders.hire_group=Нанять всех %s · %s
+travellers.worker.hire.hint.chief=Только командир деревни Millénaire может нанимать подручных.
+travellers.worker.hire.hint.beds_missing=Свободные казармы: %s, нужно: %s.
+travellers.worker.hire.hint.why_bed=Подручный с кроватью вернётся после смерти.
+travellers.worker.hire.hint.wand=Shift + правый клик Жезла Создания, чтобы построить Казарму (нужны кровать и сундук).
+travellers.worker.hire.hint.assign=После найма дайте им кровать в меню Зон.
+travellers.worker.hire.hint.money=Недостаточно денег: у вас %s.
+travellers.worker.hub.info.no_bed=Без кровати: не вернётся при смерти.
+travellers.worker.zones.create_hint=Shift + правый клик Жезлом Создания, чтобы создать зону.
+travellers.worker.orders.unhire=Уволить
+travellers.worker.orders.hired_other=Нанят кем-то
+travellers.worker.follow.hired_success=Путник теперь следует за вами.
+travellers.worker.follow.unhired_success=Путник больше не будет следовать за вами.
+travellers.worker.follow.not_enough_money=У вас недостаточно денег.
+travellers.worker.follow.hired_by_other=Этот путник уже нанят кем-то.
+travellers.worker.hub.inventory=Инвентарь
+travellers.worker.orders.make_leader=Командир
+travellers.worker.orders.make_leader.tooltip=Сделайте этого подручного лидером группы. Подручные, активно следующие за вами, будут следовать за ним.
+travellers.worker.orders.follow_on=Следовать: ВКЛ
+travellers.worker.orders.follow_off=Следовать: ВЫКЛ
+travellers.worker.orders.follow.tooltip=Переключатель: активно ли этот подручный следует за командиром или за вами.
+travellers.worker.inventory.title=Инвентарь подручных
+travellers.worker.orders.recruit=Нанять
+travellers.worker.orders.follow_player=Следуйте за мной.
+travellers.worker.orders.following_player=Следуйте за мной.
+travellers.worker.orders.follow_player.tooltip=Перестаньте следить за её эскорт лидером и следите за вами напрямую вместо этого.
+travellers.worker.orders.title=Приказы
+travellers.worker.hub.behavior=Поведение
+travellers.worker.hub.map=Карта
+travellers.worker.hub.barracks=Зоны
+travellers.worker.hub.barracks.tooltip=Откройте меню зон, где вы распределяете подручных в казарму или конюшню.
+
+travellers.worker.barracks.list=Казармы
+travellers.worker.barracks.unassigned=Не назначенные подручные
+travellers.worker.barracks.selected=Подручные в выбранной казарме
+travellers.worker.zones.tab_home=Дом
+travellers.worker.zones.tab_duty=Служба
+travellers.worker.zones.list_stables=Конюшни
+travellers.worker.zones.unassigned_duty=Не назначенные (без службы)
+travellers.worker.zones.selected_duty=На службе здесь
+travellers.worker.zones.list_zones=Казармы и конюшни
+travellers.worker.zones.unassigned_any=Не назначенные подручные
+travellers.worker.zones.assigned_here=Назначены здесь
+travellers.notify.duty.assigned=Вы назначены на службу в %s.
+travellers.notify.duty.no_bed=У %s нет свободной кровати — поставьте еще одну кровать в конюшню перед тем, как назначить конюха там.
+travellers.notify.stable.horse_tamed=Лошадь была приручена в %s.
+travellers.notify.stable.horse_saddled=Лошадь была посажена в седло в %s.
+travellers.notify.stable.foal_born=В %s родился жеребёнок.
+travellers.notify.stable.mount_recovered=Конь %s присоединился к конюшне, в которой он был поставлен на службу.
+travellers.notify.stable.pool_too_small_to_equip=В конюшне «%s» не было запасной седла для выдачи — там же хранится небольшая запасная партия. Приручите, посадите или разведите больше в первую очередь.
+travellers.notify.stable.horses_returned=%s подручных из %s конюшни сдали свои верховые лошади в «%s».
+travellers.notify.stable.horses_taken=%s подручных из %s конюшни взяли верховую лошадь из «%s».
+travellers.notify.stable.no_horse_to_return=В конюшню нельзя было вернуть лошадь.
+travellers.worker.barracks.dragdrop=Выберите зону, затем перетащите подручных, чтобы распределить или освободить их.
+travellers.worker.barracks.delete=Удалите вашу казарму.
+travellers.worker.barracks.get_equip=Получите ваше снаряжение.
+travellers.worker.barracks.take_horses=Взять лошадей
+travellers.worker.barracks.take_horses.tooltip=Отправьте этого подручного, чтобы он взял лошадь из конюшни.
+travellers.worker.barracks.take_horses_stay=Взять лошадь и остаться
+travellers.worker.barracks.take_horses_stay.tooltip=Возьмите лошадь, а затем останьтесь там вместо возврата.
+travellers.worker.barracks.take_horses_return=Взять лошадь и вернуть
+travellers.worker.barracks.take_horses_return.tooltip=Возьмите лошадь, а затем вернитесь на её прежнее место.
+travellers.worker.barracks.get_equip.tooltip=Отправьте этого подручного, чтобы забрать лучшее снаряжения, которое вы выбрали, и оставить остальное в сундуках.
+travellers.worker.barracks.equip_title=Выберите миссию:
+travellers.worker.barracks.dump=Сбросить предметы
+travellers.worker.barracks.dump.tooltip=Отправьте этого подручного, чтобы он сбросил запасные предметы и еду в сундуках деревни или казармы. Он оставляет своё лучшее оружие и лук.
+travellers.worker.barracks.dump_stay=Сбросьте и остаться
+travellers.worker.barracks.dump_stay.tooltip=Сбросьте запасные предметы, а затем останьтесь там вместо возврата.
+travellers.worker.barracks.dump_return=Сбросьте и вернуть
+travellers.worker.barracks.dump_return.tooltip=Сбросьте запасные предметы, а затем вернитесь на её прежнее место.
+travellers.worker.barracks.equip_stay=Оснастите и остаться
+travellers.worker.barracks.equip_stay.tooltip=Получите новое снаряжение, а затем останьтесь там вместо возврата.
+travellers.worker.barracks.equip_return=Оснастите и вернуть
+travellers.worker.barracks.equip_return.tooltip=Получите новое снаряжение, а затем вернитесь на её прежнее место.
+travellers.worker.barracks.full=Ваш казарма полон (один подручный на кровать).
+
+travellers.gui.back=Назад
+travellers.gui.close=Закрыть
+travellers.gui.add=Добавить
+travellers.gui.remove=Удалить
+travellers.gui.done=Готово
+travellers.gui.save=Сохранить
+travellers.gui.cancel=Отменить
+travellers.gui.clear=Очистить
+travellers.gui.go=Идти
+travellers.gui.unnamed=(без имени)
+
+travellers.map.center=Центр
+travellers.map.unavailable_dimension=Карта показывает только Поверхность.
+travellers.map.teleport=Телепорт
+travellers.map.teleport.active=Нажмите на карту...
+travellers.map.spawn_traveller=Создать путника
+travellers.map.spawn_worker=Создать подручных
+travellers.map.spawn_raider=Создать налётчиков
+travellers.map.spawn.active=Нажмите на карту...
+travellers.map.chunks.legend.loaded_normal=Загруженные чанки (обычные)
+travellers.map.chunks.legend.loaded_merchants=Чанки, загруженные путниками-подручными
+travellers.map.chunks.legend.villages=Залы деревень
+travellers.map.chunks.legend.center_chunk=Белый квадрат = текущий центр чанка
+travellers.map.chunks.legend.player_pos=Зелёная точка = ваша позиция
+
+travellers.worker.behavior.title=Поведение
+travellers.worker.behavior.player_enemies=Отношения игроков
+travellers.worker.behavior.village_relations=Отношения деревень
+
+travellers.worker.enemies.title=Отношения игроков
+travellers.worker.enemies.hint=Ваши подручные атакуют вражеских игроков при встрече. Выберите игрока, чтобы изменить.
+travellers.worker.enemies.none=На этом сервере пока нет других игроков.
+travellers.worker.enemies.make_enemy=Создать врага
+travellers.worker.enemies.make_friendly=Сделать дружелюбным
+travellers.worker.enemies.tag.enemy=Враг
+travellers.worker.enemies.tag.friendly=Дружелюбный
+
+travellers.worker.village_relations.title=Отношения деревень
+travellers.worker.village_relations.hint=Выберите деревню, затем переключите врага.
+travellers.worker.village_relations.toggle_enemy=Переключить врага
+travellers.worker.village_relations.none_known=Пока нет известных деревень поблизости.
+
+travellers.home_name_prompt.title=Имя вашего дома
+travellers.home_name_prompt.subtitle=Вы можете передать это нанятым подручным и отправить сюда, остальные будут приходить.
+
+travellers.worker.home_list.title=Казарма
+travellers.worker.home_list.set_home=Установить казарму
+
+travellers.worker.orders.go=Идти...
+travellers.worker.orders.home=Казарма
+travellers.worker.orders.go_home=Идти в казарму
+travellers.worker.orders.go_home_no_home=Идти в казарму (без назначения)
+travellers.worker.orders.leader_count=Командир (%s)
+travellers.worker.orders.choir_start=Пойте песню
+travellers.worker.orders.choir_stop=Остановить пение
+travellers.worker.orders.choir.tooltip=Пусть этот подручный подпевает другим ближайшим поющими подручными (WIP — только 1 песня для норманнов)
+
+travellers.worker.recruit.start=Вербовать
+travellers.worker.recruit.cost=Стоимость миссии: %s
+travellers.worker.recruit.count=Вербовать: %s/%s
+travellers.worker.recruit.cost.travel=Путешествие: %s
+travellers.worker.recruit.cost.purse=Кошель для вербовок: %s
+travellers.worker.recruit.cost.refund=То, что кошелек не потратил, вернется вам.
+travellers.worker.recruit.none=В радиусе деревень нет
+travellers.worker.recruit.blocked.enemy=Враг
+travellers.worker.recruit.blocked.reputation=Недоверчивый
+travellers.worker.recruit.tip.villages=%s деревень, ближайшая %s в радиусе
+travellers.worker.recruit.tip.free=Около %s своих жителей вокруг
+travellers.worker.recruit.tip.chance=%s%%: каждый согласится
+travellers.worker.recruit.tip.enemy=Одна из их деревень — ваш враг
+travellers.worker.recruit.tip.reputation=Ваша репутация с ними слишком низка
+travellers.worker.recruit.report.title=%s, %s в радиусе
+travellers.worker.recruit.report.take=Забирать %s
+travellers.worker.recruit.report.taken=Кошель пуст
+travellers.worker.recruit.report.spent=Потрачено
+travellers.worker.recruit.report.left=Осталось в кошеле
+travellers.worker.recruit.report.dead_short=+%s погибших
+travellers.worker.recruit.report.tip.found=%s найдено из %s желаемых
+travellers.worker.recruit.report.tip.where=%s в деревнях, %s на дороге
+travellers.worker.recruit.report.tip.dead=%s погибло по пути
+travellers.worker.recruit.report.map.visited=%s. %s: %s вербовок
+travellers.worker.recruit.report.map.skipped=%s пропущены
+travellers.worker.recruit.report.map.not_reached=%s: не достигнут
+travellers.worker.recruit.report.map.road=%s присоединились на дороге
+travellers.worker.recruit.report.map.death=Здесь погиб вербованный
+
+travellers.worker.home_list.empty=Казарма не назначена. Зажмите Shift и кликните правой кнопкой мыши в любом месте с палочкой призыва, чтобы создать казарму.
+
+travellers.worker.hub.formation=Построения
+travellers.worker.hub.formation.tooltip=Управляйте своими отрядами.
+
+travellers.worker.formation.title=Построение и группы
+travellers.worker.formation.preview=Предпросмотр радара
+travellers.worker.formation.preview_adaptive_cave=Пещера адаптивная: ВКЛ
+travellers.worker.formation.preview_surface_bias=Пещера адаптивная: ВЫКЛ
+
+travellers.worker.formation.scope=Область
+travellers.worker.formation.scope_type=Тип
+travellers.worker.formation.scope.player=Игрок
+travellers.worker.formation.scope.worker=Командир подручных
+travellers.worker.formation.followers=Последователи
+
+travellers.worker.formation.style=Стиль
+travellers.worker.formation.follow_distance=Дистанция преследования
+travellers.worker.formation.spacing=Расстояние между
+travellers.worker.formation.width=Ширина
+travellers.worker.formation.turn=Плавный ход
+travellers.worker.formation.cave=Режим пещеры
+
+travellers.worker.formation.cave.on=Адаптивная пещера: ВКЛ
+travellers.worker.formation.cave.off=Адаптивная пещера: ВЫКЛ
+travellers.worker.formation.escorts=Сопровождение
+travellers.worker.formation.cohesion=Связность игрока
+
+travellers.worker.formation.attitude=Настройка
+travellers.worker.formation.attitude.tooltip=Атака: преследовать свободно; Защита: менее агрессивно, Удержание позиции: минимальное движение
+travellers.worker.formation.attitude.attack=Атака
+travellers.worker.formation.attitude.defend=Защита
+travellers.worker.formation.attitude.hold=Удержание позиции
+
+travellers.worker.formation.style.compact=Компактный
+travellers.worker.formation.style.line=Линия
+travellers.worker.formation.style.column=Столбец
+travellers.worker.formation.style.wedge=Клин
+travellers.worker.formation.style.adaptive=Адаптивный
+
+travellers.worker.formation.controls=Управление
+travellers.worker.formation.preview.forward=Вперёд
+travellers.worker.formation.preview.zoom=Зум: %s
+travellers.worker.formation.preview.count=Показано: %s
+travellers.worker.formation.preview.reset=Сброс
+travellers.worker.formation.hover.leader=Командир
+travellers.worker.formation.hover.slot=Слот спутника %s
+travellers.worker.formation.hover.escort=Ближний эскорт #%s
+travellers.worker.formation.hover.offset=Смещение: x=%s z=%s
+
+travellers.worker.hub.mark_button=Метка подручного
+travellers.worker.hub.mark_button.desc=Вы измените визуальную метку ваших нанятых подручных
+
+travellers.worker.mark.title=Внешний вид
+travellers.worker.mark.style=Стиль
+travellers.worker.mark.color=Цвет: %s
+travellers.worker.mark.preview=Предпросмотр
+travellers.worker.mark.preview.follower=Подручный
+travellers.worker.mark.preview.leader=Командир
+travellers.worker.mark.preview.leader_hint=Командиры используют выделенный слой
+travellers.worker.mark.saved=Маркер подручного сохранён
+
+travellers.worker.mark.style.plain=Простой
+travellers.worker.mark.style.double=Двойной
+travellers.worker.mark.style.chevron=Шеврон
+travellers.worker.formation.hub_title=Построение и группы
+travellers.worker.formation.hint=Нажмите: выбрать  ·  Shift+клик/перетаскивание: добавить подручных  ·  Правая кнопка мыши: приказы  ·  Перетаскивание справа: перемещение карты
+travellers.worker.formation.card.you=Ваш эскорт
+travellers.worker.formation.card.workers=%s подручных
+travellers.worker.formation.card.following=маршируют
+travellers.worker.formation.card.halted=остановлен
+travellers.worker.formation.card.en_route=в пути
+travellers.worker.formation.leaders=Командиры
+travellers.worker.formation.barracks=Казарма
+travellers.worker.formation.zone.beds=%s/%s кроватей
+travellers.worker.formation.zone.horses=%s/%s лошадей
+travellers.worker.formation.zone.horse_state=%s приручены · %s в седле
+travellers.worker.formation.zone.hands=%s конюшники · %s здесь
+travellers.worker.formation.zone.nobody=Здесь никто не живёт.
+travellers.worker.formation.zone.here_away=%s здесь · %s там
+travellers.worker.formation.zone.at_rest=%s в покое, свободны для группировки
+travellers.worker.formation.card.busy=на миссии
+travellers.worker.formation.card.followers_selected=%s выбран
+travellers.worker.formation.card.followers_hint=Нажмите правой кнопкой: отправьте их куда-то, сформируйте группу, присоединитесь или заставьте следовать за вами.
+travellers.worker.formation.menu.go=Здесь
+travellers.worker.formation.menu.equip=Взять экипировку...
+travellers.worker.formation.menu.loadout=Чем нести:
+travellers.worker.formation.menu.loadout.melee=Ближний бой
+travellers.worker.formation.menu.loadout.bow=Лук
+travellers.worker.formation.menu.loadout.shield=Щит
+travellers.worker.formation.menu.loadout.armour=Броня
+travellers.worker.formation.summary.members=%s подручных
+travellers.worker.formation.summary.wounded=%s раненых
+travellers.worker.formation.summary.armour=Броня
+travellers.worker.formation.summary.armour.diamond=Алмаз
+travellers.worker.formation.summary.armour.iron=Железо
+travellers.worker.formation.summary.armour.chain=Линя
+travellers.worker.formation.summary.armour.gold=Золото
+travellers.worker.formation.summary.armour.leather=Кожа
+travellers.worker.formation.summary.armour.other=Другое
+travellers.worker.formation.summary.armour.none=Нет
+travellers.worker.formation.menu.dump=Выгрузить предметы...
+travellers.worker.formation.menu.take_horses=Взять лошадей...
+travellers.worker.formation.menu.return_horses=Вернуть лошадей...
+travellers.worker.formation.menu.after_mission=Затем:
+travellers.worker.formation.menu.stay_there=Оставайтесь здесь
+travellers.worker.formation.menu.come_back=Вернитесь
+travellers.worker.formation.menu.follow_me=Следуйте за мной
+travellers.worker.formation.menu.merge_escort=Влиться в мой эскорт
+travellers.worker.formation.menu.follow_group=Следуйте за этой группой
+travellers.worker.formation.menu.merge_group=Влиться в эту группу
+travellers.worker.formation.menu.halt=Остановиться здесь
+travellers.worker.formation.menu.recall=Отозвать
+travellers.worker.formation.menu.resume=Возобновить марш
+travellers.worker.formation.menu.create_group=Создать группу
+travellers.worker.formation.menu.create_group_go=Создать группу и идти сюда
+travellers.worker.formation.menu.join_group=Вступить в эту группу
+travellers.worker.formation.menu.no_orders=Без приказов
+travellers.worker.formation.menu.select=Выбрать
+travellers.worker.formation.menu.reason.busy=Эта группа на миссии.
+travellers.worker.formation.menu.reason.target_busy=Та группа на миссии.
+travellers.worker.formation.menu.reason.need_two=Выберите как минимум 2 подручных.
+travellers.worker.formation.menu.reason.select_first=Сначала выберите группу или подручных.
+travellers.worker.formation.orders_tab=Приказы командира
+travellers.worker.formation.menu.choose_follow=Кого следовать?
+travellers.worker.formation.menu.choose_merge=Влиться в какую группу?
+travellers.worker.formation.menu.choose_join=Вступить в какую группу?
+travellers.worker.formation.menu.no_other_group=Нет другой группы
+travellers.worker.formation.menu.reason.no_other_group=У вас ещё нет другой группы.
+travellers.worker.formation.bar.empty=Выберите группу или подручных, чтобы увидеть их приказы.
+travellers.worker.formation.bar.follow_me=Следуйте за мной
+travellers.worker.formation.bar.follow_me.tip=Вернитесь к вам и следуйте за вами.
+travellers.worker.formation.bar.halt=Остановиться
+travellers.worker.formation.bar.halt.tip=Остановитесь там, где они.
+travellers.worker.formation.bar.resume=Продолжить
+travellers.worker.formation.bar.resume.tip=Начните следовать снова.
+travellers.worker.formation.bar.follow=Следуйте...
+travellers.worker.formation.bar.follow.tip=Выберите группу (или себя), которую будет следовать эта группа.
+travellers.worker.formation.bar.merge=Объединить с...
+travellers.worker.formation.bar.merge.tip=Выберите другую группу, в которую объединить эту.
+travellers.worker.formation.bar.center=Центр
+travellers.worker.formation.bar.center.tip=Центр карты на этой группе.
+travellers.worker.formation.bar.create_group=Создать группу
+travellers.worker.formation.bar.create_group.tip=Создайте новую группу из выбранных подручных.
+travellers.worker.formation.bar.join=Присоединиться...
+travellers.worker.formation.bar.join.tip=Выберите группу, к которой присоединятся выбранные подручные.
+travellers.worker.formation.you=Вы
+travellers.worker.formation.set_home=Казарма
+
+travellers.worker.home_list.delete=Удалить
+travellers.worker.home_list.get_equip=Получить снаряжение
+travellers.worker.home_list.equip_title=Выбрать миссию:
+travellers.worker.home_list.equip_stay_barracks=Остаться - Казарма
+travellers.worker.home_list.equip_stay_village=Остаться - Целая деревня
+travellers.worker.home_list.equip_return_barracks=Вернуться - Казарма
+travellers.worker.home_list.equip_return_village=Вернуться - Целая деревня
+
+key.travellers.formation_hub=Открыть штаб построений
+key.travellers.world_map=Открыть карту мира
+key.categories.travellers=Путники
+
+# Player zones (Barrack / Stable)
+travellers.lone_barrack.prompt.title=Новая зона
+travellers.lone_barrack.prompt.name=Имя:
+travellers.lone_barrack.prompt.half_width=ширина
+travellers.lone_barrack.prompt.half_depth=глубина
+travellers.lone_barrack.prompt.half_height=высота
+travellers.lone_barrack.error.overlaps=Эта зона перекрывается существующей зоной.
+travellers.lone_barrack.error.invalid=Зону нельзя создать здесь: подойдите ближе, удерживайтесь в пределах размеров и дождитесь загрузки области.
+travellers.lone_barrack.created=Зона создана!
+
+travellers.zone.prompt.validate=Создайте %s
+travellers.zone.prompt.role.chest=Сундуки: %s (мин. %s)
+travellers.zone.prompt.role.bed=Кровати: %s (мин. %s)
+travellers.zone.prompt.role.hitch=Заборы: %s (мин. %s)
+travellers.zone.error.no_chest=В области не найдено сундуков. Разместите по крайней мере один сундук в радиусе.
+travellers.zone.error.no_bed=В области не найдено кроватей. Разместите по крайней мере одну кровать (емкость = один подручный на кровать).
+travellers.zone.error.no_hitch=В области не найдено заборов. Разместите по крайней мере один забор, чтобы к конюсам можно было привязывать лошадей.
+
+travellers.zone.barrack.title=Барак
+travellers.zone.barrack.description=Жилье для нанятых рабочих. Нужно как минимум одна кровать и один сундук. Рабочие, назначенные здесь, называют это домом: они могут возродиться рядом со своей кроватью после смерти, а их емкость — один рабочий на кровать.
+
+travellers.zone.stable.title=Конюшня
+travellers.zone.stable.description=Ферма лошадей для нанятых рабочих. Нужно как минимум один сундук, забор для привязки лошадей и одна кровать на конюшного. Назначенные конюхи приручат, оседлают и разводят лошадей здесь для ваших других рабочих, чтобы они ездили верхом, и спят в кроватях ночью.
+
+# Map legend
+travellers.map.legend.controlled_village=Ctrl. Деревня
+travellers.map.legend.enemy_village=Враждебная деревня
+travellers.map.settlement.population=%d жителей
+travellers.map.settlement.kind=%s - %s
+travellers.map.settlement.reputation=Ваша репутация: %s
+travellers.map.settlement.controlled_by=Контролируется %s
+travellers.map.settlement.under_attack=Нападение!
+travellers.map.settlement.raiding=Нападение %s
+travellers.map.settlement.enemy=Враг ваших подручных
+travellers.map.legend.home=Казарма
+travellers.map.legend.stable=Конюшня
+travellers.map.legend.follower=Спутник
+travellers.map.legend.leader=Командир
+travellers.map.legend.player=Вы
+travellers.map.legend.camp_firepit=Костёр в лагере
+travellers.map.legend.camp_slot=Убежище
+travellers.map.legend.rest_spot=Место привала
+travellers.map.legend.road=Дорога
+travellers.map.legend.trail=Тропа
+travellers.map.legend.bridge=Мост
+travellers.battle.report.running=Битва
+travellers.battle.report.camp_assault=Штурм лагеря
+travellers.battle.report.won=Победа
+travellers.battle.report.lost=Поражение
+travellers.battle.report.broken_off=Сломано
+travellers.battle.report.over=%s назад
+travellers.battle.report.ago=%s назад
+travellers.battle.report.yours=Ваши подручные
+travellers.battle.report.enemies=Враги
+travellers.battle.report.name.raiders=Налётчики
+travellers.battle.report.name.travellers=Путники
+travellers.battle.report.name.henchmen=Подручные
+travellers.battle.report.fallen=Павшие: %s
+travellers.battle.report.fallen_more=Павшие: %s и ещё %s
+travellers.battle.report.outlook.tomorrow=%s завтра вернётся в свою постель
+travellers.battle.report.outlook.later=%s через несколько дней
+travellers.battle.report.outlook.no_bed=%s не имел постели (потеряна навсегда)
+travellers.battle.report.outlook.never=%s не вернётся
+
+# Population map
+travellers.map.population.traveller=Путники: %d (%d загружены, %d виртуальные)
+travellers.map.population.raider=Налётчики: %d (%d загружены, %d виртуальные)
+travellers.map.population.worker=Подручные: %d (%d загружены, %d виртуальные)
+travellers.map.population.stable=Конюшни: %d (%d загружены, %d виртуальные)
+
+# Henchman/unit hover tooltips
+travellers.map.worker.unnamed=Подручный #%d
+travellers.map.worker.unknown=Неизвестный
+travellers.map.worker.hp=§c♥§r %d/%d
+travellers.map.worker.in_battle=В битве!
+travellers.map.worker.following=Следуя: %s
+travellers.map.worker.status.transport=На транспортной миссии
+travellers.map.worker.status.returning=Возвращается домой
+travellers.map.worker.status.recruiting=На вербовочной миссии
+travellers.map.worker.status.get_equipment=Сбор снаряжения
+travellers.map.worker.status.dump_items=Сброс предметов
+travellers.map.worker.status.take_horses=Идёт забрать лошадь
+travellers.map.worker.status.return_horses=Идёт вернуть лошадь
+travellers.map.worker.status.going_home=Возвращение домой
+travellers.map.worker.status.going_to=Едёт к цели
+
+# On-screen notifications
+travellers.notify.hire.already_hired_by_other=Этот путник уже нанят кем-то.
+travellers.notify.hire.needs_village_chief=Чтобы нанять подручных, вы должны быть командиром деревни Millénaire.
+travellers.notify.hire.not_enough_money=У вас недостаточно денег (%s).
+travellers.notify.hire.payment_failed=Нанятие не удалось: деньги не смогли списать.
+travellers.notify.hire.dismissed=Этот путник больше не будет следовать за вами.
+
+travellers.notify.recruit.busy=Я сейчас занят.
+travellers.notify.recruit.needs_group=Только командир группы может идти вербовать.
+travellers.notify.recruit.no_villages_in_range=Нет деревень в радиусе для вербовки.
+travellers.notify.recruit.not_enough_fee=Плата за вербовку: %s (у вас %s)
+travellers.notify.recruit.payment_failed=Ошибка оплаты вербовки. Попробуйте снова.
+travellers.notify.recruit.recalled=%s вернулся.
+travellers.notify.recruit.mission_started=Миссия по вербовке началась. Оплачена плата: %s
+travellers.notify.recruit.henchmen_recruited=Нанят %s подручных в %s.
+travellers.notify.recruit.henchmen_recruited_road=Нанят %s подручных на дороге рядом с %s.
+travellers.notify.recruit.mission_completed=Миссия по вербовке завершена.
+travellers.notify.recruit.back=%s вернулся с вербовки: поговорите с ним, чтобы прочитать отчет.
+travellers.notify.worker.purse_no_room=Место для монет нет: расчистите место или носите Millénaire-кошель.
+
+travellers.notify.worker.not_hired_transport=Чтобы использовать Транспорт, вы должны нанять этого подручного.
+travellers.notify.worker.not_hired_inventory=Доступ только к рюкзаку нанятого подручного.
+travellers.notify.worker.not_hired_orders=Можно давать приказы только нанятому подручному.
+travellers.notify.worker.not_hired_behavior=Управлять поведением можно только нанятому подручному.
+travellers.notify.worker.not_hired_recruit=Вербовать можно только с помощью нанятого подручного.
+travellers.notify.worker.not_hired_home=Управлять домом можно только за нанятого подручного.
+travellers.notify.worker.not_hired_go=Приказы можно давать только нанятому подручному.
+travellers.notify.worker.not_hired_formation=Управлять построением можно только за нанятого подручного.
+travellers.notify.worker.not_hired_village_relations=Вы можете управлять отношениями деревни только с подручным, которого наняли.
+
+travellers.notify.leader.released_followers=Освободить %s подручных и вернуть их вам.
+travellers.notify.leader.now_leading=Этот подручный теперь ведет %s подручных.
+travellers.notify.leader.no_free_followers=Нет свободных подручных для назначения.
+travellers.notify.leader.succession=%s взял командование над группой.
+
+travellers.follow.choice.talk=Говорить
+travellers.follow.choice.follow=Следовать за ним
+travellers.dialogue.gui.follow=Следовать за ним
+travellers.notify.follow.stopped_hurt=Вы получили урон: вы остановили следование.
+travellers.notify.follow.stopped_combat=Вспыхнул бой: вы остановили следование.
+travellers.notify.follow.stopped_hungry=Вы слишком голодны, чтобы идти: вы остановили следование.
+travellers.notify.follow.target_lost=Вы потеряли след за кем вы следили.
+
+travellers.notify.home.not_your_worker=Не ваш подручный.
+travellers.notify.home.none_assigned=Дом не назначен.
+travellers.notify.home.lone_barrack_bed_destroyed=%s потерял свою кровать в "%s" и никакая другая кровать там свободна: они покинули зону и возвращаются к вам.
+
+travellers.notify.order.worker_busy=Этот подручный на задании и не может принимать новые приказы сейчас.
+travellers.notify.order.worker_on_duty=%s работает в "%s" и не принимает приказов там. Сначала отвяжите их от меню зон.
+travellers.notify.order.some_busy_skipped=%s подручные были на задании и остались одни.
+travellers.notify.goto.going_to=Подручный едет в: %s
+travellers.notify.goto.going_to_pos=Подручный едет на выбранную позицию карты.
+travellers.notify.goto.not_enough_money=Вам нужно %s на эту поездку.
+travellers.notify.goto.payment_failed=Оплата не удалась. Попробуйте снова.
+travellers.notify.goto.delivery_started_free=Хорошо, я еду в %s!
+travellers.notify.goto.delivery_started_paid=Хорошо, я еду в %s за %s.
+travellers.notify.goto.delivery_started_donate=Хорошо, я еду в %s за %s в качестве пожертвования.
+
+travellers.notify.hostile.not_owner=Вы не владеете этим подручным.
+travellers.notify.hostile.added=Подручные будут атаковать: %s
+travellers.notify.hostile.removed=Удалён враг: %s
+travellers.notify.hostile.war_declared_on_you=%s атаковал ваших подручных — теперь вы в состоянии войны с ними.
+
+travellers.notify.worker.arrived_home=Подручный теперь дома.
+travellers.notify.worker.cargo_arrived_full=Я здесь с вашими грузами. Проверьте мою сумку.
+travellers.notify.worker.cargo_arrived_partial=Я здесь. Не смог продать всё, часть грузов всё ещё в моей сумке.
+travellers.notify.worker.goods_left=%s всё ещё несёт грузы для вас: поговорите с ними, чтобы забрать остальное.
+travellers.notify.worker.cargo_heading_home=%s не нашёл вас и идёт обратно в казарму с вашими грузами.
+travellers.notify.worker.cargo_waiting=%s не нашёл вас и ждёт с вашими грузами там, где вы были в последний раз.
+travellers.notify.worker.cargo_coming_back=%s везёт ваши грузы обратно к вам.
+travellers.notify.worker.already_on_job=Я уже на задании.
+travellers.notify.worker.died=%s умер.
+travellers.notify.worker.respawn_cancelled=%s не вернётся: их кровать исчезла, вместе с тем, что они удерживали.
+travellers.notify.worker.respawned=%s снова на своей кровати.
+travellers.notify.worker.death_no_bed=Не было кровати: не вернётся.
+travellers.notify.worker.death_respawn_tomorrow=Вернётся на кровать завтра утром.
+travellers.notify.worker.death_respawn_days=Вернётся на кровать примерно через %s дней.
+travellers.notify.worker.retaliation_target=%s назначен как враг (отмщение).
+
+travellers.notify.mount.led_terrain_blocked=%s лошадь не может пройти здесь — ведём её пешком вместо этого.
+travellers.notify.mount.led_sidestep_gave_up=%s лошадь застряла и не смогла вырваться — ведём её пешком вместо этого.
+travellers.notify.mount.led_low_health=%s лошадь слишком сильно ранена, чтобы продолжать ездить — ведём её пешком вместо этого.
+
+travellers.notify.trade.refused=Сельское население отказывает в торговле с вами (репутация слишком низкая или деревня сейчас не торгует).
+travellers.notify.trade.village_gone=%s не смогла найти деревню и везёт ваш груз обратно.
+travellers.notify.trade.sold_summary=Продажа у %s: %s товаров продано за %s, репутация +%s%s
+travellers.notify.trade.donated_summary=Донесение в %s: %s предметов, репутация +%s%s
+travellers.notify.goto.arrived=Ваш подручный прибыл в пункт назначения.
+travellers.notify.goto.group_arrived=Группа из %s подручных прибыла в пункт назначения.
+travellers.notify.equip.done=Экипировка упорядочена: %s из %s сменили снаряжение.
+travellers.notify.equip.nothing=Ничего лучше для экипировки не найдено.
+travellers.notify.dump.done=%s предметов сохранено, сброшено %s подручных.
+travellers.notify.dump.full=Места больше нет: %s предметов сохранено, %s осталось в рюксаках.
+travellers.notify.dump.nothing=Ничего не сброшено.
+
+travellers.notify.battle.under_attack=Ваши подручные находятся под атакой
+travellers.notify.battle.fallen=Битва: %s ваших подручных погибло (%s)
+travellers.notify.battle.fallen_more=Битва: %s ваших подручных погибло (%s и %s больше)
+travellers.notify.battle.won=Битва выиграна - %s ваших подручных погибло
+travellers.notify.battle.lost=Битва проиграна - %s ваших подручных погибло
+travellers.notify.battle.broken_off=Битва прервана - %s ваших подручных погибло
+travellers.notify.battle.away_summary=Пока вы были в пути: %s битв, %s ваших подручных погибло
+travellers.notify.overflow=+%s дополнительных уведомлений
+travellers.notify.location_suffix=%s м, %s
+
+travellers.gui.history.loading=Загрузка истории...
+travellers.gui.history.empty=Событий пока нет.
+travellers.gui.history.time.just_now=Только что
+travellers.gui.history.time.minutes_ago=%s мин. назад
+travellers.gui.history.time.hours_ago=%s ч назад
+travellers.gui.history.time.days_ago=%s дн. назад
+
+travellers.dialogue.worker_farewell=Я сделал всё, что нужно было сделать. Отдохну немного.
+travellers.dialogue.staying_in_village=Я пребываю в %s немного.
+travellers.dialogue.no_destination=У меня пока нет цели.
+travellers.dialogue.heading_to=Я сейчас иду в %s в %s.
+travellers.dialogue.gui_fallback_heading_to=Я сейчас иду в %s.
+
+# --- Dialogue GUI (AI conversation) ---
+travellers.dialogue.gui.title=Разговор
+travellers.dialogue.gui.not_configured=Вы еще не настроили диалог ИИ.
+travellers.dialogue.gui.configure=Настройка диалога ИИ
+travellers.dialogue.gui.send=Отправить
+travellers.dialogue.gui.you=Вы
+travellers.dialogue.gui.generating=...
+travellers.dialogue.gui.looking_up=...(задумываюсь)...
+travellers.dialogue.gui.tool_cap_fallback=Подумаю над этим еще немного, прежде чем ответить.
+travellers.dialogue.gui.error_note=(Что-то пошло не так при обращении к вашему локальному ИИ.)
+
+# --- Dialogue setup screen (client-local AI server connection) ---
+travellers.dialogue.setup.title=Настройка диалога ИИ
+travellers.dialogue.setup.server_type=Сервер: %s
+travellers.dialogue.setup.host=Хост сервера
+travellers.dialogue.setup.port=Порт
+travellers.dialogue.setup.enabled=Диалог ИИ:
+travellers.dialogue.setup.preload=Загрузить модель при запуске
+travellers.dialogue.setup.preload_help=Разогреет выбранную модель при запуске игры, чтобы первая беседа не тормозила
+travellers.dialogue.setup.preload_not_needed=Не нужно: llama.cpp уже загрузила свою модель
+travellers.dialogue.setup.test_connection=Проверить соединение
+travellers.dialogue.setup.testing=Тестирование...
+travellers.dialogue.setup.test_ok=Подключено - найдено %d моделей.
+travellers.dialogue.setup.test_no_models=Подключено, но модели пока не загружены.
+travellers.dialogue.setup.test_failed=Не удалось подключиться: %s
+travellers.dialogue.setup.detail_level=Детализация: %s
+travellers.dialogue.setup.detail_level.minimal=Минимальная
+travellers.dialogue.setup.detail_level.standard=Стандартная
+travellers.dialogue.setup.detail_level.rich=Богатая
+travellers.dialogue.setup.detail_level_help=Богатый = больше деталей, требует более крупной локальной модели
+travellers.dialogue.setup.debug_dump=Отладка: выгрузить сырые подсказки
+travellers.dialogue.setup.debug_dump_help=Записывает всё, что отправляется в AI, в файл логов для диагностики плохих ответов
+travellers.dialogue.setup.advanced=Продвинутое (настройки модели)
+
+travellers.dialogue.setup.advanced.title=Продвинутые настройки модели
+travellers.dialogue.setup.advanced.intro=Оставьте поле пустым, чтобы использовать собственный дефолт модели.
+travellers.dialogue.setup.advanced.think=Расширенное мышление
+travellers.dialogue.setup.advanced.tools=Пусть NPC ищет
+travellers.dialogue.setup.advanced.tools_warning=Не каждая модель это поддерживает — неподдерживающие просто игнорируют это.
+travellers.dialogue.setup.advanced.reset=Сбросить на дефолт
+travellers.dialogue.setup.advanced.num_ctx=Размер контекста (память, num_ctx)
+travellers.dialogue.setup.advanced.num_ctx_fixed=Размер контекста: устанавливается при запуске llama.cpp
+travellers.dialogue.setup.advanced.temperature=Температура (креативность)
+travellers.dialogue.setup.advanced.top_p=Топ P (фокус слов)
+travellers.dialogue.setup.advanced.top_k=Топ K (выбор слов)
+travellers.dialogue.setup.advanced.repeat_penalty=Штраф за повтор
+travellers.dialogue.setup.advanced.num_predict=Максимальная длина ответа (-1 = без ограничения)
+
+# --- Worker hub menu tree ---
+travellers.worker.hub.node.orders=Приказы
+travellers.worker.hub.node.follow=Следовать
+travellers.worker.hub.node.follow_player=Следовать мне
+travellers.worker.hub.node.follow_him=Следовать ему
+travellers.worker.hub.node.follow_him.tooltip=Встаньте позади этого подручного, не держите его за руку. Нажмите любую клавишу передвижения, чтобы остановиться.
+travellers.worker.hub.node.leader=Вести
+travellers.worker.hub.node.go=Миссии
+travellers.worker.hub.node.travel=Путешествие
+travellers.worker.hub.node.recruit=Вербовать
+travellers.worker.hub.node.recruit.tooltip=Отправляет этого командира и его группу на вербующий тур. Сделайте так, чтобы они сначала вели хотя бы одного подручного.
+travellers.worker.hub.node.choir=Петь
+travellers.worker.hub.node.transport=Транспорт
+travellers.worker.hub.node.unhire=Отпустить
+travellers.worker.hub.node.unhire_confirm=Уверены?
+travellers.worker.hub.node.unhire.tooltip=Отпустить этого подручного. Нажмите дважды, чтобы подтвердить.
+travellers.worker.hub.node.management=Управление
+travellers.worker.hub.node.players=Игроки
+travellers.worker.hub.node.players.tooltip=Выберите, каких игроков ваши подручные считают врагами. Действует на всех ваших подручных, а не только на этого.
+travellers.worker.hub.node.relations=Отношения
+travellers.worker.hub.node.villages=Поселения
+travellers.worker.hub.node.villages.tooltip=Как ваши подручные ведут себя к каждому поселению. Действует на всех ваших подручных, а не только к этому.
+travellers.worker.hub.node.barracks=Зоны
+travellers.worker.hub.node.inventory=Инвентарь
+travellers.worker.hub.node.formation=Построение
+travellers.worker.hub.info.health=Здоровье %s/%s
+travellers.worker.hub.info.village=Из %s
+travellers.notify.raid.incoming=Нападение приближается!
+travellers.notify.raid.wave=Волна %s/%s приближается!
+travellers.notify.raid.repelled=Нападение отбито.
+travellers.notify.raid.scattered=Нападение: налётчики разбежались.
+travellers.raid.bar=Набег — волна %s/%s
+
+# /summonworkers
+commands.travellers.summonworkers.usage=/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]
+commands.travellers.summonworkers.success=Призвано %s нанятых рабочих (%s на лошади) для %s.
+commands.travellers.summonworkers.partial=Вы не нашли %s безопасного места поблизости, и оно не появилось.
+commands.travellers.summonworkers.none=Вы не нашли безопасного места вокруг %s.
+commands.travellers.summonworkers.bowShield=Рабочий не может носить лук и щит одновременно.
+commands.travellers.summonworkers.badOption=Неизвестный вариант: %s
+commands.travellers.summonworkers.badCulture=Неизвестная культура: %s
+commands.travellers.summonworkers.mountsDisabled=Маунты лошадей отключены в конфиге: лошади не будут выданы.
+
+tile.travellers.village_of_nature.name=The Village of Nature
+
+# GUI unification: screen titles and hints
+travellers.map.title=Карта мира
+travellers.worker.go.title=Отправить в место
+travellers.worker.recruit.title=Вербовать подручных
+travellers.worker.barracks.title=Зоны

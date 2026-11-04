@@ -266,7 +266,7 @@ def translate(server, lang, keys, en, human, references, status, on_batch):
         groups = list(batches(todo, en))
         for i, batch in enumerate(groups, 1):
             label = "retry " if attempt == 2 else ""
-            status.update(step=f"{label}batch {i}/{len(groups)}: {batch[0]}")
+            status.update(step=f"{label}batch {i}/{len(groups)}")
             src = {k: en[k] for k in batch}
             system = system_prompt(lang, style, glossary_hits(terms, references, src.values()),
                                    pick_examples(batch, en, human))

@@ -1,0 +1,654 @@
+entity.travellers.traveller.name=Viajante
+entity.travellers.traveller_worker.name=Capanga
+entity.travellers.traveller_raider.name=Saqueador
+
+travellers.worker.title=Transação
+travellers.worker.send=Vender
+travellers.worker.not_enough_money=Você precisa de %s para esta viagem.
+travellers.worker.cost=Custo da viagem: %s
+travellers.worker.no_village_in_range=Nenhuma vila conhecida no alcance. Explore para descobrir mais.
+travellers.worker.cargo=Carga
+travellers.worker.blocked.not_yours=Este capanga não é seu.
+travellers.worker.blocked.no_village=Escolha uma vila na lista.
+travellers.worker.blocked.empty_cargo=Coloque os bens na carga primeiro.
+travellers.worker.blocked.money=A viagem custa %s; você tem %s.
+travellers.worker.donate=Doar
+travellers.worker.send.tooltip=Venda a carga para esta vila por dinheiro e reputação.
+travellers.worker.donate.tooltip=Entregue a carga para esta vila de graça. Ganha mais reputação, mas sem dinheiro.
+travellers.worker.pickup.title=De volta da viagem
+travellers.worker.pickup.unsold=Não consegui vender tudo. Leve o que sobrou para que eu possa partir novamente.
+travellers.worker.pickup.earnings=Aqui está o que a viagem trouxe. Leve para que eu possa partir novamente.
+travellers.worker.pickup.take_all=Leve tudo
+travellers.worker.pickup.done=Pronto
+
+travellers.worker.hub.title=Opções do Viajante
+travellers.worker.hub.transport=Transporte
+travellers.worker.hub.transport.tooltip=Envie este capanga para uma vila vender ou doar sua carga.
+travellers.worker.hub.follow=Ordens
+travellers.worker.follow.title=Opções de Seguidor
+travellers.worker.orders.hire=Contratar · %s
+travellers.worker.orders.hire_group=Contratar todos %s · %s
+travellers.worker.hire.hint.chief=Apenas o líder de uma vila da Millénaire pode contratar capangas.
+travellers.worker.hire.hint.beds_missing=Camas livres no seu quartel: %s, necessárias: %s.
+travellers.worker.hire.hint.why_bed=Um capanga com cama volta depois de morrer.
+travellers.worker.hire.hint.wand=Shift + clique direito com Varinha de Convocação para construir um quartel (precisa de cama e baú).
+travellers.worker.hire.hint.assign=Depois de contratar, dê a ele uma cama no menu Zonas.
+travellers.worker.hire.hint.money=Saldo insuficiente: você tem %s.
+travellers.worker.hub.info.no_bed=Sem cama: não volta se morrer
+travellers.worker.zones.create_hint=Shift + clique direito com uma Varinha de Convocação para você criar uma.
+travellers.worker.orders.unhire=Demitir
+travellers.worker.orders.hired_other=Contratado por alguém
+travellers.worker.follow.hired_success=O viajante está agora seguindo você.
+travellers.worker.follow.unhired_success=O viajante não vai mais seguir você.
+travellers.worker.follow.not_enough_money=Você não tem dinheiro suficiente.
+travellers.worker.follow.hired_by_other=Este viajante já foi contratado por outra pessoa.
+travellers.worker.hub.inventory=Inventário
+travellers.worker.orders.make_leader=Líder
+travellers.worker.orders.make_leader.tooltip=Transforme este capanga em um líder de grupo. Capangas que seguem você ativamente vão segui-lo.
+travellers.worker.orders.follow_on=Seguir: ON
+travellers.worker.orders.follow_off=Seguir: OFF
+travellers.worker.orders.follow.tooltip=Alternar se este capanga segue ativamente seu líder ou você.
+travellers.worker.inventory.title=Inventário de capangas
+travellers.worker.orders.recruit=Ir recrutar
+travellers.worker.orders.follow_player=Siga-me
+travellers.worker.orders.following_player=Siga-me
+travellers.worker.orders.follow_player.tooltip=Pare de seguir seu líder de escolta e siga você diretamente no lugar.
+travellers.worker.orders.title=Ordens
+travellers.worker.hub.behavior=Comportamento
+travellers.worker.hub.map=Mapa
+travellers.worker.hub.barracks=Zonas
+travellers.worker.hub.barracks.tooltip=Abra o menu de zonas, onde você atribui capangas a um Quartel ou a um Estábulo.
+
+travellers.worker.barracks.list=Quartéis
+travellers.worker.barracks.unassigned=Capangas sem atribuição
+travellers.worker.barracks.selected=Capangas de Quartel selecionados
+travellers.worker.zones.tab_home=Lar
+travellers.worker.zones.tab_duty=Serviço
+travellers.worker.zones.list_stables=Estábulos
+travellers.worker.zones.unassigned_duty=Sem atribuição (sem serviço)
+travellers.worker.zones.selected_duty=Em serviço aqui
+travellers.worker.zones.list_zones=Quartéis e Estábulos
+travellers.worker.zones.unassigned_any=Capangas sem atribuição
+travellers.worker.zones.assigned_here=Atribuídos aqui
+travellers.notify.duty.assigned=Você foi atribuído ao serviço em %s.
+travellers.notify.duty.no_bed=%s não tem cama livre - coloque outra cama no Estábulo antes de atribuir um cavalariço lá.
+travellers.notify.stable.horse_tamed=Um cavalo foi domado em %s.
+travellers.notify.stable.horse_saddled=Um cavalo foi selado em %s.
+travellers.notify.stable.foal_born=Um filhote nasceu em %s.
+travellers.notify.stable.mount_recovered=%s juntou o cavalo ao estábulo onde foi colocado no serviço.
+travellers.notify.stable.pool_too_small_to_equip=O estábulo "%s" não tinha cavalo com sela reserva para dar - ele também guarda uma pequena reserva. Domine, selle ou crie mais primeiro.
+travellers.notify.stable.horses_returned=%s de %s capangas deixaram seus montes em "%s".
+travellers.notify.stable.horses_taken=%s de %s capangas pegaram um monte de "%s".
+travellers.notify.stable.no_horse_to_return=Nenhum cavalo pôde ser devolvido ao estábulo.
+travellers.worker.barracks.dragdrop=Selecione uma zona, depois arraste e solte capangas para atribuir ou desatribuir.
+travellers.worker.barracks.delete=Excluir Quartel
+travellers.worker.barracks.get_equip=Obter Equipamento
+travellers.worker.barracks.take_horses=Pegar Cavalos
+travellers.worker.barracks.take_horses.tooltip=Envie este capanga para você pegar um cavalo de um estábulo.
+travellers.worker.barracks.take_horses_stay=Pegar Cavalo e Ficar
+travellers.worker.barracks.take_horses_stay.tooltip=Pegue um cavalo, depois fique lá em vez de voltar.
+travellers.worker.barracks.take_horses_return=Pegar Cavalo e Retornar
+travellers.worker.barracks.take_horses_return.tooltip=Pegue um cavalo, depois volte ao seu local anterior.
+travellers.worker.barracks.get_equip.tooltip=Envie este capanga para você pegar o melhor do equipamento que você marcou e deixe o resto nos baús.
+travellers.worker.barracks.equip_title=Escolha missão:
+travellers.worker.barracks.dump=Descartar Itens
+travellers.worker.barracks.dump.tooltip=Envie este capanga para soltar seus itens reserva e comida nos baús de uma vila ou quartel. Ele mantém sua melhor arma e arco.
+travellers.worker.barracks.dump_stay=Descartar e Ficar
+travellers.worker.barracks.dump_stay.tooltip=Solte os itens reserva, depois fique lá em vez de voltar.
+travellers.worker.barracks.dump_return=Descartar e Retornar
+travellers.worker.barracks.dump_return.tooltip=Solte os itens reserva, depois volte ao seu local anterior.
+travellers.worker.barracks.equip_stay=Equipar e Ficar
+travellers.worker.barracks.equip_stay.tooltip=Busque novo equipamento, depois fique lá em vez de voltar.
+travellers.worker.barracks.equip_return=Equipar e Retornar
+travellers.worker.barracks.equip_return.tooltip=Busque novo equipamento, depois volte ao seu local anterior.
+travellers.worker.barracks.full=Este quartel está cheio (um capanga por cama).
+
+travellers.gui.back=Voltar
+travellers.gui.close=Fechar
+travellers.gui.add=Adicionar
+travellers.gui.remove=Remover
+travellers.gui.done=Concluído
+travellers.gui.save=Salvar
+travellers.gui.cancel=Cancelar
+travellers.gui.clear=Limpar
+travellers.gui.go=Ir
+travellers.gui.unnamed=(unnamed)
+
+travellers.map.center=Centro
+travellers.map.unavailable_dimension=O mapa só mostra o Overworld.
+travellers.map.teleport=Teletransporte
+travellers.map.teleport.active=Clique no mapa...
+travellers.map.spawn_traveller=Gerar viajante
+travellers.map.spawn_worker=Gerar capangas
+travellers.map.spawn_raider=Gerar saqueadores
+travellers.map.spawn.active=Clique no mapa...
+travellers.map.chunks.legend.loaded_normal=Chunks carregados (normal)
+travellers.map.chunks.legend.loaded_merchants=Chunks carregados por capangas de viajantes
+travellers.map.chunks.legend.villages=Salões da Vila
+travellers.map.chunks.legend.center_chunk=Quadrado branco = chunk central
+travellers.map.chunks.legend.player_pos=Ponto verde = sua posição
+
+travellers.worker.behavior.title=Comportamento
+travellers.worker.behavior.player_enemies=Relações com jogadores
+travellers.worker.behavior.village_relations=Relações com vilas
+
+travellers.worker.enemies.title=Relações com jogadores
+travellers.worker.enemies.hint=Seus capangas atacam jogadores inimigos à vista. Selecione um jogador para mudar.
+travellers.worker.enemies.none=Nenhum outro jogador entrou neste servidor ainda.
+travellers.worker.enemies.make_enemy=Criar inimigo
+travellers.worker.enemies.make_friendly=Tornar amigável
+travellers.worker.enemies.tag.enemy=Inimigo
+travellers.worker.enemies.tag.friendly=Amigável
+
+travellers.worker.village_relations.title=Relações com vilas
+travellers.worker.village_relations.hint=Selecione uma vila, depois alterne o inimigo.
+travellers.worker.village_relations.toggle_enemy=Alternar inimigo
+travellers.worker.village_relations.none_known=Nenhuma vila conhecida por perto ainda.
+
+travellers.home_name_prompt.title=Nome do seu lar
+travellers.home_name_prompt.subtitle=Você pode atribuí-lo a capangas contratados e enviá-los aqui, mais virão.
+
+travellers.worker.home_list.title=Quartel
+travellers.worker.home_list.set_home=Definir quartel
+
+travellers.worker.orders.go=Ir...
+travellers.worker.orders.home=Quartel
+travellers.worker.orders.go_home=Ir para o quartel
+travellers.worker.orders.go_home_no_home=Ir para o quartel (nenhum)
+travellers.worker.orders.leader_count=Líder (%s)
+travellers.worker.orders.choir_start=Cante uma canção
+travellers.worker.orders.choir_stop=Pare de cantar
+travellers.worker.orders.choir.tooltip=Faça este capanga cantar junto com outros capangas cantando por perto (WIP APENAS 1 CÂNCA PARA NORMANS)
+
+travellers.worker.recruit.start=Recrutar
+travellers.worker.recruit.cost=Custo da missão: %s
+travellers.worker.recruit.count=Recrutas: %s/%s
+travellers.worker.recruit.cost.travel=Viagem: %s
+travellers.worker.recruit.cost.purse=Bolsa para os recrutas: %s
+travellers.worker.recruit.cost.refund=O que a bolsa não gasta volta para você.
+travellers.worker.recruit.none=Nenhuma vila no alcance
+travellers.worker.recruit.blocked.enemy=Inimigo
+travellers.worker.recruit.blocked.reputation=Desconfiada
+travellers.worker.recruit.tip.villages=%s vilas, a mais próxima %sm de distância
+travellers.worker.recruit.tip.free=Cerca de %s de seu povo ao redor
+travellers.worker.recruit.tip.chance=%s%% chance que cada um concorde
+travellers.worker.recruit.tip.enemy=Uma de suas vilas é seu inimigo
+travellers.worker.recruit.tip.reputation=Sua reputação com eles é baixa demais
+travellers.worker.recruit.report.title=%s, %s de distância
+travellers.worker.recruit.report.take=Pegue %s
+travellers.worker.recruit.report.taken=Bolsa vazia
+travellers.worker.recruit.report.spent=Gastou
+travellers.worker.recruit.report.left=Deixado na bolsa
+travellers.worker.recruit.report.dead_short=+%s morto
+travellers.worker.recruit.report.tip.found=%s encontrado de %s procurado
+travellers.worker.recruit.report.tip.where=%s nas vilas, %s no caminho
+travellers.worker.recruit.report.tip.dead=%s morreu pelo caminho
+travellers.worker.recruit.report.map.visited=%s. %s: %s recrutas
+travellers.worker.recruit.report.map.skipped=%s: pulado
+travellers.worker.recruit.report.map.not_reached=%s não alcançou
+travellers.worker.recruit.report.map.road=%s juntaram-se na estrada
+travellers.worker.recruit.report.map.death=Um recruta morreu aqui
+
+travellers.worker.home_list.empty=Nenhuma quartel atribuída a você. Shift+click direito em algum lugar com varinha de invocação para criar um quartel.
+
+travellers.worker.hub.formation=Formações
+travellers.worker.hub.formation.tooltip=Gerencie suas unidades.
+
+travellers.worker.formation.title=Formação & Grupos
+travellers.worker.formation.preview=Prévia do radar
+travellers.worker.formation.preview_adaptive_cave=Caverna adaptativa: LIGADO
+travellers.worker.formation.preview_surface_bias=Caverna adaptativa: DESLIGADO
+
+travellers.worker.formation.scope=Alcance
+travellers.worker.formation.scope_type=Tipo
+travellers.worker.formation.scope.player=Jogador
+travellers.worker.formation.scope.worker=Líder de capanga
+travellers.worker.formation.followers=Seguidores
+
+travellers.worker.formation.style=Estilo
+travellers.worker.formation.follow_distance=Distância de seguimento
+travellers.worker.formation.spacing=Espaçamento
+travellers.worker.formation.width=Largura
+travellers.worker.formation.turn=Virada suave
+travellers.worker.formation.cave=Modo caverna
+
+travellers.worker.formation.cave.on=Caverna adaptativa: LIGADO
+travellers.worker.formation.cave.off=Caverna adaptativa: DESLIGADO
+travellers.worker.formation.escorts=Escortes
+travellers.worker.formation.cohesion=Cohesão do jogador
+
+travellers.worker.formation.attitude=Atitude
+travellers.worker.formation.attitude.tooltip=Ataque: você persegue livremente; Defesa: você é menos agressiva, Mantenha Posição: movimento mínimo
+travellers.worker.formation.attitude.attack=Ataque
+travellers.worker.formation.attitude.defend=Defesa
+travellers.worker.formation.attitude.hold=Mantenha Posição
+
+travellers.worker.formation.style.compact=Compacto
+travellers.worker.formation.style.line=Linha
+travellers.worker.formation.style.column=Coluna
+travellers.worker.formation.style.wedge=Cunha
+travellers.worker.formation.style.adaptive=Adaptativo
+
+travellers.worker.formation.controls=Controles
+travellers.worker.formation.preview.forward=Avanço
+travellers.worker.formation.preview.zoom=Ampliar: %s
+travellers.worker.formation.preview.count=Mostrados: %s
+travellers.worker.formation.preview.reset=Reiniciar
+travellers.worker.formation.hover.leader=Líder
+travellers.worker.formation.hover.slot=Lugar para seguidor %s
+travellers.worker.formation.hover.escort=Escolta próxima #%s
+travellers.worker.formation.hover.offset=Deslocamento: x=%s z=%s
+
+travellers.worker.hub.mark_button=Marca de capanga
+travellers.worker.hub.mark_button.desc=Edite a marca visual dos capangas que contratou
+
+travellers.worker.mark.title=Aparência
+travellers.worker.mark.style=Estilo
+travellers.worker.mark.color=Cor: %s
+travellers.worker.mark.preview=Prévu
+travellers.worker.mark.preview.follower=Capanga
+travellers.worker.mark.preview.leader=Líder
+travellers.worker.mark.preview.leader_hint=Líderes usam uma sobreposição dedicada
+travellers.worker.mark.saved=Marca de capanga salva
+
+travellers.worker.mark.style.plain=Simples
+travellers.worker.mark.style.double=Dupla
+travellers.worker.mark.style.chevron=Cavalete
+travellers.worker.formation.hub_title=Formação & Grupos
+travellers.worker.formation.hint=Clique: selecionar  ·  Shift+clique/drag: adicionar capangas  ·  Clique direito: ordens  ·  Arrastar com o lado direito: mover o mapa
+travellers.worker.formation.card.you=Sua escolta
+travellers.worker.formation.card.workers=%s capangas
+travellers.worker.formation.card.following=marchar
+travellers.worker.formation.card.halted=parado
+travellers.worker.formation.card.en_route=a caminho
+travellers.worker.formation.leaders=Líderes
+travellers.worker.formation.barracks=Quartel
+travellers.worker.formation.zone.beds=%s/%s camas
+travellers.worker.formation.zone.horses=%s/%s cavalos
+travellers.worker.formation.zone.horse_state=%s domado · %s selado
+travellers.worker.formation.zone.hands=%s estábulo · %s aqui
+travellers.worker.formation.zone.nobody=Ninguém vive aqui.
+travellers.worker.formation.zone.here_away=%s aqui · %s lá
+travellers.worker.formation.zone.at_rest=%s em repouso, livre para agrupar
+travellers.worker.formation.card.busy=em missão
+travellers.worker.formation.card.followers_selected=%s selecionado
+travellers.worker.formation.card.followers_hint=Clique direito: envie para algum lugar, forme um grupo, junte-se a um ou faça com que sigam você.
+travellers.worker.formation.menu.go=Vá aqui
+travellers.worker.formation.menu.equip=Pegue equipamento...
+travellers.worker.formation.menu.loadout=Equipamento para carregar:
+travellers.worker.formation.menu.loadout.melee=Combate corpo a corpo
+travellers.worker.formation.menu.loadout.bow=Arco
+travellers.worker.formation.menu.loadout.shield=Escudo
+travellers.worker.formation.menu.loadout.armour=Armadura
+travellers.worker.formation.summary.members=%s capangas
+travellers.worker.formation.summary.wounded=%s feridos
+travellers.worker.formation.summary.armour=Armadura
+travellers.worker.formation.summary.armour.diamond=Diamante
+travellers.worker.formation.summary.armour.iron=Ferro
+travellers.worker.formation.summary.armour.chain=Corrente
+travellers.worker.formation.summary.armour.gold=Ouro
+travellers.worker.formation.summary.armour.leather=Couro
+travellers.worker.formation.summary.armour.other=Outro
+travellers.worker.formation.summary.armour.none=Nenhum
+travellers.worker.formation.menu.dump=Descarregar itens...
+travellers.worker.formation.menu.take_horses=Pegar cavalos...
+travellers.worker.formation.menu.return_horses=Devolver cavalos...
+travellers.worker.formation.menu.after_mission=Depois:
+travellers.worker.formation.menu.stay_there=Fique aqui
+travellers.worker.formation.menu.come_back=Volte
+travellers.worker.formation.menu.follow_me=Siga-me
+travellers.worker.formation.menu.merge_escort=Fusione com meu escolta
+travellers.worker.formation.menu.follow_group=Siga este grupo
+travellers.worker.formation.menu.merge_group=Fusione com este grupo
+travellers.worker.formation.menu.halt=Pare aqui
+travellers.worker.formation.menu.recall=Retorne
+travellers.worker.formation.menu.resume=Retomar a marcha
+travellers.worker.formation.menu.create_group=Forme um grupo
+travellers.worker.formation.menu.create_group_go=Forme um grupo e vá para cá
+travellers.worker.formation.menu.join_group=Junte-se a este grupo
+travellers.worker.formation.menu.no_orders=Sem ordens
+travellers.worker.formation.menu.select=Selecione
+travellers.worker.formation.menu.reason.busy=Este grupo está em missão.
+travellers.worker.formation.menu.reason.target_busy=Esse grupo está em missão.
+travellers.worker.formation.menu.reason.need_two=Selecione pelo menos 2 capangas.
+travellers.worker.formation.menu.reason.select_first=Selecione um grupo ou alguns capangas primeiro.
+travellers.worker.formation.orders_tab=Ordens do líder
+travellers.worker.formation.menu.choose_follow=Siga quem?
+travellers.worker.formation.menu.choose_merge=Fusione em qual grupo?
+travellers.worker.formation.menu.choose_join=Junte-se a qual grupo?
+travellers.worker.formation.menu.no_other_group=Nenhum outro grupo
+travellers.worker.formation.menu.reason.no_other_group=Você ainda não tem outro grupo.
+travellers.worker.formation.bar.empty=Selecione um grupo ou alguns capangas para ver as ordens.
+travellers.worker.formation.bar.follow_me=Siga-me
+travellers.worker.formation.bar.follow_me.tip=Volte até você e siga.
+travellers.worker.formation.bar.halt=Pare
+travellers.worker.formation.bar.halt.tip=Pare onde estão.
+travellers.worker.formation.bar.resume=Retomar
+travellers.worker.formation.bar.resume.tip=Recomece o acompanhamento.
+travellers.worker.formation.bar.follow=Siga...
+travellers.worker.formation.bar.follow.tip=Escolha um grupo (ou você) para este grupo seguir.
+travellers.worker.formation.bar.merge=Mesclar com...
+travellers.worker.formation.bar.merge.tip=Escolha outro grupo para mesclar este grupo nele.
+travellers.worker.formation.bar.center=Centralizar
+travellers.worker.formation.bar.center.tip=Centralize o mapa neste grupo.
+travellers.worker.formation.bar.create_group=Formar grupo
+travellers.worker.formation.bar.create_group.tip=Forme um novo grupo com os capangas selecionados.
+travellers.worker.formation.bar.join=Junte-se...
+travellers.worker.formation.bar.join.tip=Escolha um grupo para os capangas selecionados se juntarem.
+travellers.worker.formation.you=Você
+travellers.worker.formation.set_home=quartel
+
+travellers.worker.home_list.delete=Excluir
+travellers.worker.home_list.get_equip=Obter Equipamento
+travellers.worker.home_list.equip_title=Escolha missão:
+travellers.worker.home_list.equip_stay_barracks=Fique - Quartel
+travellers.worker.home_list.equip_stay_village=Fique - Vila Inteira
+travellers.worker.home_list.equip_return_barracks=Volte - Quartel
+travellers.worker.home_list.equip_return_village=Volte - Vila Inteira
+
+key.travellers.formation_hub=Abrir Central de Formações
+key.travellers.world_map=Abrir Mapa Mundial
+key.categories.travellers=viajantes
+
+# Player zones (Barrack / Stable)
+travellers.lone_barrack.prompt.title=Nova Zona
+travellers.lone_barrack.prompt.name=Nome:
+travellers.lone_barrack.prompt.half_width=largura
+travellers.lone_barrack.prompt.half_depth=profundidade
+travellers.lone_barrack.prompt.half_height=altura
+travellers.lone_barrack.error.overlaps=Esta área sobrepõe uma zona existente.
+travellers.lone_barrack.error.invalid=Não é possível criar esta zona aqui: aproxime-se, mantenha-a dentro dos limites de tamanho e aguarde o carregamento da área.
+travellers.lone_barrack.created=Zona criada!
+
+travellers.zone.prompt.validate=Crie %s
+travellers.zone.prompt.role.chest=Baús: %s (mín. %s)
+travellers.zone.prompt.role.bed=Camas: %s (mín. %s)
+travellers.zone.prompt.role.hitch=Cercas: %s (mín. %s)
+travellers.zone.error.no_chest=Nenhum baú encontrado na área. Coloque pelo menos um baú no raio.
+travellers.zone.error.no_bed=Nenhuma cama encontrada na área. Coloque pelo menos uma cama (capacidade = um capanga por cama).
+travellers.zone.error.no_hitch=Nenhuma cerca encontrada na área. Coloque pelo menos uma cerca para que os cavalos possam ser amarrados nela.
+
+travellers.zone.barrack.title=Quartel
+travellers.zone.barrack.description=Moradia para capangas contratadas. Precisa de pelo menos uma cama e um baú. Os capangas designados aqui chamam de lar: podem renascer ao lado da cama depois de morrerem, e a capacidade é um capanga por cama.
+
+travellers.zone.stable.title=Estábulo
+travellers.zone.stable.description=Um rancho de cavalos para capangas contratadas. Precisa de pelo menos um baú, uma cerca para amarrar os cavalos e uma cama por estábulo. Os cavalariços designados amansam, selam e reproduzem cavalos aqui para seus outros trabalhadores montarem, e dormem nas camas à noite.
+
+# Map legend
+travellers.map.legend.controlled_village=Ctrl. Vila
+travellers.map.legend.enemy_village=Vila Inimiga
+travellers.map.settlement.population=%d habitantes
+travellers.map.settlement.kind=%s - %s
+travellers.map.settlement.reputation=Sua reputação: %s
+travellers.map.settlement.controlled_by=Controlada por %s
+travellers.map.settlement.under_attack=Sob ataque!
+travellers.map.settlement.raiding=Saqueadores %s
+travellers.map.settlement.enemy=Inimigo dos seus capangas
+travellers.map.legend.home=Quartel
+travellers.map.legend.stable=Estábulo
+travellers.map.legend.follower=Seguidor
+travellers.map.legend.leader=Líder
+travellers.map.legend.player=Você
+travellers.map.legend.camp_firepit=Fogueira de acampamento
+travellers.map.legend.camp_slot=Abrigo de acampamento
+travellers.map.legend.rest_spot=Local de descanso
+travellers.map.legend.road=Estrada
+travellers.map.legend.trail=Trilha
+travellers.map.legend.bridge=Ponte
+travellers.battle.report.running=Batalha
+travellers.battle.report.camp_assault=Assalto ao acampamento
+travellers.battle.report.won=Você venceu!
+travellers.battle.report.lost=Derrota
+travellers.battle.report.broken_off=Quebrado
+travellers.battle.report.over=Há %s
+travellers.battle.report.ago=Há %s
+travellers.battle.report.yours=Seus capangas
+travellers.battle.report.enemies=Inimigos
+travellers.battle.report.name.raiders=Saqueadores
+travellers.battle.report.name.travellers=viajantes
+travellers.battle.report.name.henchmen=Capangas
+travellers.battle.report.fallen=Caídos: %s
+travellers.battle.report.fallen_more=Caídos: %s e %s a mais
+travellers.battle.report.outlook.tomorrow=%s voltará para a cama amanhã
+travellers.battle.report.outlook.later=%s voltará em alguns dias
+travellers.battle.report.outlook.no_bed=%s não teve cama (perdida para sempre)
+travellers.battle.report.outlook.never=%s não voltará
+
+# Population map
+travellers.map.population.traveller=Viajantes: %d (%d carregados, %d virtuais)
+travellers.map.population.raider=Saqueadores: %d (%d carregados, %d virtuais)
+travellers.map.population.worker=Capangas: %d (%d carregados, %d virtuais)
+travellers.map.population.stable=Estábulos: %d (%d carregados, %d virtuais)
+
+# Henchman/unit hover tooltips
+travellers.map.worker.unnamed=Capanga #%d
+travellers.map.worker.unknown=Alguém
+travellers.map.worker.hp=§c♥§r %d/%d
+travellers.map.worker.in_battle=Na batalha!
+travellers.map.worker.following=Seguindo: %s
+travellers.map.worker.status.transport=No transporte
+travellers.map.worker.status.returning=Retornando para casa
+travellers.map.worker.status.recruiting=Recrutando
+travellers.map.worker.status.get_equipment=Buscando equipamentos
+travellers.map.worker.status.dump_items=Deixando itens
+travellers.map.worker.status.take_horses=Vai buscar um cavalo
+travellers.map.worker.status.return_horses=Vai devolver o cavalo
+travellers.map.worker.status.going_home=Voltando para casa
+travellers.map.worker.status.going_to=A caminho de um destino
+
+# On-screen notifications
+travellers.notify.hire.already_hired_by_other=Este viajante já está contratado por outro.
+travellers.notify.hire.needs_village_chief=Você deve ser o líder de uma vila da Millénaire para contratar capangas.
+travellers.notify.hire.not_enough_money=Você não tem dinheiro suficiente (%s).
+travellers.notify.hire.payment_failed=Contratação falhou: o dinheiro não pôde ser retirado.
+travellers.notify.hire.dismissed=O viajante não seguirá mais por você.
+
+travellers.notify.recruit.busy=Estou ocupado agora.
+travellers.notify.recruit.needs_group=Apenas o líder de um grupo pode ir recrutar.
+travellers.notify.recruit.no_villages_in_range=Não há vilas no alcance para recrutar.
+travellers.notify.recruit.not_enough_fee=Taxa de recrutamento: %s (você tem %s)
+travellers.notify.recruit.payment_failed=Pagamento da taxa de recrutamento falhou. Tente novamente.
+travellers.notify.recruit.recalled=%s está voltando.
+travellers.notify.recruit.mission_started=Missão de recrutamento iniciada. Taxa paga: %s
+travellers.notify.recruit.henchmen_recruited=Você recrutou %s capangas em %s.
+travellers.notify.recruit.henchmen_recruited_road=Recrutado %s capangas na estrada perto de %s.
+travellers.notify.recruit.mission_completed=Missão de recrutamento concluída.
+travellers.notify.recruit.back=%s voltou do recrutamento: fale com ele para ler o relatório.
+travellers.notify.worker.purse_no_room=Sem espaço para as moedas: libere algum espaço ou carregue uma bolsa da Millénaire.
+
+travellers.notify.worker.not_hired_transport=Você deve contratar este capanga para usar o Transporte.
+travellers.notify.worker.not_hired_inventory=Você só pode acessar o estoque de um capanga que contratou.
+travellers.notify.worker.not_hired_orders=Você só pode dar ordens a um capanga que contratou.
+travellers.notify.worker.not_hired_behavior=Você só pode gerenciar o comportamento de um capanga que contratou.
+travellers.notify.worker.not_hired_recruit=Você só pode recrutar com um capanga que contratou.
+travellers.notify.worker.not_hired_home=Você só pode gerenciar o lar de um capanga que contratou.
+travellers.notify.worker.not_hired_go=Você só pode dar ordens a um capanga que contratou.
+travellers.notify.worker.not_hired_formation=Você só pode gerenciar a formação de um capanga que contratou.
+travellers.notify.worker.not_hired_village_relations=Você só pode gerenciar as relações de vila de um capanga que contratou.
+
+travellers.notify.leader.released_followers=Liberou %s seguidores de volta para você.
+travellers.notify.leader.now_leading=Este capanga agora está liderando %s seguidores.
+travellers.notify.leader.no_free_followers=Não há seguidores livres para atribuir.
+travellers.notify.leader.succession=%s assumiu o comando do grupo.
+
+travellers.follow.choice.talk=Fale
+travellers.follow.choice.follow=Siga ele
+travellers.dialogue.gui.follow=Siga ele
+travellers.notify.follow.stopped_hurt=Você sofreu dano: parou de seguir.
+travellers.notify.follow.stopped_combat=Uma luta começou: você parou de seguir.
+travellers.notify.follow.stopped_hungry=Você está com muita fome para acompanhar: parou de seguir.
+travellers.notify.follow.target_lost=Você perdeu o rastro de quem estava seguindo.
+
+travellers.notify.home.not_your_worker=Não é seu capanga.
+travellers.notify.home.none_assigned=Nenhum lar atribuído.
+travellers.notify.home.lone_barrack_bed_destroyed=%s perdeu a cama em "%s" e nenhuma outra cama está livre ali: eles saíram da zona e estão voltando para você.
+
+travellers.notify.order.worker_busy=Este capanga está em uma tarefa e não pode aceitar novas ordens agora.
+travellers.notify.order.worker_on_duty=%s trabalha em "%s" e não aceita ordens lá. Designe-os do menu de zonas primeiro.
+travellers.notify.order.some_busy_skipped=%s capangas estavam em uma tarefa e foram deixados sozinhos.
+travellers.notify.goto.going_to=Capanga vai para: %s
+travellers.notify.goto.going_to_pos=Capanga vai para a posição do mapa selecionada.
+travellers.notify.goto.not_enough_money=Você precisa de %s para esta viagem.
+travellers.notify.goto.payment_failed=Pagamento falhou. Tente novamente.
+travellers.notify.goto.delivery_started_free=Certo, vou para %s!
+travellers.notify.goto.delivery_started_paid=Certo, vou para %s por %s.
+travellers.notify.goto.delivery_started_donate=Certo, vou para %s por %s como doação.
+
+travellers.notify.hostile.not_owner=Você não é dono deste capanga.
+travellers.notify.hostile.added=Os capangas vão atacar: %s
+travellers.notify.hostile.removed=Capanga removida: %s
+travellers.notify.hostile.war_declared_on_you=%s atacou seus capangas - você está em guerra com eles.
+
+travellers.notify.worker.arrived_home=O capanga está agora em casa.
+travellers.notify.worker.cargo_arrived_full=Estou aqui com suas mercadorias. Verifique minha mochila.
+travellers.notify.worker.cargo_arrived_partial=Estou aqui. Não consegui vender tudo, algumas mercadorias ainda estão na minha mochila.
+travellers.notify.worker.goods_left=%s ainda carrega mercadorias para você: fale com eles para pegar o resto.
+travellers.notify.worker.cargo_heading_home=%s não te encontra e está voltando para o quartel com sua carga.
+travellers.notify.worker.cargo_waiting=%s não te encontra e está esperando com sua carga onde você foi vista pela última vez.
+travellers.notify.worker.cargo_coming_back=%s está trazendo sua carga de volta para você.
+travellers.notify.worker.already_on_job=Já estou no trabalho.
+travellers.notify.worker.died=%s morreu.
+travellers.notify.worker.respawn_cancelled=%s não voltará: a cama deles sumiu, junto com tudo que guardaram.
+travellers.notify.worker.respawned=%s está de volta à cama.
+travellers.notify.worker.death_no_bed=Não tinha cama: não voltará.
+travellers.notify.worker.death_respawn_tomorrow=Estará de volta à cama amanhã de manhã.
+travellers.notify.worker.death_respawn_days=Estará de volta à cama em cerca de %s dias.
+travellers.notify.worker.retaliation_target=%s definido como inimigo (retaliação).
+
+travellers.notify.mount.led_terrain_blocked=%s tem o cavalo preso aqui - vai guiá-lo a pé no lugar.
+travellers.notify.mount.led_sidestep_gave_up=%s teve o cavalo preso e não conseguiu se soltar - vai guiá-lo a pé no lugar.
+travellers.notify.mount.led_low_health=%s tem o cavalo tão machucado que não consegue mais montar - vai guiá-lo a pé no lugar.
+
+travellers.notify.trade.refused=A vila se recusa a negociar com você (reputação baixa ou a vila não está negociando agora).
+travellers.notify.trade.village_gone=%s não conseguiu encontrar a vila e está trazendo sua carga de volta.
+travellers.notify.trade.sold_summary=Venda em %s: %s itens vendidos por %s, rep +%s%s
+travellers.notify.trade.donated_summary=Doação para %s: %s itens, rep +%s%s
+travellers.notify.goto.arrived=Seu capanga chegou ao destino.
+travellers.notify.goto.group_arrived=Seu grupo de %s capangas chegou ao destino.
+travellers.notify.equip.done=Equipamento organizado: %s de %s trocaram o equipamento.
+travellers.notify.equip.nothing=Nada melhor para equipar foi encontrado.
+travellers.notify.dump.done=%s itens armazenados, deixados por %s capangas.
+travellers.notify.dump.full=Sem mais espaço: %s itens armazenados, %s ficaram nas mochilas.
+travellers.notify.dump.nothing=Nada foi deixado.
+
+travellers.notify.battle.under_attack=Seus capangas estão sob ataque
+travellers.notify.battle.fallen=Batalha: %s de seus capangas caíram (%s)
+travellers.notify.battle.fallen_more=Batalha: %s de seus capangas caíram (%s e %s a mais)
+travellers.notify.battle.won=Batalha vencida - %s de seus capangas caíram
+travellers.notify.battle.lost=Batalha perdida - %s de seus capangas caíram
+travellers.notify.battle.broken_off=Batalha interrompida - %s de seus capangas caíram
+travellers.notify.battle.away_summary=Enquanto você estava fora: %s batalhas, %s de seus capangas caíram
+travellers.notify.overflow=+%s mais avisos
+travellers.notify.location_suffix=%sm para a %s
+
+travellers.gui.history.loading=Carregando histórico...
+travellers.gui.history.empty=Nenhum evento até agora.
+travellers.gui.history.time.just_now=agora
+travellers.gui.history.time.minutes_ago=%s m atrás
+travellers.gui.history.time.hours_ago=%s h atrás
+travellers.gui.history.time.days_ago=%s d atrás
+
+travellers.dialogue.worker_farewell=Fiz o que tive que fazer. Deixe-me descansar um pouco.
+travellers.dialogue.staying_in_village=Estou ficando em %s por um tempo.
+travellers.dialogue.no_destination=Não tenho um destino no momento.
+travellers.dialogue.heading_to=Estou indo para %s no %s.
+travellers.dialogue.gui_fallback_heading_to=Estou indo para %s.
+
+# --- Dialogue GUI (AI conversation) ---
+travellers.dialogue.gui.title=Falar
+travellers.dialogue.gui.not_configured=Você ainda não configurou o diálogo da IA.
+travellers.dialogue.gui.configure=Configurar o Diálogo da IA
+travellers.dialogue.gui.send=Enviar
+travellers.dialogue.gui.you=Você
+travellers.dialogue.gui.generating=...
+travellers.dialogue.gui.looking_up=...(pensando sobre isso)...
+travellers.dialogue.gui.tool_cap_fallback=Vou pensar um pouco mais antes de responder.
+travellers.dialogue.gui.error_note=(Algo deu errado ao alcançar sua IA local.)
+
+# --- Dialogue setup screen (client-local AI server connection) ---
+travellers.dialogue.setup.title=Configuração do Diálogo da IA
+travellers.dialogue.setup.server_type=Servidor: %s
+travellers.dialogue.setup.host=Host do servidor
+travellers.dialogue.setup.port=Porta
+travellers.dialogue.setup.enabled=Diálogo da IA:
+travellers.dialogue.setup.preload=Pré-carregar o modelo na inicialização
+travellers.dialogue.setup.preload_help=Aquece seu modelo escolhido quando o jogo inicia, para que a primeira conversa não seja lenta.
+travellers.dialogue.setup.preload_not_needed=Não necessário: llama.cpp já carregou seu modelo.
+travellers.dialogue.setup.test_connection=Testar conexão
+travellers.dialogue.setup.testing=Testando...
+travellers.dialogue.setup.test_ok=Conectado - %d modelo(s) encontrado(s).
+travellers.dialogue.setup.test_no_models=Conectado, mas nenhum modelo foi carregado ainda.
+travellers.dialogue.setup.test_failed=Não foi possível conectar: %s
+travellers.dialogue.setup.detail_level=Detalhe para você: %s
+travellers.dialogue.setup.detail_level.minimal=Mínimo
+travellers.dialogue.setup.detail_level.standard=Padrão
+travellers.dialogue.setup.detail_level.rich=Rico
+travellers.dialogue.setup.detail_level_help=Rico = mais detalhes, precisa de um modelo local maior para você.
+travellers.dialogue.setup.debug_dump=Depuração: despeja prompts brutos
+travellers.dialogue.setup.debug_dump_help=Escreve tudo enviado ao AI em um arquivo de log para você diagnosticar respostas ruins.
+travellers.dialogue.setup.advanced=Avançado (configurações do modelo)
+
+travellers.dialogue.setup.advanced.title=Configurações Avançadas do Modelo
+travellers.dialogue.setup.advanced.intro=Você deve deixar um campo vazio para usar o padrão do modelo.
+travellers.dialogue.setup.advanced.think=Pensamento estendido
+travellers.dialogue.setup.advanced.tools=Deixe o NPC procurar as coisas para você.
+travellers.dialogue.setup.advanced.tools_warning=Nem todo modelo suporta isso - os que não suportam simplesmente ignoram para você.
+travellers.dialogue.setup.advanced.reset=Redefinir para os padrões originais
+travellers.dialogue.setup.advanced.num_ctx=Tamanho do contexto (memória, num_ctx)
+travellers.dialogue.setup.advanced.num_ctx_fixed=Tamanho do contexto: definido quando o llama.cpp inicia para você.
+travellers.dialogue.setup.advanced.temperature=Temperatura (criatividade)
+travellers.dialogue.setup.advanced.top_p=Top P (foco de palavras)
+travellers.dialogue.setup.advanced.top_k=Top K (escolhas de palavras)
+travellers.dialogue.setup.advanced.repeat_penalty=Penalidade de repetição
+travellers.dialogue.setup.advanced.num_predict=Comprimento máximo da resposta (-1 = sem limite)
+
+# --- Worker hub menu tree ---
+travellers.worker.hub.node.orders=Ordens
+travellers.worker.hub.node.follow=Siga-me
+travellers.worker.hub.node.follow_player=Me siga
+travellers.worker.hub.node.follow_him=Siga ele
+travellers.worker.hub.node.follow_him.tooltip=Ande atrás deste capanga e largue as mãos. Pressione qualquer tecla de movimento para parar.
+travellers.worker.hub.node.leader=Líder
+travellers.worker.hub.node.go=Missões
+travellers.worker.hub.node.travel=Viajar
+travellers.worker.hub.node.recruit=Recrutar
+travellers.worker.hub.node.recruit.tooltip=Envia este líder e seu grupo em uma turnê de recrutamento. Faça você liderar pelo menos um capanga primeiro.
+travellers.worker.hub.node.choir=Cante
+travellers.worker.hub.node.transport=Transporte
+travellers.worker.hub.node.unhire=Despedir
+travellers.worker.hub.node.unhire_confirm=Tem certeza?
+travellers.worker.hub.node.unhire.tooltip=Despedir este capanga. Clique duas vezes para confirmar.
+travellers.worker.hub.node.management=Gestão
+travellers.worker.hub.node.players=Jogadores
+travellers.worker.hub.node.players.tooltip=Escolha quais jogadores seus capangas tratam como inimigos. Aplica-se a todos os seus capangas, não apenas a este.
+travellers.worker.hub.node.relations=Relações
+travellers.worker.hub.node.villages=Vilas
+travellers.worker.hub.node.villages.tooltip=Como seus capangas se comportam perto de cada vila. Aplica-se a todos os seus capangas, não apenas a este.
+travellers.worker.hub.node.barracks=Zonas
+travellers.worker.hub.node.inventory=Inventário
+travellers.worker.hub.node.formation=Formação
+travellers.worker.hub.info.health=Vida %s/%s
+travellers.worker.hub.info.village=De %s
+travellers.notify.raid.incoming=Ataque vindo!
+travellers.notify.raid.wave=Onda %s/%s entrando!
+travellers.notify.raid.repelled=Ataque repelido.
+travellers.notify.raid.scattered=Ataque sobre: os saqueadores se dispersam.
+travellers.raid.bar=Ataque — onda %s/%s
+
+# /summonworkers
+commands.travellers.summonworkers.usage=/summonworkers <count> [jogador] [equipamento=natural|nenhum|couro|corrente|ferro=diamante] [arma=natural|melee|bow] [escudo=natural|sim|não] [montaria=natural|sim|não] [cultura=<id>]
+commands.travellers.summonworkers.success=Você gerou %s trabalhadores contratados (%s a cavalo) para %s.
+commands.travellers.summonworkers.partial=%s trabalhadores não encontraram um lugar seguro perto e não foram gerados.
+commands.travellers.summonworkers.none=Nenhum lugar seguro encontrado ao redor de %s.
+commands.travellers.summonworkers.bowShield=Um trabalhador não pode carregar um arco e um escudo juntos.
+commands.travellers.summonworkers.badOption=Opção desconhecida: %s
+commands.travellers.summonworkers.badCulture=Cultura desconhecida: %s
+commands.travellers.summonworkers.mountsDisabled=Montagens a cavalo estão desabilitadas no config: nenhum cavalo será dado.
+
+tile.travellers.village_of_nature.name=A Vila da Natureza
+
+# GUI unification: screen titles and hints
+travellers.map.title=Mapa mundial
+travellers.worker.go.title=Envie para um lugar
+travellers.worker.recruit.title=Recrutar capangas
+travellers.worker.barracks.title=Zonas

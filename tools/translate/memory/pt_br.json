@@ -1,0 +1,2362 @@
+{
+ "commands.travellers.summonworkers.badCulture": {
+  "en": "Unknown culture: %s",
+  "tr": "Cultura desconhecida: %s"
+ },
+ "commands.travellers.summonworkers.badOption": {
+  "en": "Unknown option: %s",
+  "tr": "Opção desconhecida: %s"
+ },
+ "commands.travellers.summonworkers.bowShield": {
+  "en": "A worker can't carry a bow and a shield together.",
+  "tr": "Um trabalhador não pode carregar um arco e um escudo juntos."
+ },
+ "commands.travellers.summonworkers.mountsDisabled": {
+  "en": "Horse mounts are disabled in the config: no horses will be given.",
+  "tr": "Montagens a cavalo estão desabilitadas no config: nenhum cavalo será dado."
+ },
+ "commands.travellers.summonworkers.none": {
+  "en": "No safe spot found around %s.",
+  "tr": "Nenhum lugar seguro encontrado ao redor de %s."
+ },
+ "commands.travellers.summonworkers.partial": {
+  "en": "%s workers found no safe spot nearby and were not spawned.",
+  "tr": "%s trabalhadores não encontraram um lugar seguro perto e não foram gerados."
+ },
+ "commands.travellers.summonworkers.success": {
+  "en": "Spawned %s hired workers (%s on horseback) for %s.",
+  "tr": "Você gerou %s trabalhadores contratados (%s a cavalo) para %s."
+ },
+ "commands.travellers.summonworkers.usage": {
+  "en": "/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]",
+  "tr": "/summonworkers <count> [jogador] [equipamento=natural|nenhum|couro|corrente|ferro=diamante] [arma=natural|melee|bow] [escudo=natural|sim|não] [montaria=natural|sim|não] [cultura=<id>]"
+ },
+ "entity.travellers.traveller.name": {
+  "en": "Traveller",
+  "tr": "Viajante"
+ },
+ "entity.travellers.traveller_raider.name": {
+  "en": "Raider",
+  "tr": "Saqueador"
+ },
+ "entity.travellers.traveller_worker.name": {
+  "en": "Henchman",
+  "tr": "Capanga"
+ },
+ "key.categories.travellers": {
+  "en": "Travellers",
+  "tr": "viajantes"
+ },
+ "key.travellers.formation_hub": {
+  "en": "Open Formation Hub",
+  "tr": "Abrir Central de Formações"
+ },
+ "key.travellers.world_map": {
+  "en": "Open World Map",
+  "tr": "Abrir Mapa Mundial"
+ },
+ "tile.travellers.village_of_nature.name": {
+  "en": "The Village of Nature",
+  "tr": "A Vila da Natureza"
+ },
+ "travellers.battle.report.ago": {
+  "en": "%s ago",
+  "tr": "Há %s"
+ },
+ "travellers.battle.report.broken_off": {
+  "en": "Broken off",
+  "tr": "Quebrado"
+ },
+ "travellers.battle.report.camp_assault": {
+  "en": "Camp assault",
+  "tr": "Assalto ao acampamento"
+ },
+ "travellers.battle.report.enemies": {
+  "en": "Enemies",
+  "tr": "Inimigos"
+ },
+ "travellers.battle.report.fallen": {
+  "en": "Fallen: %s",
+  "tr": "Caídos: %s"
+ },
+ "travellers.battle.report.fallen_more": {
+  "en": "Fallen: %s and %s more",
+  "tr": "Caídos: %s e %s a mais"
+ },
+ "travellers.battle.report.lost": {
+  "en": "Defeat",
+  "tr": "Derrota"
+ },
+ "travellers.battle.report.name.henchmen": {
+  "en": "Henchmen",
+  "tr": "Capangas"
+ },
+ "travellers.battle.report.name.raiders": {
+  "en": "Raiders",
+  "tr": "Saqueadores"
+ },
+ "travellers.battle.report.name.travellers": {
+  "en": "Travellers",
+  "tr": "viajantes"
+ },
+ "travellers.battle.report.outlook.later": {
+  "en": "%s back in a few days",
+  "tr": "%s voltará em alguns dias"
+ },
+ "travellers.battle.report.outlook.never": {
+  "en": "%s will not come back",
+  "tr": "%s não voltará"
+ },
+ "travellers.battle.report.outlook.no_bed": {
+  "en": "%s had no bed (lost for good)",
+  "tr": "%s não teve cama (perdida para sempre)"
+ },
+ "travellers.battle.report.outlook.tomorrow": {
+  "en": "%s back at their bed tomorrow",
+  "tr": "%s voltará para a cama amanhã"
+ },
+ "travellers.battle.report.over": {
+  "en": "%s won",
+  "tr": "Há %s"
+ },
+ "travellers.battle.report.running": {
+  "en": "Battle",
+  "tr": "Batalha"
+ },
+ "travellers.battle.report.won": {
+  "en": "Victory",
+  "tr": "Você venceu!"
+ },
+ "travellers.battle.report.yours": {
+  "en": "Your henchmen",
+  "tr": "Seus capangas"
+ },
+ "travellers.dialogue.gui.configure": {
+  "en": "Configure AI Dialogue",
+  "tr": "Configurar o Diálogo da IA"
+ },
+ "travellers.dialogue.gui.error_note": {
+  "en": "(Something went wrong reaching your local AI.)",
+  "tr": "(Algo deu errado ao alcançar sua IA local.)"
+ },
+ "travellers.dialogue.gui.follow": {
+  "en": "Follow him",
+  "tr": "Siga ele"
+ },
+ "travellers.dialogue.gui.generating": {
+  "en": "...",
+  "tr": "..."
+ },
+ "travellers.dialogue.gui.looking_up": {
+  "en": "...(thinking it over)...",
+  "tr": "...(pensando sobre isso)..."
+ },
+ "travellers.dialogue.gui.not_configured": {
+  "en": "You haven't set up AI dialogue yet.",
+  "tr": "Você ainda não configurou o diálogo da IA."
+ },
+ "travellers.dialogue.gui.send": {
+  "en": "Send",
+  "tr": "Enviar"
+ },
+ "travellers.dialogue.gui.title": {
+  "en": "Talk",
+  "tr": "Falar"
+ },
+ "travellers.dialogue.gui.tool_cap_fallback": {
+  "en": "Let me think on that a little more before I answer.",
+  "tr": "Vou pensar um pouco mais antes de responder."
+ },
+ "travellers.dialogue.gui.you": {
+  "en": "You",
+  "tr": "Você"
+ },
+ "travellers.dialogue.gui_fallback_heading_to": {
+  "en": "I'm actually heading to %s.",
+  "tr": "Estou indo para %s."
+ },
+ "travellers.dialogue.heading_to": {
+  "en": "I'm actually heading to %s in the %s.",
+  "tr": "Estou indo para %s no %s."
+ },
+ "travellers.dialogue.no_destination": {
+  "en": "I don't currently have a destination.",
+  "tr": "Não tenho um destino no momento."
+ },
+ "travellers.dialogue.setup.advanced": {
+  "en": "Advanced (model settings)",
+  "tr": "Avançado (configurações do modelo)"
+ },
+ "travellers.dialogue.setup.advanced.intro": {
+  "en": "Leave a field blank to use the model's own default.",
+  "tr": "Você deve deixar um campo vazio para usar o padrão do modelo."
+ },
+ "travellers.dialogue.setup.advanced.num_ctx": {
+  "en": "Context size (memory, num_ctx)",
+  "tr": "Tamanho do contexto (memória, num_ctx)"
+ },
+ "travellers.dialogue.setup.advanced.num_ctx_fixed": {
+  "en": "Context size: set when llama.cpp starts",
+  "tr": "Tamanho do contexto: definido quando o llama.cpp inicia para você."
+ },
+ "travellers.dialogue.setup.advanced.num_predict": {
+  "en": "Max reply length (-1 = no limit)",
+  "tr": "Comprimento máximo da resposta (-1 = sem limite)"
+ },
+ "travellers.dialogue.setup.advanced.repeat_penalty": {
+  "en": "Repeat penalty",
+  "tr": "Penalidade de repetição"
+ },
+ "travellers.dialogue.setup.advanced.reset": {
+  "en": "Reset to defaults",
+  "tr": "Redefinir para os padrões originais"
+ },
+ "travellers.dialogue.setup.advanced.temperature": {
+  "en": "Temperature (creativity)",
+  "tr": "Temperatura (criatividade)"
+ },
+ "travellers.dialogue.setup.advanced.think": {
+  "en": "Extended thinking",
+  "tr": "Pensamento estendido"
+ },
+ "travellers.dialogue.setup.advanced.title": {
+  "en": "Advanced Model Settings",
+  "tr": "Configurações Avançadas do Modelo"
+ },
+ "travellers.dialogue.setup.advanced.tools": {
+  "en": "Let the NPC look things up",
+  "tr": "Deixe o NPC procurar as coisas para você."
+ },
+ "travellers.dialogue.setup.advanced.tools_warning": {
+  "en": "Not every model supports this - unsupported ones just ignore it.",
+  "tr": "Nem todo modelo suporta isso - os que não suportam simplesmente ignoram para você."
+ },
+ "travellers.dialogue.setup.advanced.top_k": {
+  "en": "Top K (word choices)",
+  "tr": "Top K (escolhas de palavras)"
+ },
+ "travellers.dialogue.setup.advanced.top_p": {
+  "en": "Top P (word focus)",
+  "tr": "Top P (foco de palavras)"
+ },
+ "travellers.dialogue.setup.debug_dump": {
+  "en": "Debug: dump raw prompts",
+  "tr": "Depuração: despeja prompts brutos"
+ },
+ "travellers.dialogue.setup.debug_dump_help": {
+  "en": "Writes everything sent to the AI to a log file, for diagnosing bad answers",
+  "tr": "Escreve tudo enviado ao AI em um arquivo de log para você diagnosticar respostas ruins."
+ },
+ "travellers.dialogue.setup.detail_level": {
+  "en": "Detail: %s",
+  "tr": "Detalhe para você: %s"
+ },
+ "travellers.dialogue.setup.detail_level.minimal": {
+  "en": "Minimal",
+  "tr": "Mínimo"
+ },
+ "travellers.dialogue.setup.detail_level.rich": {
+  "en": "Rich",
+  "tr": "Rico"
+ },
+ "travellers.dialogue.setup.detail_level.standard": {
+  "en": "Standard",
+  "tr": "Padrão"
+ },
+ "travellers.dialogue.setup.detail_level_help": {
+  "en": "Rich = more detail, needs a bigger local model",
+  "tr": "Rico = mais detalhes, precisa de um modelo local maior para você."
+ },
+ "travellers.dialogue.setup.enabled": {
+  "en": "AI Dialogue:",
+  "tr": "Diálogo da IA:"
+ },
+ "travellers.dialogue.setup.host": {
+  "en": "Server host",
+  "tr": "Host do servidor"
+ },
+ "travellers.dialogue.setup.port": {
+  "en": "Port",
+  "tr": "Porta"
+ },
+ "travellers.dialogue.setup.preload": {
+  "en": "Preload model on startup",
+  "tr": "Pré-carregar o modelo na inicialização"
+ },
+ "travellers.dialogue.setup.preload_help": {
+  "en": "Warms up your chosen model when the game starts, so the first conversation isn't slow",
+  "tr": "Aquece seu modelo escolhido quando o jogo inicia, para que a primeira conversa não seja lenta."
+ },
+ "travellers.dialogue.setup.preload_not_needed": {
+  "en": "Not needed: llama.cpp has already loaded its model",
+  "tr": "Não necessário: llama.cpp já carregou seu modelo."
+ },
+ "travellers.dialogue.setup.server_type": {
+  "en": "Server: %s",
+  "tr": "Servidor: %s"
+ },
+ "travellers.dialogue.setup.test_connection": {
+  "en": "Test connection",
+  "tr": "Testar conexão"
+ },
+ "travellers.dialogue.setup.test_failed": {
+  "en": "Could not connect: %s",
+  "tr": "Não foi possível conectar: %s"
+ },
+ "travellers.dialogue.setup.test_no_models": {
+  "en": "Connected, but no models are pulled yet.",
+  "tr": "Conectado, mas nenhum modelo foi carregado ainda."
+ },
+ "travellers.dialogue.setup.test_ok": {
+  "en": "Connected - %d model(s) found.",
+  "tr": "Conectado - %d modelo(s) encontrado(s)."
+ },
+ "travellers.dialogue.setup.testing": {
+  "en": "Testing...",
+  "tr": "Testando..."
+ },
+ "travellers.dialogue.setup.title": {
+  "en": "AI Dialogue Setup",
+  "tr": "Configuração do Diálogo da IA"
+ },
+ "travellers.dialogue.staying_in_village": {
+  "en": "I'm staying in %s for a bit.",
+  "tr": "Estou ficando em %s por um tempo."
+ },
+ "travellers.dialogue.worker_farewell": {
+  "en": "I did what I had to do. Let me rest a bit.",
+  "tr": "Fiz o que tive que fazer. Deixe-me descansar um pouco."
+ },
+ "travellers.follow.choice.follow": {
+  "en": "Follow him",
+  "tr": "Siga ele"
+ },
+ "travellers.follow.choice.talk": {
+  "en": "Talk",
+  "tr": "Fale"
+ },
+ "travellers.gui.add": {
+  "en": "Add",
+  "tr": "Adicionar"
+ },
+ "travellers.gui.back": {
+  "en": "Back",
+  "tr": "Voltar"
+ },
+ "travellers.gui.cancel": {
+  "en": "Cancel",
+  "tr": "Cancelar"
+ },
+ "travellers.gui.clear": {
+  "en": "Clear",
+  "tr": "Limpar"
+ },
+ "travellers.gui.close": {
+  "en": "Close",
+  "tr": "Fechar"
+ },
+ "travellers.gui.done": {
+  "en": "Done",
+  "tr": "Concluído"
+ },
+ "travellers.gui.go": {
+  "en": "Go",
+  "tr": "Ir"
+ },
+ "travellers.gui.history.empty": {
+  "en": "No events yet.",
+  "tr": "Nenhum evento até agora."
+ },
+ "travellers.gui.history.loading": {
+  "en": "Loading history...",
+  "tr": "Carregando histórico..."
+ },
+ "travellers.gui.history.time.days_ago": {
+  "en": "%sd ago",
+  "tr": "%s d atrás"
+ },
+ "travellers.gui.history.time.hours_ago": {
+  "en": "%sh ago",
+  "tr": "%s h atrás"
+ },
+ "travellers.gui.history.time.just_now": {
+  "en": "just now",
+  "tr": "agora"
+ },
+ "travellers.gui.history.time.minutes_ago": {
+  "en": "%sm ago",
+  "tr": "%s m atrás"
+ },
+ "travellers.gui.remove": {
+  "en": "Remove",
+  "tr": "Remover"
+ },
+ "travellers.gui.save": {
+  "en": "Save",
+  "tr": "Salvar"
+ },
+ "travellers.gui.unnamed": {
+  "en": "(unnamed)",
+  "tr": "(unnamed)"
+ },
+ "travellers.home_name_prompt.subtitle": {
+  "en": "You can assign it to hired Henchmen and send them here, more to come.",
+  "tr": "Você pode atribuí-lo a capangas contratados e enviá-los aqui, mais virão."
+ },
+ "travellers.home_name_prompt.title": {
+  "en": "Name of your home",
+  "tr": "Nome do seu lar"
+ },
+ "travellers.lone_barrack.created": {
+  "en": "Zone created!",
+  "tr": "Zona criada!"
+ },
+ "travellers.lone_barrack.error.invalid": {
+  "en": "This zone cannot be created here: stand closer, keep it within the size limits, and wait for the area to load.",
+  "tr": "Não é possível criar esta zona aqui: aproxime-se, mantenha-a dentro dos limites de tamanho e aguarde o carregamento da área."
+ },
+ "travellers.lone_barrack.error.overlaps": {
+  "en": "This area overlaps an existing zone.",
+  "tr": "Esta área sobrepõe uma zona existente."
+ },
+ "travellers.lone_barrack.prompt.half_depth": {
+  "en": "depth",
+  "tr": "profundidade"
+ },
+ "travellers.lone_barrack.prompt.half_height": {
+  "en": "height",
+  "tr": "altura"
+ },
+ "travellers.lone_barrack.prompt.half_width": {
+  "en": "width",
+  "tr": "largura"
+ },
+ "travellers.lone_barrack.prompt.name": {
+  "en": "Name:",
+  "tr": "Nome:"
+ },
+ "travellers.lone_barrack.prompt.title": {
+  "en": "New Zone",
+  "tr": "Nova Zona"
+ },
+ "travellers.map.center": {
+  "en": "Center",
+  "tr": "Centro"
+ },
+ "travellers.map.chunks.legend.center_chunk": {
+  "en": "White square = current center chunk",
+  "tr": "Quadrado branco = chunk central"
+ },
+ "travellers.map.chunks.legend.loaded_merchants": {
+  "en": "Chunks loaded by travellers Henchmen",
+  "tr": "Chunks carregados por capangas de viajantes"
+ },
+ "travellers.map.chunks.legend.loaded_normal": {
+  "en": "Loaded chunks (normal)",
+  "tr": "Chunks carregados (normal)"
+ },
+ "travellers.map.chunks.legend.player_pos": {
+  "en": "Green dot = your pos",
+  "tr": "Ponto verde = sua posição"
+ },
+ "travellers.map.chunks.legend.villages": {
+  "en": "Village Town Halls",
+  "tr": "Salões da Vila"
+ },
+ "travellers.map.legend.bridge": {
+  "en": "Bridge",
+  "tr": "Ponte"
+ },
+ "travellers.map.legend.camp_firepit": {
+  "en": "Camp firepit",
+  "tr": "Fogueira de acampamento"
+ },
+ "travellers.map.legend.camp_slot": {
+  "en": "Camp shelter",
+  "tr": "Abrigo de acampamento"
+ },
+ "travellers.map.legend.controlled_village": {
+  "en": "Ctrl. Village",
+  "tr": "Ctrl. Vila"
+ },
+ "travellers.map.legend.enemy_village": {
+  "en": "Enemy village",
+  "tr": "Vila Inimiga"
+ },
+ "travellers.map.legend.follower": {
+  "en": "Follower",
+  "tr": "Seguidor"
+ },
+ "travellers.map.legend.home": {
+  "en": "Barrack",
+  "tr": "Quartel"
+ },
+ "travellers.map.legend.leader": {
+  "en": "Leader",
+  "tr": "Líder"
+ },
+ "travellers.map.legend.player": {
+  "en": "You",
+  "tr": "Você"
+ },
+ "travellers.map.legend.rest_spot": {
+  "en": "Rest spot",
+  "tr": "Local de descanso"
+ },
+ "travellers.map.legend.road": {
+  "en": "Road",
+  "tr": "Estrada"
+ },
+ "travellers.map.legend.stable": {
+  "en": "Stable",
+  "tr": "Estábulo"
+ },
+ "travellers.map.legend.trail": {
+  "en": "Trail",
+  "tr": "Trilha"
+ },
+ "travellers.map.population.raider": {
+  "en": "Raiders: %d (%d loaded, %d virtual)",
+  "tr": "Saqueadores: %d (%d carregados, %d virtuais)"
+ },
+ "travellers.map.population.stable": {
+  "en": "Stables: %d (%d loaded, %d virtual)",
+  "tr": "Estábulos: %d (%d carregados, %d virtuais)"
+ },
+ "travellers.map.population.traveller": {
+  "en": "Travellers: %d (%d loaded, %d virtual)",
+  "tr": "Viajantes: %d (%d carregados, %d virtuais)"
+ },
+ "travellers.map.population.worker": {
+  "en": "Henchmen: %d (%d loaded, %d virtual)",
+  "tr": "Capangas: %d (%d carregados, %d virtuais)"
+ },
+ "travellers.map.settlement.controlled_by": {
+  "en": "Controlled by %s",
+  "tr": "Controlada por %s"
+ },
+ "travellers.map.settlement.enemy": {
+  "en": "Enemy of your henchmen",
+  "tr": "Inimigo dos seus capangas"
+ },
+ "travellers.map.settlement.kind": {
+  "en": "%s - %s",
+  "tr": "%s - %s"
+ },
+ "travellers.map.settlement.population": {
+  "en": "%d inhabitants",
+  "tr": "%d habitantes"
+ },
+ "travellers.map.settlement.raiding": {
+  "en": "Raiding %s",
+  "tr": "Saqueadores %s"
+ },
+ "travellers.map.settlement.reputation": {
+  "en": "Your reputation: %s",
+  "tr": "Sua reputação: %s"
+ },
+ "travellers.map.settlement.under_attack": {
+  "en": "Under attack!",
+  "tr": "Sob ataque!"
+ },
+ "travellers.map.spawn.active": {
+  "en": "Click map...",
+  "tr": "Clique no mapa..."
+ },
+ "travellers.map.spawn_raider": {
+  "en": "Spawn raiders",
+  "tr": "Gerar saqueadores"
+ },
+ "travellers.map.spawn_traveller": {
+  "en": "Spawn traveller",
+  "tr": "Gerar viajante"
+ },
+ "travellers.map.spawn_worker": {
+  "en": "Spawn henchmen",
+  "tr": "Gerar capangas"
+ },
+ "travellers.map.teleport": {
+  "en": "Teleport",
+  "tr": "Teletransporte"
+ },
+ "travellers.map.teleport.active": {
+  "en": "Click map...",
+  "tr": "Clique no mapa..."
+ },
+ "travellers.map.title": {
+  "en": "World map",
+  "tr": "Mapa mundial"
+ },
+ "travellers.map.unavailable_dimension": {
+  "en": "The map only shows the Overworld.",
+  "tr": "O mapa só mostra o Overworld."
+ },
+ "travellers.map.worker.following": {
+  "en": "Following: %s",
+  "tr": "Seguindo: %s"
+ },
+ "travellers.map.worker.hp": {
+  "en": "§c♥§r %d/%d",
+  "tr": "§c♥§r %d/%d"
+ },
+ "travellers.map.worker.in_battle": {
+  "en": "In battle!",
+  "tr": "Na batalha!"
+ },
+ "travellers.map.worker.status.dump_items": {
+  "en": "Dropping off items",
+  "tr": "Deixando itens"
+ },
+ "travellers.map.worker.status.get_equipment": {
+  "en": "Fetching equipment",
+  "tr": "Buscando equipamentos"
+ },
+ "travellers.map.worker.status.going_home": {
+  "en": "Going home",
+  "tr": "Voltando para casa"
+ },
+ "travellers.map.worker.status.going_to": {
+  "en": "Heading to a destination",
+  "tr": "A caminho de um destino"
+ },
+ "travellers.map.worker.status.recruiting": {
+  "en": "On a recruit job",
+  "tr": "Recrutando"
+ },
+ "travellers.map.worker.status.return_horses": {
+  "en": "Going to return a horse",
+  "tr": "Vai devolver o cavalo"
+ },
+ "travellers.map.worker.status.returning": {
+  "en": "Returning home",
+  "tr": "Retornando para casa"
+ },
+ "travellers.map.worker.status.take_horses": {
+  "en": "Going to take a horse",
+  "tr": "Vai buscar um cavalo"
+ },
+ "travellers.map.worker.status.transport": {
+  "en": "On a transport job",
+  "tr": "No transporte"
+ },
+ "travellers.map.worker.unknown": {
+  "en": "Somebody",
+  "tr": "Alguém"
+ },
+ "travellers.map.worker.unnamed": {
+  "en": "Henchman #%d",
+  "tr": "Capanga #%d"
+ },
+ "travellers.notify.battle.away_summary": {
+  "en": "While you were away: %s battles, %s of your henchmen fell",
+  "tr": "Enquanto você estava fora: %s batalhas, %s de seus capangas caíram"
+ },
+ "travellers.notify.battle.broken_off": {
+  "en": "Battle broken off - %s of your henchmen fell",
+  "tr": "Batalha interrompida - %s de seus capangas caíram"
+ },
+ "travellers.notify.battle.fallen": {
+  "en": "Battle: %s of your henchmen fallen (%s)",
+  "tr": "Batalha: %s de seus capangas caíram (%s)"
+ },
+ "travellers.notify.battle.fallen_more": {
+  "en": "Battle: %s of your henchmen fallen (%s and %s more)",
+  "tr": "Batalha: %s de seus capangas caíram (%s e %s a mais)"
+ },
+ "travellers.notify.battle.lost": {
+  "en": "Battle lost - %s of your henchmen fell",
+  "tr": "Batalha perdida - %s de seus capangas caíram"
+ },
+ "travellers.notify.battle.under_attack": {
+  "en": "Your henchmen are under attack",
+  "tr": "Seus capangas estão sob ataque"
+ },
+ "travellers.notify.battle.won": {
+  "en": "Battle won - %s of your henchmen fell",
+  "tr": "Batalha vencida - %s de seus capangas caíram"
+ },
+ "travellers.notify.dump.done": {
+  "en": "%s items stored, dropped off by %s henchmen.",
+  "tr": "%s itens armazenados, deixados por %s capangas."
+ },
+ "travellers.notify.dump.full": {
+  "en": "No more room: %s items stored, %s stayed in the backpacks.",
+  "tr": "Sem mais espaço: %s itens armazenados, %s ficaram nas mochilas."
+ },
+ "travellers.notify.dump.nothing": {
+  "en": "Nothing was dropped off.",
+  "tr": "Nada foi deixado."
+ },
+ "travellers.notify.duty.assigned": {
+  "en": "Assigned to duty at %s.",
+  "tr": "Você foi atribuído ao serviço em %s."
+ },
+ "travellers.notify.duty.no_bed": {
+  "en": "%s has no free bed - place another bed in the Stable before assigning a stable hand there.",
+  "tr": "%s não tem cama livre - coloque outra cama no Estábulo antes de atribuir um cavalariço lá."
+ },
+ "travellers.notify.equip.done": {
+  "en": "Equipment sorted: %s of %s changed their gear.",
+  "tr": "Equipamento organizado: %s de %s trocaram o equipamento."
+ },
+ "travellers.notify.equip.nothing": {
+  "en": "Nothing better to equip was found.",
+  "tr": "Nada melhor para equipar foi encontrado."
+ },
+ "travellers.notify.follow.stopped_combat": {
+  "en": "A fight broke out: you stopped following.",
+  "tr": "Uma luta começou: você parou de seguir."
+ },
+ "travellers.notify.follow.stopped_hungry": {
+  "en": "You are too hungry to keep up: you stopped following.",
+  "tr": "Você está com muita fome para acompanhar: parou de seguir."
+ },
+ "travellers.notify.follow.stopped_hurt": {
+  "en": "You took damage: you stopped following.",
+  "tr": "Você sofreu dano: parou de seguir."
+ },
+ "travellers.notify.follow.target_lost": {
+  "en": "You lost sight of who you were following.",
+  "tr": "Você perdeu o rastro de quem estava seguindo."
+ },
+ "travellers.notify.goto.arrived": {
+  "en": "Your henchman has arrived at its destination.",
+  "tr": "Seu capanga chegou ao destino."
+ },
+ "travellers.notify.goto.delivery_started_donate": {
+  "en": "Alright, I'm heading to %s for %s as a donation.",
+  "tr": "Certo, vou para %s por %s como doação."
+ },
+ "travellers.notify.goto.delivery_started_free": {
+  "en": "Alright, I'm heading to %s!",
+  "tr": "Certo, vou para %s!"
+ },
+ "travellers.notify.goto.delivery_started_paid": {
+  "en": "Alright, I'm heading to %s for %s.",
+  "tr": "Certo, vou para %s por %s."
+ },
+ "travellers.notify.goto.going_to": {
+  "en": "Henchman is going to: %s",
+  "tr": "Capanga vai para: %s"
+ },
+ "travellers.notify.goto.going_to_pos": {
+  "en": "Henchman is going to selected map position.",
+  "tr": "Capanga vai para a posição do mapa selecionada."
+ },
+ "travellers.notify.goto.group_arrived": {
+  "en": "Your group of %s henchmen has arrived at its destination.",
+  "tr": "Seu grupo de %s capangas chegou ao destino."
+ },
+ "travellers.notify.goto.not_enough_money": {
+  "en": "You need %s for this trip.",
+  "tr": "Você precisa de %s para esta viagem."
+ },
+ "travellers.notify.goto.payment_failed": {
+  "en": "Payment failed. Try again.",
+  "tr": "Pagamento falhou. Tente novamente."
+ },
+ "travellers.notify.hire.already_hired_by_other": {
+  "en": "This travellers is already hired by someone else.",
+  "tr": "Este viajante já está contratado por outro."
+ },
+ "travellers.notify.hire.dismissed": {
+  "en": "The travellers will no longer follow you.",
+  "tr": "O viajante não seguirá mais por você."
+ },
+ "travellers.notify.hire.needs_village_chief": {
+  "en": "You must be chief of a Millenaire village to hire henchmen.",
+  "tr": "Você deve ser o líder de uma vila da Millénaire para contratar capangas."
+ },
+ "travellers.notify.hire.not_enough_money": {
+  "en": "You don't have enough money (%s needed).",
+  "tr": "Você não tem dinheiro suficiente (%s)."
+ },
+ "travellers.notify.hire.payment_failed": {
+  "en": "Hire failed: money could not be deducted.",
+  "tr": "Contratação falhou: o dinheiro não pôde ser retirado."
+ },
+ "travellers.notify.home.lone_barrack_bed_destroyed": {
+  "en": "%s lost their bed at \"%s\" and no other bed is free there: they left the zone and are coming back to you.",
+  "tr": "%s perdeu a cama em \"%s\" e nenhuma outra cama está livre ali: eles saíram da zona e estão voltando para você."
+ },
+ "travellers.notify.home.none_assigned": {
+  "en": "No home assigned.",
+  "tr": "Nenhum lar atribuído."
+ },
+ "travellers.notify.home.not_your_worker": {
+  "en": "Not your henchman.",
+  "tr": "Não é seu capanga."
+ },
+ "travellers.notify.hostile.added": {
+  "en": "Henchmen will attack: %s",
+  "tr": "Os capangas vão atacar: %s"
+ },
+ "travellers.notify.hostile.not_owner": {
+  "en": "You don't own this henchman.",
+  "tr": "Você não é dono deste capanga."
+ },
+ "travellers.notify.hostile.removed": {
+  "en": "Removed enemy: %s",
+  "tr": "Capanga removida: %s"
+ },
+ "travellers.notify.hostile.war_declared_on_you": {
+  "en": "%s attacked your henchmen - you are now at war with them.",
+  "tr": "%s atacou seus capangas - você está em guerra com eles."
+ },
+ "travellers.notify.leader.no_free_followers": {
+  "en": "No free direct followers to assign.",
+  "tr": "Não há seguidores livres para atribuir."
+ },
+ "travellers.notify.leader.now_leading": {
+  "en": "This henchman is now leading %s followers.",
+  "tr": "Este capanga agora está liderando %s seguidores."
+ },
+ "travellers.notify.leader.released_followers": {
+  "en": "Released %s followers back to you.",
+  "tr": "Liberou %s seguidores de volta para você."
+ },
+ "travellers.notify.leader.succession": {
+  "en": "%s has taken command of the group.",
+  "tr": "%s assumiu o comando do grupo."
+ },
+ "travellers.notify.location_suffix": {
+  "en": "%sm to the %s",
+  "tr": "%sm para a %s"
+ },
+ "travellers.notify.mount.led_low_health": {
+  "en": "%s's horse is too badly hurt to keep riding - leading it on foot instead.",
+  "tr": "%s tem o cavalo tão machucado que não consegue mais montar - vai guiá-lo a pé no lugar."
+ },
+ "travellers.notify.mount.led_sidestep_gave_up": {
+  "en": "%s's horse got stuck and couldn't work its way free - leading it on foot instead.",
+  "tr": "%s teve o cavalo preso e não conseguiu se soltar - vai guiá-lo a pé no lugar."
+ },
+ "travellers.notify.mount.led_terrain_blocked": {
+  "en": "%s's horse can't get through here - leading it on foot instead.",
+  "tr": "%s tem o cavalo preso aqui - vai guiá-lo a pé no lugar."
+ },
+ "travellers.notify.order.some_busy_skipped": {
+  "en": "%s henchmen were on a task and left alone.",
+  "tr": "%s capangas estavam em uma tarefa e foram deixados sozinhos."
+ },
+ "travellers.notify.order.worker_busy": {
+  "en": "This henchman is on a task and can't take new orders right now.",
+  "tr": "Este capanga está em uma tarefa e não pode aceitar novas ordens agora."
+ },
+ "travellers.notify.order.worker_on_duty": {
+  "en": "%s works at \"%s\" and takes no orders there. Unassign them from the zones menu first.",
+  "tr": "%s trabalha em \"%s\" e não aceita ordens lá. Designe-os do menu de zonas primeiro."
+ },
+ "travellers.notify.overflow": {
+  "en": "+%s more notices",
+  "tr": "+%s mais avisos"
+ },
+ "travellers.notify.raid.incoming": {
+  "en": "Raid incoming!",
+  "tr": "Ataque vindo!"
+ },
+ "travellers.notify.raid.repelled": {
+  "en": "Raid repelled.",
+  "tr": "Ataque repelido."
+ },
+ "travellers.notify.raid.scattered": {
+  "en": "Raid over: the raiders scatter.",
+  "tr": "Ataque sobre: os saqueadores se dispersam."
+ },
+ "travellers.notify.raid.wave": {
+  "en": "Wave %s/%s incoming!",
+  "tr": "Onda %s/%s entrando!"
+ },
+ "travellers.notify.recruit.back": {
+  "en": "%s is back from recruiting: talk to them to read the report.",
+  "tr": "%s voltou do recrutamento: fale com ele para ler o relatório."
+ },
+ "travellers.notify.recruit.busy": {
+  "en": "I'm busy right now.",
+  "tr": "Estou ocupado agora."
+ },
+ "travellers.notify.recruit.henchmen_recruited": {
+  "en": "Recruited %s henchmen at %s.",
+  "tr": "Você recrutou %s capangas em %s."
+ },
+ "travellers.notify.recruit.henchmen_recruited_road": {
+  "en": "Recruited %s henchmen on the road near %s.",
+  "tr": "Recrutado %s capangas na estrada perto de %s."
+ },
+ "travellers.notify.recruit.mission_completed": {
+  "en": "Recruit mission completed.",
+  "tr": "Missão de recrutamento concluída."
+ },
+ "travellers.notify.recruit.mission_started": {
+  "en": "Recruit mission started. Fee paid: %s",
+  "tr": "Missão de recrutamento iniciada. Taxa paga: %s"
+ },
+ "travellers.notify.recruit.needs_group": {
+  "en": "Only the leader of a group can go recruiting.",
+  "tr": "Apenas o líder de um grupo pode ir recrutar."
+ },
+ "travellers.notify.recruit.no_villages_in_range": {
+  "en": "No villages in range to recruit from.",
+  "tr": "Não há vilas no alcance para recrutar."
+ },
+ "travellers.notify.recruit.not_enough_fee": {
+  "en": "Recruit fee: %s (you have %s)",
+  "tr": "Taxa de recrutamento: %s (você tem %s)"
+ },
+ "travellers.notify.recruit.payment_failed": {
+  "en": "Recruit fee payment failed. Try again.",
+  "tr": "Pagamento da taxa de recrutamento falhou. Tente novamente."
+ },
+ "travellers.notify.recruit.recalled": {
+  "en": "%s is coming back.",
+  "tr": "%s está voltando."
+ },
+ "travellers.notify.stable.foal_born": {
+  "en": "A foal was born at %s.",
+  "tr": "Um filhote nasceu em %s."
+ },
+ "travellers.notify.stable.horse_saddled": {
+  "en": "A horse was saddled at %s.",
+  "tr": "Um cavalo foi selado em %s."
+ },
+ "travellers.notify.stable.horse_tamed": {
+  "en": "A horse was tamed at %s.",
+  "tr": "Um cavalo foi domado em %s."
+ },
+ "travellers.notify.stable.horses_returned": {
+  "en": "%s of %s workers dropped off their mounts at \"%s\".",
+  "tr": "%s de %s capangas deixaram seus montes em \"%s\"."
+ },
+ "travellers.notify.stable.horses_taken": {
+  "en": "%s of %s workers took a mount from \"%s\".",
+  "tr": "%s de %s capangas pegaram um monte de \"%s\"."
+ },
+ "travellers.notify.stable.mount_recovered": {
+  "en": "%s's horse joined the stable it was put on duty at.",
+  "tr": "%s juntou o cavalo ao estábulo onde foi colocado no serviço."
+ },
+ "travellers.notify.stable.no_horse_to_return": {
+  "en": "No horse could be returned to the stable.",
+  "tr": "Nenhum cavalo pôde ser devolvido ao estábulo."
+ },
+ "travellers.notify.stable.pool_too_small_to_equip": {
+  "en": "The stable \"%s\" had no saddled horse spare to give out - it also keeps a small reserve. Tame, saddle or breed more first.",
+  "tr": "O estábulo \"%s\" não tinha cavalo com sela reserva para dar - ele também guarda uma pequena reserva. Domine, selle ou crie mais primeiro."
+ },
+ "travellers.notify.trade.donated_summary": {
+  "en": "Donation to %s: %s items, rep +%s%s",
+  "tr": "Doação para %s: %s itens, rep +%s%s"
+ },
+ "travellers.notify.trade.refused": {
+  "en": "The village refuses to trade with you (reputation too low or village is not trading right now).",
+  "tr": "A vila se recusa a negociar com você (reputação baixa ou a vila não está negociando agora)."
+ },
+ "travellers.notify.trade.sold_summary": {
+  "en": "Sale at %s: %s items sold for %s, rep +%s%s",
+  "tr": "Venda em %s: %s itens vendidos por %s, rep +%s%s"
+ },
+ "travellers.notify.trade.village_gone": {
+  "en": "%s couldn't find the village and is bringing your cargo back.",
+  "tr": "%s não conseguiu encontrar a vila e está trazendo sua carga de volta."
+ },
+ "travellers.notify.worker.already_on_job": {
+  "en": "I'm already on a job.",
+  "tr": "Já estou no trabalho."
+ },
+ "travellers.notify.worker.arrived_home": {
+  "en": "Henchman is now at home.",
+  "tr": "O capanga está agora em casa."
+ },
+ "travellers.notify.worker.cargo_arrived_full": {
+  "en": "I'm here with your goods. Check my pack.",
+  "tr": "Estou aqui com suas mercadorias. Verifique minha mochila."
+ },
+ "travellers.notify.worker.cargo_arrived_partial": {
+  "en": "I'm here. I couldn't sell everything, some goods are still in my pack.",
+  "tr": "Estou aqui. Não consegui vender tudo, algumas mercadorias ainda estão na minha mochila."
+ },
+ "travellers.notify.worker.cargo_coming_back": {
+  "en": "%s is bringing your cargo back to you.",
+  "tr": "%s está trazendo sua carga de volta para você."
+ },
+ "travellers.notify.worker.cargo_heading_home": {
+  "en": "%s can't find you and is heading back to the Barrack with your cargo.",
+  "tr": "%s não te encontra e está voltando para o quartel com sua carga."
+ },
+ "travellers.notify.worker.cargo_waiting": {
+  "en": "%s can't find you and is waiting with your cargo where you were last seen.",
+  "tr": "%s não te encontra e está esperando com sua carga onde você foi vista pela última vez."
+ },
+ "travellers.notify.worker.death_no_bed": {
+  "en": "Had no bed: will not come back.",
+  "tr": "Não tinha cama: não voltará."
+ },
+ "travellers.notify.worker.death_respawn_days": {
+  "en": "Will be back at their bed in about %s days.",
+  "tr": "Estará de volta à cama em cerca de %s dias."
+ },
+ "travellers.notify.worker.death_respawn_tomorrow": {
+  "en": "Will be back at their bed tomorrow morning.",
+  "tr": "Estará de volta à cama amanhã de manhã."
+ },
+ "travellers.notify.worker.died": {
+  "en": "%s has died.",
+  "tr": "%s morreu."
+ },
+ "travellers.notify.worker.goods_left": {
+  "en": "%s still carries goods for you: talk to them to take the rest.",
+  "tr": "%s ainda carrega mercadorias para você: fale com eles para pegar o resto."
+ },
+ "travellers.notify.worker.not_hired_behavior": {
+  "en": "You can only manage behavior of a henchman you've hired.",
+  "tr": "Você só pode gerenciar o comportamento de um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_formation": {
+  "en": "You can only manage formation of a henchman you've hired.",
+  "tr": "Você só pode gerenciar a formação de um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_go": {
+  "en": "You can only order a henchman you've hired.",
+  "tr": "Você só pode dar ordens a um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_home": {
+  "en": "You can only manage home for a henchman you've hired.",
+  "tr": "Você só pode gerenciar o lar de um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_inventory": {
+  "en": "You can only access the pack of a henchman you've hired.",
+  "tr": "Você só pode acessar o estoque de um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_orders": {
+  "en": "You can only give orders to a henchman you've hired.",
+  "tr": "Você só pode dar ordens a um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_recruit": {
+  "en": "You can only recruit with a henchman you've hired.",
+  "tr": "Você só pode recrutar com um capanga que contratou."
+ },
+ "travellers.notify.worker.not_hired_transport": {
+  "en": "You must hire this henchman to use Transport.",
+  "tr": "Você deve contratar este capanga para usar o Transporte."
+ },
+ "travellers.notify.worker.not_hired_village_relations": {
+  "en": "You can only manage village relations of a henchman you've hired.",
+  "tr": "Você só pode gerenciar as relações de vila de um capanga que contratou."
+ },
+ "travellers.notify.worker.purse_no_room": {
+  "en": "No room for the coins: free some space or carry a Millénaire purse.",
+  "tr": "Sem espaço para as moedas: libere algum espaço ou carregue uma bolsa da Millénaire."
+ },
+ "travellers.notify.worker.respawn_cancelled": {
+  "en": "%s will not come back: their bed is gone, along with anything they kept.",
+  "tr": "%s não voltará: a cama deles sumiu, junto com tudo que guardaram."
+ },
+ "travellers.notify.worker.respawned": {
+  "en": "%s is back at their bed.",
+  "tr": "%s está de volta à cama."
+ },
+ "travellers.notify.worker.retaliation_target": {
+  "en": "%s set as enemy (retaliation).",
+  "tr": "%s definido como inimigo (retaliação)."
+ },
+ "travellers.raid.bar": {
+  "en": "Raid — wave %s/%s",
+  "tr": "Ataque — onda %s/%s"
+ },
+ "travellers.worker.barracks.delete": {
+  "en": "Delete Barrack",
+  "tr": "Excluir Quartel"
+ },
+ "travellers.worker.barracks.dragdrop": {
+  "en": "Select a zone, then drag & drop henchmen to assign or unassign them",
+  "tr": "Selecione uma zona, depois arraste e solte capangas para atribuir ou desatribuir."
+ },
+ "travellers.worker.barracks.dump": {
+  "en": "Dump Items",
+  "tr": "Descartar Itens"
+ },
+ "travellers.worker.barracks.dump.tooltip": {
+  "en": "Send this henchman to drop its spare items and food into the chests of a village or barrack. It keeps its best weapon and bow.",
+  "tr": "Envie este capanga para soltar seus itens reserva e comida nos baús de uma vila ou quartel. Ele mantém sua melhor arma e arco."
+ },
+ "travellers.worker.barracks.dump_return": {
+  "en": "Dump and Return",
+  "tr": "Descartar e Retornar"
+ },
+ "travellers.worker.barracks.dump_return.tooltip": {
+  "en": "Drop off the spare items, then come back to its previous spot.",
+  "tr": "Solte os itens reserva, depois volte ao seu local anterior."
+ },
+ "travellers.worker.barracks.dump_stay": {
+  "en": "Dump and Stay",
+  "tr": "Descartar e Ficar"
+ },
+ "travellers.worker.barracks.dump_stay.tooltip": {
+  "en": "Drop off the spare items, then stay there instead of coming back.",
+  "tr": "Solte os itens reserva, depois fique lá em vez de voltar."
+ },
+ "travellers.worker.barracks.equip_return": {
+  "en": "Equip and Return",
+  "tr": "Equipar e Retornar"
+ },
+ "travellers.worker.barracks.equip_return.tooltip": {
+  "en": "Fetch new equipment, then come back to its previous spot.",
+  "tr": "Busque novo equipamento, depois volte ao seu local anterior."
+ },
+ "travellers.worker.barracks.equip_stay": {
+  "en": "Equip and Stay",
+  "tr": "Equipar e Ficar"
+ },
+ "travellers.worker.barracks.equip_stay.tooltip": {
+  "en": "Fetch new equipment, then stay there instead of coming back.",
+  "tr": "Busque novo equipamento, depois fique lá em vez de voltar."
+ },
+ "travellers.worker.barracks.equip_title": {
+  "en": "Choose mission:",
+  "tr": "Escolha missão:"
+ },
+ "travellers.worker.barracks.full": {
+  "en": "This barrack is full (one Henchman per bed).",
+  "tr": "Este quartel está cheio (um capanga por cama)."
+ },
+ "travellers.worker.barracks.get_equip": {
+  "en": "Get Equipment",
+  "tr": "Obter Equipamento"
+ },
+ "travellers.worker.barracks.get_equip.tooltip": {
+  "en": "Send this henchman to take the best of the gear you tick and leave the rest in the chests.",
+  "tr": "Envie este capanga para você pegar o melhor do equipamento que você marcou e deixe o resto nos baús."
+ },
+ "travellers.worker.barracks.list": {
+  "en": "Barracks",
+  "tr": "Quartéis"
+ },
+ "travellers.worker.barracks.selected": {
+  "en": "Selected Barrack Henchmen",
+  "tr": "Capangas de Quartel selecionados"
+ },
+ "travellers.worker.barracks.take_horses": {
+  "en": "Take Horses",
+  "tr": "Pegar Cavalos"
+ },
+ "travellers.worker.barracks.take_horses.tooltip": {
+  "en": "Send this henchman to take a horse from a stable.",
+  "tr": "Envie este capanga para você pegar um cavalo de um estábulo."
+ },
+ "travellers.worker.barracks.take_horses_return": {
+  "en": "Take Horse and Return",
+  "tr": "Pegar Cavalo e Retornar"
+ },
+ "travellers.worker.barracks.take_horses_return.tooltip": {
+  "en": "Take a horse, then come back to its previous spot.",
+  "tr": "Pegue um cavalo, depois volte ao seu local anterior."
+ },
+ "travellers.worker.barracks.take_horses_stay": {
+  "en": "Take Horse and Stay",
+  "tr": "Pegar Cavalo e Ficar"
+ },
+ "travellers.worker.barracks.take_horses_stay.tooltip": {
+  "en": "Take a horse, then stay there instead of coming back.",
+  "tr": "Pegue um cavalo, depois fique lá em vez de voltar."
+ },
+ "travellers.worker.barracks.title": {
+  "en": "Zones",
+  "tr": "Zonas"
+ },
+ "travellers.worker.barracks.unassigned": {
+  "en": "Unassigned Henchmen",
+  "tr": "Capangas sem atribuição"
+ },
+ "travellers.worker.behavior.player_enemies": {
+  "en": "Player relations",
+  "tr": "Relações com jogadores"
+ },
+ "travellers.worker.behavior.title": {
+  "en": "Behavior",
+  "tr": "Comportamento"
+ },
+ "travellers.worker.behavior.village_relations": {
+  "en": "Village relations",
+  "tr": "Relações com vilas"
+ },
+ "travellers.worker.blocked.empty_cargo": {
+  "en": "Put goods in the cargo first.",
+  "tr": "Coloque os bens na carga primeiro."
+ },
+ "travellers.worker.blocked.money": {
+  "en": "The trip costs %s; you have %s.",
+  "tr": "A viagem custa %s; você tem %s."
+ },
+ "travellers.worker.blocked.no_village": {
+  "en": "Choose a village in the list.",
+  "tr": "Escolha uma vila na lista."
+ },
+ "travellers.worker.blocked.not_yours": {
+  "en": "This henchman is not yours.",
+  "tr": "Este capanga não é seu."
+ },
+ "travellers.worker.cargo": {
+  "en": "Cargo",
+  "tr": "Carga"
+ },
+ "travellers.worker.cost": {
+  "en": "Travel cost: %s",
+  "tr": "Custo da viagem: %s"
+ },
+ "travellers.worker.donate": {
+  "en": "Donate",
+  "tr": "Doar"
+ },
+ "travellers.worker.donate.tooltip": {
+  "en": "Give the cargo to this village for free. Earns more reputation, but no money.",
+  "tr": "Entregue a carga para esta vila de graça. Ganha mais reputação, mas sem dinheiro."
+ },
+ "travellers.worker.enemies.hint": {
+  "en": "Your henchmen attack enemy players on sight. Select a player to change.",
+  "tr": "Seus capangas atacam jogadores inimigos à vista. Selecione um jogador para mudar."
+ },
+ "travellers.worker.enemies.make_enemy": {
+  "en": "Make enemy",
+  "tr": "Criar inimigo"
+ },
+ "travellers.worker.enemies.make_friendly": {
+  "en": "Make friendly",
+  "tr": "Tornar amigável"
+ },
+ "travellers.worker.enemies.none": {
+  "en": "No other player has joined this server yet.",
+  "tr": "Nenhum outro jogador entrou neste servidor ainda."
+ },
+ "travellers.worker.enemies.tag.enemy": {
+  "en": "Enemy",
+  "tr": "Inimigo"
+ },
+ "travellers.worker.enemies.tag.friendly": {
+  "en": "Friendly",
+  "tr": "Amigável"
+ },
+ "travellers.worker.enemies.title": {
+  "en": "Player relations",
+  "tr": "Relações com jogadores"
+ },
+ "travellers.worker.follow.hired_by_other": {
+  "en": "This traveller is already hired by someone else.",
+  "tr": "Este viajante já foi contratado por outra pessoa."
+ },
+ "travellers.worker.follow.hired_success": {
+  "en": "The traveller is now following you.",
+  "tr": "O viajante está agora seguindo você."
+ },
+ "travellers.worker.follow.not_enough_money": {
+  "en": "You don't have enough money.",
+  "tr": "Você não tem dinheiro suficiente."
+ },
+ "travellers.worker.follow.title": {
+  "en": "Follower Options",
+  "tr": "Opções de Seguidor"
+ },
+ "travellers.worker.follow.unhired_success": {
+  "en": "The traveller will no longer follow you.",
+  "tr": "O viajante não vai mais seguir você."
+ },
+ "travellers.worker.formation.attitude": {
+  "en": "Attitude",
+  "tr": "Atitude"
+ },
+ "travellers.worker.formation.attitude.attack": {
+  "en": "Attack",
+  "tr": "Ataque"
+ },
+ "travellers.worker.formation.attitude.defend": {
+  "en": "Defend",
+  "tr": "Defesa"
+ },
+ "travellers.worker.formation.attitude.hold": {
+  "en": "Hold Position",
+  "tr": "Mantenha Posição"
+ },
+ "travellers.worker.formation.attitude.tooltip": {
+  "en": "Attack: chases freely; Defend: less agressive, Hold Position: minimum movement",
+  "tr": "Ataque: você persegue livremente; Defesa: você é menos agressiva, Mantenha Posição: movimento mínimo"
+ },
+ "travellers.worker.formation.bar.center": {
+  "en": "Center",
+  "tr": "Centralizar"
+ },
+ "travellers.worker.formation.bar.center.tip": {
+  "en": "Center the map on this group.",
+  "tr": "Centralize o mapa neste grupo."
+ },
+ "travellers.worker.formation.bar.create_group": {
+  "en": "Form group",
+  "tr": "Formar grupo"
+ },
+ "travellers.worker.formation.bar.create_group.tip": {
+  "en": "Form a new group with the selected henchmen.",
+  "tr": "Forme um novo grupo com os capangas selecionados."
+ },
+ "travellers.worker.formation.bar.empty": {
+  "en": "Select a group or some henchmen to see their orders.",
+  "tr": "Selecione um grupo ou alguns capangas para ver as ordens."
+ },
+ "travellers.worker.formation.bar.follow": {
+  "en": "Follow...",
+  "tr": "Siga..."
+ },
+ "travellers.worker.formation.bar.follow.tip": {
+  "en": "Pick a group (or you) for this group to follow.",
+  "tr": "Escolha um grupo (ou você) para este grupo seguir."
+ },
+ "travellers.worker.formation.bar.follow_me": {
+  "en": "Follow me",
+  "tr": "Siga-me"
+ },
+ "travellers.worker.formation.bar.follow_me.tip": {
+  "en": "Come back to you and follow you.",
+  "tr": "Volte até você e siga."
+ },
+ "travellers.worker.formation.bar.halt": {
+  "en": "Halt",
+  "tr": "Pare"
+ },
+ "travellers.worker.formation.bar.halt.tip": {
+  "en": "Stop where they are.",
+  "tr": "Pare onde estão."
+ },
+ "travellers.worker.formation.bar.join": {
+  "en": "Join...",
+  "tr": "Junte-se..."
+ },
+ "travellers.worker.formation.bar.join.tip": {
+  "en": "Pick a group for the selected henchmen to join.",
+  "tr": "Escolha um grupo para os capangas selecionados se juntarem."
+ },
+ "travellers.worker.formation.bar.merge": {
+  "en": "Merge with...",
+  "tr": "Mesclar com..."
+ },
+ "travellers.worker.formation.bar.merge.tip": {
+  "en": "Pick another group to merge this one into.",
+  "tr": "Escolha outro grupo para mesclar este grupo nele."
+ },
+ "travellers.worker.formation.bar.resume": {
+  "en": "Resume",
+  "tr": "Retomar"
+ },
+ "travellers.worker.formation.bar.resume.tip": {
+  "en": "Start following again.",
+  "tr": "Recomece o acompanhamento."
+ },
+ "travellers.worker.formation.barracks": {
+  "en": "Barracks",
+  "tr": "Quartel"
+ },
+ "travellers.worker.formation.card.busy": {
+  "en": "on a mission",
+  "tr": "em missão"
+ },
+ "travellers.worker.formation.card.en_route": {
+  "en": "on the way",
+  "tr": "a caminho"
+ },
+ "travellers.worker.formation.card.followers_hint": {
+  "en": "Right click: send them somewhere, form a group, join one or have them follow you.",
+  "tr": "Clique direito: envie para algum lugar, forme um grupo, junte-se a um ou faça com que sigam você."
+ },
+ "travellers.worker.formation.card.followers_selected": {
+  "en": "%s selected",
+  "tr": "%s selecionado"
+ },
+ "travellers.worker.formation.card.following": {
+  "en": "marching",
+  "tr": "marchar"
+ },
+ "travellers.worker.formation.card.halted": {
+  "en": "halted",
+  "tr": "parado"
+ },
+ "travellers.worker.formation.card.workers": {
+  "en": "%s henchmen",
+  "tr": "%s capangas"
+ },
+ "travellers.worker.formation.card.you": {
+  "en": "Your escort",
+  "tr": "Sua escolta"
+ },
+ "travellers.worker.formation.cave": {
+  "en": "Cave mode",
+  "tr": "Modo caverna"
+ },
+ "travellers.worker.formation.cave.off": {
+  "en": "Adaptive cave: OFF",
+  "tr": "Caverna adaptativa: DESLIGADO"
+ },
+ "travellers.worker.formation.cave.on": {
+  "en": "Adaptive cave: ON",
+  "tr": "Caverna adaptativa: LIGADO"
+ },
+ "travellers.worker.formation.cohesion": {
+  "en": "Player cohesion",
+  "tr": "Cohesão do jogador"
+ },
+ "travellers.worker.formation.controls": {
+  "en": "Controls",
+  "tr": "Controles"
+ },
+ "travellers.worker.formation.escorts": {
+  "en": "Escorts",
+  "tr": "Escortes"
+ },
+ "travellers.worker.formation.follow_distance": {
+  "en": "Follow dist",
+  "tr": "Distância de seguimento"
+ },
+ "travellers.worker.formation.followers": {
+  "en": "Followers",
+  "tr": "Seguidores"
+ },
+ "travellers.worker.formation.hint": {
+  "en": "Click: select  ·  Shift+click/drag: add followers  ·  Right click: orders  ·  Right drag: move map",
+  "tr": "Clique: selecionar  ·  Shift+clique/drag: adicionar capangas  ·  Clique direito: ordens  ·  Arrastar com o lado direito: mover o mapa"
+ },
+ "travellers.worker.formation.hover.escort": {
+  "en": "Close escort #%s",
+  "tr": "Escolta próxima #%s"
+ },
+ "travellers.worker.formation.hover.leader": {
+  "en": "Leader",
+  "tr": "Líder"
+ },
+ "travellers.worker.formation.hover.offset": {
+  "en": "Offset: x=%s z=%s",
+  "tr": "Deslocamento: x=%s z=%s"
+ },
+ "travellers.worker.formation.hover.slot": {
+  "en": "Follower slot %s",
+  "tr": "Lugar para seguidor %s"
+ },
+ "travellers.worker.formation.hub_title": {
+  "en": "Formation & Groups",
+  "tr": "Formação & Grupos"
+ },
+ "travellers.worker.formation.leaders": {
+  "en": "Leaders",
+  "tr": "Líderes"
+ },
+ "travellers.worker.formation.menu.after_mission": {
+  "en": "Then:",
+  "tr": "Depois:"
+ },
+ "travellers.worker.formation.menu.choose_follow": {
+  "en": "Follow whom?",
+  "tr": "Siga quem?"
+ },
+ "travellers.worker.formation.menu.choose_join": {
+  "en": "Join which group?",
+  "tr": "Junte-se a qual grupo?"
+ },
+ "travellers.worker.formation.menu.choose_merge": {
+  "en": "Merge into which group?",
+  "tr": "Fusione em qual grupo?"
+ },
+ "travellers.worker.formation.menu.come_back": {
+  "en": "Come back",
+  "tr": "Volte"
+ },
+ "travellers.worker.formation.menu.create_group": {
+  "en": "Form a group",
+  "tr": "Forme um grupo"
+ },
+ "travellers.worker.formation.menu.create_group_go": {
+  "en": "Form a group and go here",
+  "tr": "Forme um grupo e vá para cá"
+ },
+ "travellers.worker.formation.menu.dump": {
+  "en": "Dump items...",
+  "tr": "Descarregar itens..."
+ },
+ "travellers.worker.formation.menu.equip": {
+  "en": "Get equipment...",
+  "tr": "Pegue equipamento..."
+ },
+ "travellers.worker.formation.menu.follow_group": {
+  "en": "Follow this group",
+  "tr": "Siga este grupo"
+ },
+ "travellers.worker.formation.menu.follow_me": {
+  "en": "Follow me",
+  "tr": "Siga-me"
+ },
+ "travellers.worker.formation.menu.go": {
+  "en": "Go here",
+  "tr": "Vá aqui"
+ },
+ "travellers.worker.formation.menu.halt": {
+  "en": "Halt here",
+  "tr": "Pare aqui"
+ },
+ "travellers.worker.formation.menu.join_group": {
+  "en": "Join this group",
+  "tr": "Junte-se a este grupo"
+ },
+ "travellers.worker.formation.menu.loadout": {
+  "en": "Gear to carry:",
+  "tr": "Equipamento para carregar:"
+ },
+ "travellers.worker.formation.menu.loadout.armour": {
+  "en": "Armour",
+  "tr": "Armadura"
+ },
+ "travellers.worker.formation.menu.loadout.bow": {
+  "en": "Bow",
+  "tr": "Arco"
+ },
+ "travellers.worker.formation.menu.loadout.melee": {
+  "en": "Melee",
+  "tr": "Combate corpo a corpo"
+ },
+ "travellers.worker.formation.menu.loadout.shield": {
+  "en": "Shield",
+  "tr": "Escudo"
+ },
+ "travellers.worker.formation.menu.merge_escort": {
+  "en": "Merge into my escort",
+  "tr": "Fusione com meu escolta"
+ },
+ "travellers.worker.formation.menu.merge_group": {
+  "en": "Merge with this group",
+  "tr": "Fusione com este grupo"
+ },
+ "travellers.worker.formation.menu.no_orders": {
+  "en": "No orders",
+  "tr": "Sem ordens"
+ },
+ "travellers.worker.formation.menu.no_other_group": {
+  "en": "No other group",
+  "tr": "Nenhum outro grupo"
+ },
+ "travellers.worker.formation.menu.reason.busy": {
+  "en": "This group is on a mission.",
+  "tr": "Este grupo está em missão."
+ },
+ "travellers.worker.formation.menu.reason.need_two": {
+  "en": "Select at least 2 henchmen.",
+  "tr": "Selecione pelo menos 2 capangas."
+ },
+ "travellers.worker.formation.menu.reason.no_other_group": {
+  "en": "You have no other group yet.",
+  "tr": "Você ainda não tem outro grupo."
+ },
+ "travellers.worker.formation.menu.reason.select_first": {
+  "en": "Select a group or some henchmen first.",
+  "tr": "Selecione um grupo ou alguns capangas primeiro."
+ },
+ "travellers.worker.formation.menu.reason.target_busy": {
+  "en": "That group is on a mission.",
+  "tr": "Esse grupo está em missão."
+ },
+ "travellers.worker.formation.menu.recall": {
+  "en": "Call back",
+  "tr": "Retorne"
+ },
+ "travellers.worker.formation.menu.resume": {
+  "en": "Resume marching",
+  "tr": "Retomar a marcha"
+ },
+ "travellers.worker.formation.menu.return_horses": {
+  "en": "Return horses...",
+  "tr": "Devolver cavalos..."
+ },
+ "travellers.worker.formation.menu.select": {
+  "en": "Select",
+  "tr": "Selecione"
+ },
+ "travellers.worker.formation.menu.stay_there": {
+  "en": "Stay there",
+  "tr": "Fique aqui"
+ },
+ "travellers.worker.formation.menu.take_horses": {
+  "en": "Take horses...",
+  "tr": "Pegar cavalos..."
+ },
+ "travellers.worker.formation.orders_tab": {
+  "en": "Leader Orders",
+  "tr": "Ordens do líder"
+ },
+ "travellers.worker.formation.preview": {
+  "en": "Radar Preview",
+  "tr": "Prévia do radar"
+ },
+ "travellers.worker.formation.preview.count": {
+  "en": "Shown: %s",
+  "tr": "Mostrados: %s"
+ },
+ "travellers.worker.formation.preview.forward": {
+  "en": "Forward",
+  "tr": "Avanço"
+ },
+ "travellers.worker.formation.preview.reset": {
+  "en": "Reset",
+  "tr": "Reiniciar"
+ },
+ "travellers.worker.formation.preview.zoom": {
+  "en": "Zoom: %s",
+  "tr": "Ampliar: %s"
+ },
+ "travellers.worker.formation.preview_adaptive_cave": {
+  "en": "Cave adaptive: ON",
+  "tr": "Caverna adaptativa: LIGADO"
+ },
+ "travellers.worker.formation.preview_surface_bias": {
+  "en": "Cave adaptive: OFF",
+  "tr": "Caverna adaptativa: DESLIGADO"
+ },
+ "travellers.worker.formation.scope": {
+  "en": "Scope",
+  "tr": "Alcance"
+ },
+ "travellers.worker.formation.scope.player": {
+  "en": "Player",
+  "tr": "Jogador"
+ },
+ "travellers.worker.formation.scope.worker": {
+  "en": "Henchman leader",
+  "tr": "Líder de capanga"
+ },
+ "travellers.worker.formation.scope_type": {
+  "en": "Type",
+  "tr": "Tipo"
+ },
+ "travellers.worker.formation.set_home": {
+  "en": "Barracks",
+  "tr": "quartel"
+ },
+ "travellers.worker.formation.spacing": {
+  "en": "Spacing",
+  "tr": "Espaçamento"
+ },
+ "travellers.worker.formation.style": {
+  "en": "Style",
+  "tr": "Estilo"
+ },
+ "travellers.worker.formation.style.adaptive": {
+  "en": "Adaptive",
+  "tr": "Adaptativo"
+ },
+ "travellers.worker.formation.style.column": {
+  "en": "Column",
+  "tr": "Coluna"
+ },
+ "travellers.worker.formation.style.compact": {
+  "en": "Compact",
+  "tr": "Compacto"
+ },
+ "travellers.worker.formation.style.line": {
+  "en": "Line",
+  "tr": "Linha"
+ },
+ "travellers.worker.formation.style.wedge": {
+  "en": "Wedge",
+  "tr": "Cunha"
+ },
+ "travellers.worker.formation.summary.armour": {
+  "en": "Armour",
+  "tr": "Armadura"
+ },
+ "travellers.worker.formation.summary.armour.chain": {
+  "en": "Chain",
+  "tr": "Corrente"
+ },
+ "travellers.worker.formation.summary.armour.diamond": {
+  "en": "Diamond",
+  "tr": "Diamante"
+ },
+ "travellers.worker.formation.summary.armour.gold": {
+  "en": "Gold",
+  "tr": "Ouro"
+ },
+ "travellers.worker.formation.summary.armour.iron": {
+  "en": "Iron",
+  "tr": "Ferro"
+ },
+ "travellers.worker.formation.summary.armour.leather": {
+  "en": "Leather",
+  "tr": "Couro"
+ },
+ "travellers.worker.formation.summary.armour.none": {
+  "en": "None",
+  "tr": "Nenhum"
+ },
+ "travellers.worker.formation.summary.armour.other": {
+  "en": "Other",
+  "tr": "Outro"
+ },
+ "travellers.worker.formation.summary.members": {
+  "en": "%s henchmen",
+  "tr": "%s capangas"
+ },
+ "travellers.worker.formation.summary.wounded": {
+  "en": "%s wounded",
+  "tr": "%s feridos"
+ },
+ "travellers.worker.formation.title": {
+  "en": "Formation & Groups",
+  "tr": "Formação & Grupos"
+ },
+ "travellers.worker.formation.turn": {
+  "en": "Turn smooth",
+  "tr": "Virada suave"
+ },
+ "travellers.worker.formation.width": {
+  "en": "Width",
+  "tr": "Largura"
+ },
+ "travellers.worker.formation.you": {
+  "en": "You",
+  "tr": "Você"
+ },
+ "travellers.worker.formation.zone.at_rest": {
+  "en": "%s at rest, free to group",
+  "tr": "%s em repouso, livre para agrupar"
+ },
+ "travellers.worker.formation.zone.beds": {
+  "en": "%s/%s beds",
+  "tr": "%s/%s camas"
+ },
+ "travellers.worker.formation.zone.hands": {
+  "en": "%s stable hands · %s here",
+  "tr": "%s estábulo · %s aqui"
+ },
+ "travellers.worker.formation.zone.here_away": {
+  "en": "%s here · %s away",
+  "tr": "%s aqui · %s lá"
+ },
+ "travellers.worker.formation.zone.horse_state": {
+  "en": "%s tamed · %s saddled",
+  "tr": "%s domado · %s selado"
+ },
+ "travellers.worker.formation.zone.horses": {
+  "en": "%s/%s horses",
+  "tr": "%s/%s cavalos"
+ },
+ "travellers.worker.formation.zone.nobody": {
+  "en": "Nobody lives here.",
+  "tr": "Ninguém vive aqui."
+ },
+ "travellers.worker.go.title": {
+  "en": "Send to a place",
+  "tr": "Envie para um lugar"
+ },
+ "travellers.worker.hire.hint.assign": {
+  "en": "After hiring, give them a bed in the Zones menu.",
+  "tr": "Depois de contratar, dê a ele uma cama no menu Zonas."
+ },
+ "travellers.worker.hire.hint.beds_missing": {
+  "en": "Free beds in your Barracks: %s, needed: %s.",
+  "tr": "Camas livres no seu quartel: %s, necessárias: %s."
+ },
+ "travellers.worker.hire.hint.chief": {
+  "en": "Only the chief of a Millénaire village can hire henchmen.",
+  "tr": "Apenas o líder de uma vila da Millénaire pode contratar capangas."
+ },
+ "travellers.worker.hire.hint.money": {
+  "en": "Not enough money: you have %s.",
+  "tr": "Saldo insuficiente: você tem %s."
+ },
+ "travellers.worker.hire.hint.wand": {
+  "en": "Shift + right-click with a Wand of Summoning to build a Barrack (needs a bed and a chest).",
+  "tr": "Shift + clique direito com Varinha de Convocação para construir um quartel (precisa de cama e baú)."
+ },
+ "travellers.worker.hire.hint.why_bed": {
+  "en": "A henchman with a bed comes back after dying.",
+  "tr": "Um capanga com cama volta depois de morrer."
+ },
+ "travellers.worker.home_list.delete": {
+  "en": "Delete",
+  "tr": "Excluir"
+ },
+ "travellers.worker.home_list.empty": {
+  "en": "No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.",
+  "tr": "Nenhuma quartel atribuída a você. Shift+click direito em algum lugar com varinha de invocação para criar um quartel."
+ },
+ "travellers.worker.home_list.equip_return_barracks": {
+  "en": "Come Back - Barracks",
+  "tr": "Volte - Quartel"
+ },
+ "travellers.worker.home_list.equip_return_village": {
+  "en": "Come Back - Whole Village",
+  "tr": "Volte - Vila Inteira"
+ },
+ "travellers.worker.home_list.equip_stay_barracks": {
+  "en": "Stay - Barracks",
+  "tr": "Fique - Quartel"
+ },
+ "travellers.worker.home_list.equip_stay_village": {
+  "en": "Stay - Whole Village",
+  "tr": "Fique - Vila Inteira"
+ },
+ "travellers.worker.home_list.equip_title": {
+  "en": "Choose mission:",
+  "tr": "Escolha missão:"
+ },
+ "travellers.worker.home_list.get_equip": {
+  "en": "Get Equipment",
+  "tr": "Obter Equipamento"
+ },
+ "travellers.worker.home_list.set_home": {
+  "en": "Set Barrack",
+  "tr": "Definir quartel"
+ },
+ "travellers.worker.home_list.title": {
+  "en": "Barracks",
+  "tr": "Quartel"
+ },
+ "travellers.worker.hub.barracks": {
+  "en": "Zones",
+  "tr": "Zonas"
+ },
+ "travellers.worker.hub.barracks.tooltip": {
+  "en": "Open the zones menu, where you assign henchmen to a Barrack or a Stable.",
+  "tr": "Abra o menu de zonas, onde você atribui capangas a um Quartel ou a um Estábulo."
+ },
+ "travellers.worker.hub.behavior": {
+  "en": "Behavior",
+  "tr": "Comportamento"
+ },
+ "travellers.worker.hub.follow": {
+  "en": "Orders",
+  "tr": "Ordens"
+ },
+ "travellers.worker.hub.formation": {
+  "en": "Formations",
+  "tr": "Formações"
+ },
+ "travellers.worker.hub.formation.tooltip": {
+  "en": "Manage your units.",
+  "tr": "Gerencie suas unidades."
+ },
+ "travellers.worker.hub.info.health": {
+  "en": "Health %s/%s",
+  "tr": "Vida %s/%s"
+ },
+ "travellers.worker.hub.info.no_bed": {
+  "en": "No bed: won't come back if killed",
+  "tr": "Sem cama: não volta se morrer"
+ },
+ "travellers.worker.hub.info.village": {
+  "en": "From %s",
+  "tr": "De %s"
+ },
+ "travellers.worker.hub.inventory": {
+  "en": "Inventory",
+  "tr": "Inventário"
+ },
+ "travellers.worker.hub.map": {
+  "en": "Map",
+  "tr": "Mapa"
+ },
+ "travellers.worker.hub.mark_button": {
+  "en": "Henchman mark",
+  "tr": "Marca de capanga"
+ },
+ "travellers.worker.hub.mark_button.desc": {
+  "en": "Edit your hired Henchmen visual mark",
+  "tr": "Edite a marca visual dos capangas que contratou"
+ },
+ "travellers.worker.hub.node.barracks": {
+  "en": "Zones",
+  "tr": "Zonas"
+ },
+ "travellers.worker.hub.node.choir": {
+  "en": "Sing",
+  "tr": "Cante"
+ },
+ "travellers.worker.hub.node.follow": {
+  "en": "Follow",
+  "tr": "Siga-me"
+ },
+ "travellers.worker.hub.node.follow_him": {
+  "en": "Follow him",
+  "tr": "Siga ele"
+ },
+ "travellers.worker.hub.node.follow_him.tooltip": {
+  "en": "Walk behind this henchman hands-off. Press any movement key to stop.",
+  "tr": "Ande atrás deste capanga e largue as mãos. Pressione qualquer tecla de movimento para parar."
+ },
+ "travellers.worker.hub.node.follow_player": {
+  "en": "Follow me",
+  "tr": "Me siga"
+ },
+ "travellers.worker.hub.node.formation": {
+  "en": "Formation",
+  "tr": "Formação"
+ },
+ "travellers.worker.hub.node.go": {
+  "en": "Missions",
+  "tr": "Missões"
+ },
+ "travellers.worker.hub.node.inventory": {
+  "en": "Inventory",
+  "tr": "Inventário"
+ },
+ "travellers.worker.hub.node.leader": {
+  "en": "Lead",
+  "tr": "Líder"
+ },
+ "travellers.worker.hub.node.management": {
+  "en": "Management",
+  "tr": "Gestão"
+ },
+ "travellers.worker.hub.node.orders": {
+  "en": "Orders",
+  "tr": "Ordens"
+ },
+ "travellers.worker.hub.node.players": {
+  "en": "Players",
+  "tr": "Jogadores"
+ },
+ "travellers.worker.hub.node.players.tooltip": {
+  "en": "Choose which players your henchmen treat as enemies. Applies to all of your henchmen, not just this one.",
+  "tr": "Escolha quais jogadores seus capangas tratam como inimigos. Aplica-se a todos os seus capangas, não apenas a este."
+ },
+ "travellers.worker.hub.node.recruit": {
+  "en": "Recruit",
+  "tr": "Recrutar"
+ },
+ "travellers.worker.hub.node.recruit.tooltip": {
+  "en": "Sends this leader and their group on a recruiting tour. Make them lead at least one henchman first.",
+  "tr": "Envia este líder e seu grupo em uma turnê de recrutamento. Faça você liderar pelo menos um capanga primeiro."
+ },
+ "travellers.worker.hub.node.relations": {
+  "en": "Relations",
+  "tr": "Relações"
+ },
+ "travellers.worker.hub.node.transport": {
+  "en": "Transport",
+  "tr": "Transporte"
+ },
+ "travellers.worker.hub.node.travel": {
+  "en": "Travel",
+  "tr": "Viajar"
+ },
+ "travellers.worker.hub.node.unhire": {
+  "en": "Dismiss",
+  "tr": "Despedir"
+ },
+ "travellers.worker.hub.node.unhire.tooltip": {
+  "en": "Dismiss this henchman. Click twice to confirm.",
+  "tr": "Despedir este capanga. Clique duas vezes para confirmar."
+ },
+ "travellers.worker.hub.node.unhire_confirm": {
+  "en": "Sure?",
+  "tr": "Tem certeza?"
+ },
+ "travellers.worker.hub.node.villages": {
+  "en": "Villages",
+  "tr": "Vilas"
+ },
+ "travellers.worker.hub.node.villages.tooltip": {
+  "en": "How your henchmen behave towards each village. Applies to all of your henchmen, not just this one.",
+  "tr": "Como seus capangas se comportam perto de cada vila. Aplica-se a todos os seus capangas, não apenas a este."
+ },
+ "travellers.worker.hub.title": {
+  "en": "Traveller Options",
+  "tr": "Opções do Viajante"
+ },
+ "travellers.worker.hub.transport": {
+  "en": "Transport",
+  "tr": "Transporte"
+ },
+ "travellers.worker.hub.transport.tooltip": {
+  "en": "Send this henchman to a village to sell or donate its cargo.",
+  "tr": "Envie este capanga para uma vila vender ou doar sua carga."
+ },
+ "travellers.worker.inventory.title": {
+  "en": "Henchman inventory",
+  "tr": "Inventário de capangas"
+ },
+ "travellers.worker.mark.color": {
+  "en": "Color: %s",
+  "tr": "Cor: %s"
+ },
+ "travellers.worker.mark.preview": {
+  "en": "Preview",
+  "tr": "Prévu"
+ },
+ "travellers.worker.mark.preview.follower": {
+  "en": "Henchman",
+  "tr": "Capanga"
+ },
+ "travellers.worker.mark.preview.leader": {
+  "en": "Leader",
+  "tr": "Líder"
+ },
+ "travellers.worker.mark.preview.leader_hint": {
+  "en": "Leaders use a dedicated overlay",
+  "tr": "Líderes usam uma sobreposição dedicada"
+ },
+ "travellers.worker.mark.saved": {
+  "en": "Henchman mark saved",
+  "tr": "Marca de capanga salva"
+ },
+ "travellers.worker.mark.style": {
+  "en": "Style",
+  "tr": "Estilo"
+ },
+ "travellers.worker.mark.style.chevron": {
+  "en": "Chevron",
+  "tr": "Cavalete"
+ },
+ "travellers.worker.mark.style.double": {
+  "en": "Double",
+  "tr": "Dupla"
+ },
+ "travellers.worker.mark.style.plain": {
+  "en": "Plain",
+  "tr": "Simples"
+ },
+ "travellers.worker.mark.title": {
+  "en": "Appearance",
+  "tr": "Aparência"
+ },
+ "travellers.worker.no_village_in_range": {
+  "en": "No known village in range. Explore to discover more.",
+  "tr": "Nenhuma vila conhecida no alcance. Explore para descobrir mais."
+ },
+ "travellers.worker.not_enough_money": {
+  "en": "You need %s for this trip.",
+  "tr": "Você precisa de %s para esta viagem."
+ },
+ "travellers.worker.orders.choir.tooltip": {
+  "en": "Have this henchman sing along with other nearby singing henchmen (WIP ONLY 1 SONG FOR NORMANS)",
+  "tr": "Faça este capanga cantar junto com outros capangas cantando por perto (WIP APENAS 1 CÂNCA PARA NORMANS)"
+ },
+ "travellers.worker.orders.choir_start": {
+  "en": "Sing a Song",
+  "tr": "Cante uma canção"
+ },
+ "travellers.worker.orders.choir_stop": {
+  "en": "Stop Singing",
+  "tr": "Pare de cantar"
+ },
+ "travellers.worker.orders.follow.tooltip": {
+  "en": "Toggle whether this henchman actively follows its leader or you.",
+  "tr": "Alternar se este capanga segue ativamente seu líder ou você."
+ },
+ "travellers.worker.orders.follow_off": {
+  "en": "Follow: OFF",
+  "tr": "Seguir: OFF"
+ },
+ "travellers.worker.orders.follow_on": {
+  "en": "Follow: ON",
+  "tr": "Seguir: ON"
+ },
+ "travellers.worker.orders.follow_player": {
+  "en": "Follow me",
+  "tr": "Siga-me"
+ },
+ "travellers.worker.orders.follow_player.tooltip": {
+  "en": "Stop following its escort leader and follow you directly instead.",
+  "tr": "Pare de seguir seu líder de escolta e siga você diretamente no lugar."
+ },
+ "travellers.worker.orders.following_player": {
+  "en": "Follow me",
+  "tr": "Siga-me"
+ },
+ "travellers.worker.orders.go": {
+  "en": "Go...",
+  "tr": "Ir..."
+ },
+ "travellers.worker.orders.go_home": {
+  "en": "Go to barrack",
+  "tr": "Ir para o quartel"
+ },
+ "travellers.worker.orders.go_home_no_home": {
+  "en": "Go to barrack (none)",
+  "tr": "Ir para o quartel (nenhum)"
+ },
+ "travellers.worker.orders.hire": {
+  "en": "Hire · %s",
+  "tr": "Contratar · %s"
+ },
+ "travellers.worker.orders.hire_group": {
+  "en": "Hire all %s · %s",
+  "tr": "Contratar todos %s · %s"
+ },
+ "travellers.worker.orders.hired_other": {
+  "en": "Hired by somebody",
+  "tr": "Contratado por alguém"
+ },
+ "travellers.worker.orders.home": {
+  "en": "Barracks",
+  "tr": "Quartel"
+ },
+ "travellers.worker.orders.leader_count": {
+  "en": "Leader (%s)",
+  "tr": "Líder (%s)"
+ },
+ "travellers.worker.orders.make_leader": {
+  "en": "Lead",
+  "tr": "Líder"
+ },
+ "travellers.worker.orders.make_leader.tooltip": {
+  "en": "Turn this henchman into a group leader. Henchmen actively following you will follow him.",
+  "tr": "Transforme este capanga em um líder de grupo. Capangas que seguem você ativamente vão segui-lo."
+ },
+ "travellers.worker.orders.recruit": {
+  "en": "Go recruit",
+  "tr": "Ir recrutar"
+ },
+ "travellers.worker.orders.title": {
+  "en": "Orders",
+  "tr": "Ordens"
+ },
+ "travellers.worker.orders.unhire": {
+  "en": "Unhire",
+  "tr": "Demitir"
+ },
+ "travellers.worker.pickup.done": {
+  "en": "Done",
+  "tr": "Pronto"
+ },
+ "travellers.worker.pickup.earnings": {
+  "en": "Here is what the trip brought in. Take it so I can set off again.",
+  "tr": "Aqui está o que a viagem trouxe. Leve para que eu possa partir novamente."
+ },
+ "travellers.worker.pickup.take_all": {
+  "en": "Take all",
+  "tr": "Leve tudo"
+ },
+ "travellers.worker.pickup.title": {
+  "en": "Back from the trip",
+  "tr": "De volta da viagem"
+ },
+ "travellers.worker.pickup.unsold": {
+  "en": "I couldn't sell everything. Take back what is left so I can set off again.",
+  "tr": "Não consegui vender tudo. Leve o que sobrou para que eu possa partir novamente."
+ },
+ "travellers.worker.recruit.blocked.enemy": {
+  "en": "Enemy",
+  "tr": "Inimigo"
+ },
+ "travellers.worker.recruit.blocked.reputation": {
+  "en": "Distrusted",
+  "tr": "Desconfiada"
+ },
+ "travellers.worker.recruit.cost": {
+  "en": "Mission cost: %s",
+  "tr": "Custo da missão: %s"
+ },
+ "travellers.worker.recruit.cost.purse": {
+  "en": "Purse for the recruits: %s",
+  "tr": "Bolsa para os recrutas: %s"
+ },
+ "travellers.worker.recruit.cost.refund": {
+  "en": "What the purse does not spend comes back to you.",
+  "tr": "O que a bolsa não gasta volta para você."
+ },
+ "travellers.worker.recruit.cost.travel": {
+  "en": "Travel: %s",
+  "tr": "Viagem: %s"
+ },
+ "travellers.worker.recruit.count": {
+  "en": "Recruits: %s/%s",
+  "tr": "Recrutas: %s/%s"
+ },
+ "travellers.worker.recruit.none": {
+  "en": "No village in range",
+  "tr": "Nenhuma vila no alcance"
+ },
+ "travellers.worker.recruit.report.dead_short": {
+  "en": "+%s dead",
+  "tr": "+%s morto"
+ },
+ "travellers.worker.recruit.report.left": {
+  "en": "Left in the purse",
+  "tr": "Deixado na bolsa"
+ },
+ "travellers.worker.recruit.report.map.death": {
+  "en": "A recruit died here",
+  "tr": "Um recruta morreu aqui"
+ },
+ "travellers.worker.recruit.report.map.not_reached": {
+  "en": "%s: not reached",
+  "tr": "%s não alcançou"
+ },
+ "travellers.worker.recruit.report.map.road": {
+  "en": "%s recruits joined on the road",
+  "tr": "%s juntaram-se na estrada"
+ },
+ "travellers.worker.recruit.report.map.skipped": {
+  "en": "%s: skipped",
+  "tr": "%s: pulado"
+ },
+ "travellers.worker.recruit.report.map.visited": {
+  "en": "%s. %s: %s recruits",
+  "tr": "%s. %s: %s recrutas"
+ },
+ "travellers.worker.recruit.report.spent": {
+  "en": "Spent",
+  "tr": "Gastou"
+ },
+ "travellers.worker.recruit.report.take": {
+  "en": "Take %s",
+  "tr": "Pegue %s"
+ },
+ "travellers.worker.recruit.report.taken": {
+  "en": "Purse empty",
+  "tr": "Bolsa vazia"
+ },
+ "travellers.worker.recruit.report.tip.dead": {
+  "en": "%s died on the way",
+  "tr": "%s morreu pelo caminho"
+ },
+ "travellers.worker.recruit.report.tip.found": {
+  "en": "%s found of %s wanted",
+  "tr": "%s encontrado de %s procurado"
+ },
+ "travellers.worker.recruit.report.tip.where": {
+  "en": "%s in villages, %s on the road",
+  "tr": "%s nas vilas, %s no caminho"
+ },
+ "travellers.worker.recruit.report.title": {
+  "en": "%s, %s away",
+  "tr": "%s, %s de distância"
+ },
+ "travellers.worker.recruit.start": {
+  "en": "Recruit",
+  "tr": "Recrutar"
+ },
+ "travellers.worker.recruit.tip.chance": {
+  "en": "%s%% chance that each one agrees",
+  "tr": "%s%% chance que cada um concorde"
+ },
+ "travellers.worker.recruit.tip.enemy": {
+  "en": "One of their villages is your enemy",
+  "tr": "Uma de suas vilas é seu inimigo"
+ },
+ "travellers.worker.recruit.tip.free": {
+  "en": "About %s of their people around",
+  "tr": "Cerca de %s de seu povo ao redor"
+ },
+ "travellers.worker.recruit.tip.reputation": {
+  "en": "Your reputation with them is too low",
+  "tr": "Sua reputação com eles é baixa demais"
+ },
+ "travellers.worker.recruit.tip.villages": {
+  "en": "%s villages, nearest %sm away",
+  "tr": "%s vilas, a mais próxima %sm de distância"
+ },
+ "travellers.worker.recruit.title": {
+  "en": "Recruit henchmen",
+  "tr": "Recrutar capangas"
+ },
+ "travellers.worker.send": {
+  "en": "Sell",
+  "tr": "Vender"
+ },
+ "travellers.worker.send.tooltip": {
+  "en": "Sell the cargo to this village for money and reputation.",
+  "tr": "Venda a carga para esta vila por dinheiro e reputação."
+ },
+ "travellers.worker.title": {
+  "en": "Transaction",
+  "tr": "Transação"
+ },
+ "travellers.worker.village_relations.hint": {
+  "en": "Select a village, then toggle enemy.",
+  "tr": "Selecione uma vila, depois alterne o inimigo."
+ },
+ "travellers.worker.village_relations.none_known": {
+  "en": "No known villages nearby yet.",
+  "tr": "Nenhuma vila conhecida por perto ainda."
+ },
+ "travellers.worker.village_relations.title": {
+  "en": "Village relations",
+  "tr": "Relações com vilas"
+ },
+ "travellers.worker.village_relations.toggle_enemy": {
+  "en": "Toggle enemy",
+  "tr": "Alternar inimigo"
+ },
+ "travellers.worker.zones.assigned_here": {
+  "en": "Assigned Here",
+  "tr": "Atribuídos aqui"
+ },
+ "travellers.worker.zones.create_hint": {
+  "en": "Shift + right-click with a Wand of Summoning to create one.",
+  "tr": "Shift + clique direito com uma Varinha de Convocação para você criar uma."
+ },
+ "travellers.worker.zones.list_stables": {
+  "en": "Stables",
+  "tr": "Estábulos"
+ },
+ "travellers.worker.zones.list_zones": {
+  "en": "Barracks & Stables",
+  "tr": "Quartéis e Estábulos"
+ },
+ "travellers.worker.zones.selected_duty": {
+  "en": "On Duty Here",
+  "tr": "Em serviço aqui"
+ },
+ "travellers.worker.zones.tab_duty": {
+  "en": "Duty",
+  "tr": "Serviço"
+ },
+ "travellers.worker.zones.tab_home": {
+  "en": "Home",
+  "tr": "Lar"
+ },
+ "travellers.worker.zones.unassigned_any": {
+  "en": "Unassigned Henchmen",
+  "tr": "Capangas sem atribuição"
+ },
+ "travellers.worker.zones.unassigned_duty": {
+  "en": "Unassigned (no duty)",
+  "tr": "Sem atribuição (sem serviço)"
+ },
+ "travellers.zone.barrack.description": {
+  "en": "Housing for hired workers. Needs at least one bed and one chest. Workers assigned here call it home: they can respawn beside their bed after dying, and their capacity is one worker per bed.",
+  "tr": "Moradia para capangas contratadas. Precisa de pelo menos uma cama e um baú. Os capangas designados aqui chamam de lar: podem renascer ao lado da cama depois de morrerem, e a capacidade é um capanga por cama."
+ },
+ "travellers.zone.barrack.title": {
+  "en": "Barrack",
+  "tr": "Quartel"
+ },
+ "travellers.zone.error.no_bed": {
+  "en": "No beds found in the area. Place at least one bed (capacity = one Henchman per bed).",
+  "tr": "Nenhuma cama encontrada na área. Coloque pelo menos uma cama (capacidade = um capanga por cama)."
+ },
+ "travellers.zone.error.no_chest": {
+  "en": "No chests found in the area. Place at least one chest in the radius.",
+  "tr": "Nenhum baú encontrado na área. Coloque pelo menos um baú no raio."
+ },
+ "travellers.zone.error.no_hitch": {
+  "en": "No fence found in the area. Place at least one fence so horses can be hitched to it.",
+  "tr": "Nenhuma cerca encontrada na área. Coloque pelo menos uma cerca para que os cavalos possam ser amarrados nela."
+ },
+ "travellers.zone.prompt.role.bed": {
+  "en": "Beds: %s (min. %s)",
+  "tr": "Camas: %s (mín. %s)"
+ },
+ "travellers.zone.prompt.role.chest": {
+  "en": "Chests: %s (min. %s)",
+  "tr": "Baús: %s (mín. %s)"
+ },
+ "travellers.zone.prompt.role.hitch": {
+  "en": "Fences: %s (min. %s)",
+  "tr": "Cercas: %s (mín. %s)"
+ },
+ "travellers.zone.prompt.validate": {
+  "en": "Create %s",
+  "tr": "Crie %s"
+ },
+ "travellers.zone.stable.description": {
+  "en": "A horse ranch for hired workers. Needs at least one chest, one fence to hitch horses to, and one bed per stable hand. Assigned stable hands tame, saddle and breed horses here for your other workers to ride, and sleep in the beds at night.",
+  "tr": "Um rancho de cavalos para capangas contratadas. Precisa de pelo menos um baú, uma cerca para amarrar os cavalos e uma cama por estábulo. Os cavalariços designados amansam, selam e reproduzem cavalos aqui para seus outros trabalhadores montarem, e dormem nas camas à noite."
+ },
+ "travellers.zone.stable.title": {
+  "en": "Stable",
+  "tr": "Estábulo"
+ }
+}

@@ -1,0 +1,654 @@
+entity.travellers.traveller.name=Viajero
+entity.travellers.traveller_worker.name=Secuaz
+entity.travellers.traveller_raider.name=Saqueador
+
+travellers.worker.title=Transacción
+travellers.worker.send=Vender
+travellers.worker.not_enough_money=Necesitas %s para este viaje.
+travellers.worker.cost=Coste del viaje: %s
+travellers.worker.no_village_in_range=No se conoce ninguna aldea en el rango. Explora para descubrir más.
+travellers.worker.cargo=Carga
+travellers.worker.blocked.not_yours=Este secuaz no es tuyo.
+travellers.worker.blocked.no_village=Elige una aldea de la lista.
+travellers.worker.blocked.empty_cargo=Pon los bienes en la carga primero.
+travellers.worker.blocked.money=El viaje cuesta %s; tienes %s.
+travellers.worker.donate=Donar
+travellers.worker.send.tooltip=Vende la carga a esta aldea por dinero y reputación.
+travellers.worker.donate.tooltip=Entrega la carga a esta aldea gratis. Gana más reputación, pero sin dinero.
+travellers.worker.pickup.title=De vuelta del viaje
+travellers.worker.pickup.unsold=No pude vender todo. Recoge lo que queda para que pueda partir de nuevo.
+travellers.worker.pickup.earnings=Esto es lo que el viaje ha generado. Tómalo para que pueda partir de nuevo.
+travellers.worker.pickup.take_all=Llévate todo
+travellers.worker.pickup.done=Hecho
+
+travellers.worker.hub.title=Opciones del Viajero
+travellers.worker.hub.transport=Transporte
+travellers.worker.hub.transport.tooltip=Envía a este secuaz a una aldea para vender o donar su carga.
+travellers.worker.hub.follow=Órdenes
+travellers.worker.follow.title=Opciones de seguidor
+travellers.worker.orders.hire=Contratar · %s
+travellers.worker.orders.hire_group=Contratar a todos los %s · %s
+travellers.worker.hire.hint.chief=Solo el líder de una aldea de Millénaire puede contratar secuaces.
+travellers.worker.hire.hint.beds_missing=Camas libres en tu cuartel: %s, necesarias: %s.
+travellers.worker.hire.hint.why_bed=Un secuaz con cama vuelve después de morir.
+travellers.worker.hire.hint.wand=Mayús + clic derecho con una Varita de Invocación para construir un cuartel (necesita una cama y un cofre).
+travellers.worker.hire.hint.assign=Después de contratar, dale una cama en el menú de Zonas.
+travellers.worker.hire.hint.money=Falta dinero: tienes %s.
+travellers.worker.hub.info.no_bed=Sin cama: no volverá si muere
+travellers.worker.zones.create_hint=Tú presiona Mayús y haz clic derecho con una Varita de Invocación para crear una.
+travellers.worker.orders.unhire=Despedir
+travellers.worker.orders.hired_other=Contratado por alguien
+travellers.worker.follow.hired_success=El viajero ahora te sigue.
+travellers.worker.follow.unhired_success=El viajero ya no te seguirá.
+travellers.worker.follow.not_enough_money=No tienes suficiente dinero.
+travellers.worker.follow.hired_by_other=Este viajero ya está contratado por otra persona.
+travellers.worker.hub.inventory=Inventario
+travellers.worker.orders.make_leader=Líder
+travellers.worker.orders.make_leader.tooltip=Convierte a este secuaz en líder de grupo. Los secuaces que te siguen activamente lo seguirán.
+travellers.worker.orders.follow_on=Seguir: ON
+travellers.worker.orders.follow_off=Seguir: OFF
+travellers.worker.orders.follow.tooltip=Cambia si este secuaz sigue activamente a su líder o a ti.
+travellers.worker.inventory.title=Inventario de secuaces
+travellers.worker.orders.recruit=Reclutar
+travellers.worker.orders.follow_player=Síguenos
+travellers.worker.orders.following_player=Síguenos
+travellers.worker.orders.follow_player.tooltip=Deja de seguir a su líder de escolta y síguelo directamente en su lugar.
+travellers.worker.orders.title=Órdenes
+travellers.worker.hub.behavior=Comportamiento
+travellers.worker.hub.map=Mapa
+travellers.worker.hub.barracks=Zonas
+travellers.worker.hub.barracks.tooltip=Abre el menú de zonas, donde asignas secuaces a un Cuartel o a un Establo.
+
+travellers.worker.barracks.list=Cuarteles
+travellers.worker.barracks.unassigned=Secuaces sin asignar
+travellers.worker.barracks.selected=Secuaces de Cuartel seleccionados
+travellers.worker.zones.tab_home=Hogar
+travellers.worker.zones.tab_duty=Servicio
+travellers.worker.zones.list_stables=Establos
+travellers.worker.zones.unassigned_duty=Sin asignar (sin servicio)
+travellers.worker.zones.selected_duty=En servicio aquí
+travellers.worker.zones.list_zones=Cuarteles y Establos
+travellers.worker.zones.unassigned_any=Secuaces sin asignar
+travellers.worker.zones.assigned_here=Asignado aquí
+travellers.notify.duty.assigned=Asignado al servicio en %s.
+travellers.notify.duty.no_bed=%s no tiene cama libre - pon otra cama en el Establo antes de asignar un mozo de cuadra allí.
+travellers.notify.stable.horse_tamed=Un caballo fue domado en %s.
+travellers.notify.stable.horse_saddled=Un caballo fue montado en %s.
+travellers.notify.stable.foal_born=Un potro nació en %s.
+travellers.notify.stable.mount_recovered=El caballo de %s se unió al establo donde fue puesto en servicio.
+travellers.notify.stable.pool_too_small_to_equip=El establo "%s" no tenía caballo de montura con silla disponible para entregar - también guarda una pequeña reserva. Domar, montar o criar más primero.
+travellers.notify.stable.horses_returned=%s de %s trabajadores dejaron sus monturas en "%s".
+travellers.notify.stable.horses_taken=%s de %s trabajadores tomaron una montura de "%s".
+travellers.notify.stable.no_horse_to_return=Ningún caballo pudo ser devuelto al establo.
+travellers.worker.barracks.dragdrop=Selecciona una zona, luego arrastra y suelta a los secuaces para asignarlos o desasignarlos
+travellers.worker.barracks.delete=Eliminar cuartel
+travellers.worker.barracks.get_equip=Obtener equipamiento
+travellers.worker.barracks.take_horses=Tomar caballos
+travellers.worker.barracks.take_horses.tooltip=Envía a este secuaz a tomar un caballo de un establo.
+travellers.worker.barracks.take_horses_stay=Tomar caballo y quedarse
+travellers.worker.barracks.take_horses_stay.tooltip=Toma un caballo, luego quédate allí en lugar de volver.
+travellers.worker.barracks.take_horses_return=Tomar caballo y regresar
+travellers.worker.barracks.take_horses_return.tooltip=Toma un caballo, luego vuelve a su lugar anterior.
+travellers.worker.barracks.get_equip.tooltip=Envía a este secuaz a tomar lo mejor del equipo que marcaste y deja el resto en los cofres.
+travellers.worker.barracks.equip_title=Eliminar cuartel
+travellers.worker.barracks.dump=Vaciar objetos
+travellers.worker.barracks.dump.tooltip=Envía a este secuaz a dejar sus objetos de repuesto y comida en los cofres de un pueblo o cuartel. Guarda su mejor arma y arco.
+travellers.worker.barracks.dump_stay=Vaciar y quedarse
+travellers.worker.barracks.dump_stay.tooltip=Deja los objetos de repuesto, luego quédate allí en lugar de volver.
+travellers.worker.barracks.dump_return=Vaciar y regresar
+travellers.worker.barracks.dump_return.tooltip=Deja los objetos de repuesto, luego vuelve a su lugar anterior.
+travellers.worker.barracks.equip_stay=Equipar y quedarse
+travellers.worker.barracks.equip_stay.tooltip=Obtén nuevo equipo, luego quédate allí en lugar de volver.
+travellers.worker.barracks.equip_return=Equipar y regresar
+travellers.worker.barracks.equip_return.tooltip=Obtén nuevo equipo, luego vuelve a su lugar anterior.
+travellers.worker.barracks.full=Este cuartel está lleno (un secuaz por cama).
+
+travellers.gui.back=Atrás
+travellers.gui.close=Cerrar
+travellers.gui.add=Añadir
+travellers.gui.remove=Eliminar
+travellers.gui.done=Listo
+travellers.gui.save=Guardar
+travellers.gui.cancel=Cancelar
+travellers.gui.clear=Limpiar
+travellers.gui.go=Ir
+travellers.gui.unnamed=(sin nombre)
+
+travellers.map.center=Centro
+travellers.map.unavailable_dimension=El mapa solo muestra el Overworld.
+travellers.map.teleport=Teletransportar
+travellers.map.teleport.active=Haz clic en el mapa...
+travellers.map.spawn_traveller=Generar viajero
+travellers.map.spawn_worker=Generar secuaces
+travellers.map.spawn_raider=Generar saqueadores
+travellers.map.spawn.active=Haz clic en el mapa...
+travellers.map.chunks.legend.loaded_normal=Trozos cargados (normales)
+travellers.map.chunks.legend.loaded_merchants=Trozos cargados por los secuaces de viajeros
+travellers.map.chunks.legend.villages=Salones de la aldea
+travellers.map.chunks.legend.center_chunk=Cuadrado blanco = chunk central actual
+travellers.map.chunks.legend.player_pos=Punto verde = tu posición
+
+travellers.worker.behavior.title=Comportamiento
+travellers.worker.behavior.player_enemies=Relaciones de jugadores
+travellers.worker.behavior.village_relations=Relaciones de aldeas
+
+travellers.worker.enemies.title=Relaciones de jugadores
+travellers.worker.enemies.hint=Tus secuazes atacan a los jugadores enemigos a la vista. Selecciona un jugador para cambiar.
+travellers.worker.enemies.none=Ningún otro jugador se ha unido a este servidor todavía.
+travellers.worker.enemies.make_enemy=Crear enemigo
+travellers.worker.enemies.make_friendly=Crear amigo
+travellers.worker.enemies.tag.enemy=Enemigo
+travellers.worker.enemies.tag.friendly=Amistoso
+
+travellers.worker.village_relations.title=Relaciones de aldeas
+travellers.worker.village_relations.hint=Selecciona una aldea y luego activa el enemigo.
+travellers.worker.village_relations.toggle_enemy=Activar enemigo
+travellers.worker.village_relations.none_known=Aún no conocemos aldeas cercanas.
+
+travellers.home_name_prompt.title=Nombre de tu hogar
+travellers.home_name_prompt.subtitle=Puedes asignarlo a los secuaces contratados y enviarlos aquí, más llegarán.
+
+travellers.worker.home_list.title=Cuartel
+travellers.worker.home_list.set_home=Establecer cuartel
+
+travellers.worker.orders.go=Ir...
+travellers.worker.orders.home=Cuartel
+travellers.worker.orders.go_home=Ir al cuartel
+travellers.worker.orders.go_home_no_home=Ir al cuartel (ninguno)
+travellers.worker.orders.leader_count=Líder (%s)
+travellers.worker.orders.choir_start=Canta una canción
+travellers.worker.orders.choir_stop=Deja de cantar
+travellers.worker.orders.choir.tooltip=Haz que este secuaz cante junto con los demás secuaces cantando cerca (WIP SOLO 1 CANCIÓN PARA NORMANS)
+
+travellers.worker.recruit.start=Reclutar
+travellers.worker.recruit.cost=Coste de la misión: %s
+travellers.worker.recruit.count=Reclutas: %s/%s
+travellers.worker.recruit.cost.travel=Viaje: %s
+travellers.worker.recruit.cost.purse=Bolsa para los reclutas: %s
+travellers.worker.recruit.cost.refund=Lo que la bolsa no gasta retorna a ti.
+travellers.worker.recruit.none=Ningún pueblo en rango
+travellers.worker.recruit.blocked.enemy=Enemigo
+travellers.worker.recruit.blocked.reputation=Desconfiado
+travellers.worker.recruit.tip.villages=%s aldeas, la más cercana a %s
+travellers.worker.recruit.tip.free=Aproximadamente %s de su gente alrededor
+travellers.worker.recruit.tip.chance=%s%% de probabilidad de que cada uno esté de acuerdo
+travellers.worker.recruit.tip.enemy=Una de sus aldeas es tu enemigo
+travellers.worker.recruit.tip.reputation=Tu reputación con ellos es demasiado baja
+travellers.worker.recruit.report.title=%s, %s de distancia
+travellers.worker.recruit.report.take=Toma %s
+travellers.worker.recruit.report.taken=Bolsa vacía
+travellers.worker.recruit.report.spent=Gastado
+travellers.worker.recruit.report.left=Quedó en la bolsa
+travellers.worker.recruit.report.dead_short=+%s muerto
+travellers.worker.recruit.report.tip.found=%s encontrados de %s buscados
+travellers.worker.recruit.report.tip.where=%s en aldeas, %s en el camino
+travellers.worker.recruit.report.tip.dead=%s murió en el camino
+travellers.worker.recruit.report.map.visited=%s. %s: %s reclutas
+travellers.worker.recruit.report.map.skipped=%s: saltado
+travellers.worker.recruit.report.map.not_reached=%s: no alcanzado
+travellers.worker.recruit.report.map.road=%s reclutas se unieron en la carretera
+travellers.worker.recruit.report.map.death=Un recluta murió aquí
+
+travellers.worker.home_list.empty=No hay cuarteles asignados. Mantén Shift y haz clic derecho en un lugar con varita de invocación para crear un cuartel.
+
+travellers.worker.hub.formation=Formaciones
+travellers.worker.hub.formation.tooltip=Gestiona tus unidades.
+
+travellers.worker.formation.title=Formación y grupos
+travellers.worker.formation.preview=Vista de radar
+travellers.worker.formation.preview_adaptive_cave=Cueva adaptativa: ACTIVADA
+travellers.worker.formation.preview_surface_bias=Cueva adaptativa: DESACTIVADA
+
+travellers.worker.formation.scope=Alcance
+travellers.worker.formation.scope_type=Tipo
+travellers.worker.formation.scope.player=Jugador
+travellers.worker.formation.scope.worker=Líder de secuaz
+travellers.worker.formation.followers=Secuaces
+
+travellers.worker.formation.style=Estilo
+travellers.worker.formation.follow_distance=Distancia de seguimiento
+travellers.worker.formation.spacing=Espaciado
+travellers.worker.formation.width=Ancho
+travellers.worker.formation.turn=Giro suave
+travellers.worker.formation.cave=Modo cueva
+
+travellers.worker.formation.cave.on=Cueva adaptativa: ACTIVADA
+travellers.worker.formation.cave.off=Cueva adaptativa: DESACTIVADA
+travellers.worker.formation.escorts=Escortes
+travellers.worker.formation.cohesion=Cohesión del jugador
+
+travellers.worker.formation.attitude=Actitud
+travellers.worker.formation.attitude.tooltip=Ataque: persigue libremente; Defensa: menos agresiva, Mantener posición: movimiento mínimo
+travellers.worker.formation.attitude.attack=Ataque
+travellers.worker.formation.attitude.defend=Defender
+travellers.worker.formation.attitude.hold=Mantener posición
+
+travellers.worker.formation.style.compact=Compacto
+travellers.worker.formation.style.line=Línea
+travellers.worker.formation.style.column=Columna
+travellers.worker.formation.style.wedge=Cuña
+travellers.worker.formation.style.adaptive=Adaptativo
+
+travellers.worker.formation.controls=Controles
+travellers.worker.formation.preview.forward=Adelante
+travellers.worker.formation.preview.zoom=Zoom: %s
+travellers.worker.formation.preview.count=Mostrados: %s
+travellers.worker.formation.preview.reset=Restablecer
+travellers.worker.formation.hover.leader=Líder
+travellers.worker.formation.hover.slot=Slot de seguidor %s
+travellers.worker.formation.hover.escort=Escolta cercana #%s
+travellers.worker.formation.hover.offset=Desplazamiento: x=%s z=%s
+
+travellers.worker.hub.mark_button=Marcar secuaz
+travellers.worker.hub.mark_button.desc=Edita la marca visual de tus secuaces contratados
+
+travellers.worker.mark.title=Apariencia
+travellers.worker.mark.style=Estilo
+travellers.worker.mark.color=Color: %s
+travellers.worker.mark.preview=Vista previa
+travellers.worker.mark.preview.follower=Secuaz
+travellers.worker.mark.preview.leader=Líder
+travellers.worker.mark.preview.leader_hint=Los líderes usan una superposición dedicada
+travellers.worker.mark.saved=Marcado de secuaz guardado
+
+travellers.worker.mark.style.plain=Plano
+travellers.worker.mark.style.double=Doble
+travellers.worker.mark.style.chevron=Flecha
+travellers.worker.formation.hub_title=Formación y grupos
+travellers.worker.formation.hint=Clic: seleccionar  ·  Mayús + clic/arrastrar: añadir secuaces  ·  Clic derecho: órdenes  ·  Arrastrar a la derecha: mover el mapa
+travellers.worker.formation.card.you=Tu escolta
+travellers.worker.formation.card.workers=%s secuaces
+travellers.worker.formation.card.following=marchando
+travellers.worker.formation.card.halted=detenido
+travellers.worker.formation.card.en_route=en camino
+travellers.worker.formation.leaders=Líderes
+travellers.worker.formation.barracks=Cuartel
+travellers.worker.formation.zone.beds=%s/%s camas
+travellers.worker.formation.zone.horses=%s/%s caballos
+travellers.worker.formation.zone.horse_state=%s domado · %s montado
+travellers.worker.formation.zone.hands=%s hombres del establo · %s aquí
+travellers.worker.formation.zone.nobody=Nadie vive aquí.
+travellers.worker.formation.zone.here_away=%s aquí · %s allá
+travellers.worker.formation.zone.at_rest=%s en reposo, libre para agrupar
+travellers.worker.formation.card.busy=en una misión
+travellers.worker.formation.card.followers_selected=%s seleccionado
+travellers.worker.formation.card.followers_hint=Haz clic derecho: envía a algún lugar, forma un grupo, únete a uno o haz que te sigan.
+travellers.worker.formation.menu.go=Ve aquí
+travellers.worker.formation.menu.equip=Consigue equipo...
+travellers.worker.formation.menu.loadout=Equipo para llevar:
+travellers.worker.formation.menu.loadout.melee=Cuchillo
+travellers.worker.formation.menu.loadout.bow=Arco
+travellers.worker.formation.menu.loadout.shield=Escudo
+travellers.worker.formation.menu.loadout.armour=Armadura
+travellers.worker.formation.summary.members=%s secuaces
+travellers.worker.formation.summary.wounded=%s heridos
+travellers.worker.formation.summary.armour=Armadura
+travellers.worker.formation.summary.armour.diamond=Diamante
+travellers.worker.formation.summary.armour.iron=Hierro
+travellers.worker.formation.summary.armour.chain=Cadena
+travellers.worker.formation.summary.armour.gold=Oro
+travellers.worker.formation.summary.armour.leather=Cuero
+travellers.worker.formation.summary.armour.other=Otro
+travellers.worker.formation.summary.armour.none=Ninguno
+travellers.worker.formation.menu.dump=Suelta objetos...
+travellers.worker.formation.menu.take_horses=Lleva caballos...
+travellers.worker.formation.menu.return_horses=Devuelve los caballos...
+travellers.worker.formation.menu.after_mission=Después:
+travellers.worker.formation.menu.stay_there=Quédate aquí
+travellers.worker.formation.menu.come_back=Vuelve
+travellers.worker.formation.menu.follow_me=Sígueme
+travellers.worker.formation.menu.merge_escort=Fusionarse con mi escolta
+travellers.worker.formation.menu.follow_group=Sigue a este grupo
+travellers.worker.formation.menu.merge_group=Fusiona con este grupo
+travellers.worker.formation.menu.halt=Detente aquí
+travellers.worker.formation.menu.recall=Retorna
+travellers.worker.formation.menu.resume=Reanudar la marcha
+travellers.worker.formation.menu.create_group=Forma un grupo
+travellers.worker.formation.menu.create_group_go=Forma un grupo y ve aquí
+travellers.worker.formation.menu.join_group=Únete a este grupo
+travellers.worker.formation.menu.no_orders=Sin órdenes
+travellers.worker.formation.menu.select=Selecciona
+travellers.worker.formation.menu.reason.busy=Este grupo está en una misión.
+travellers.worker.formation.menu.reason.target_busy=Ese grupo está en una misión.
+travellers.worker.formation.menu.reason.need_two=Selecciona al menos 2 secuaces.
+travellers.worker.formation.menu.reason.select_first=Primero selecciona un grupo o algunos secuaces.
+travellers.worker.formation.orders_tab=Órdenes del líder
+travellers.worker.formation.menu.choose_follow=¿A quién seguir?
+travellers.worker.formation.menu.choose_merge=¿Fusionarse en qué grupo?
+travellers.worker.formation.menu.choose_join=¿Con qué grupo unirte?
+travellers.worker.formation.menu.no_other_group=Sin otro grupo
+travellers.worker.formation.menu.reason.no_other_group=Aún no tienes otro grupo.
+travellers.worker.formation.bar.empty=Selecciona un grupo o unos secuaces para ver sus órdenes.
+travellers.worker.formation.bar.follow_me=Sígueme
+travellers.worker.formation.bar.follow_me.tip=Vuelve a mí y sígueme.
+travellers.worker.formation.bar.halt=Detente
+travellers.worker.formation.bar.halt.tip=Detente donde están.
+travellers.worker.formation.bar.resume=Reanudar
+travellers.worker.formation.bar.resume.tip=Comienza a seguir de nuevo.
+travellers.worker.formation.bar.follow=Sigue...
+travellers.worker.formation.bar.follow.tip=Elige un grupo (o tú) para que ese grupo siga.
+travellers.worker.formation.bar.merge=Fusionar con...
+travellers.worker.formation.bar.merge.tip=Elige otro grupo al que fusionar este.
+travellers.worker.formation.bar.center=Centro
+travellers.worker.formation.bar.center.tip=Centra el mapa en este grupo.
+travellers.worker.formation.bar.create_group=Forma un grupo
+travellers.worker.formation.bar.create_group.tip=Forma un nuevo grupo con los secuaces seleccionados.
+travellers.worker.formation.bar.join=Únete...
+travellers.worker.formation.bar.join.tip=Elige un grupo para que se una el secuaz seleccionado.
+travellers.worker.formation.you=Tú
+travellers.worker.formation.set_home=Cuartel
+
+travellers.worker.home_list.delete=Borrar
+travellers.worker.home_list.get_equip=Obtener equipo
+travellers.worker.home_list.equip_title=Elige misión:
+travellers.worker.home_list.equip_stay_barracks=Permanecer - Cuartel
+travellers.worker.home_list.equip_stay_village=Permanecer - Todo el Pueblo
+travellers.worker.home_list.equip_return_barracks=Regreso - Cuartel
+travellers.worker.home_list.equip_return_village=Regreso - Todo el Pueblo
+
+key.travellers.formation_hub=Abrir Centro de formaciones
+key.travellers.world_map=Abrir mapa mundial
+key.categories.travellers=Viajeros
+
+# Player zones (Barrack / Stable)
+travellers.lone_barrack.prompt.title=Nueva zona
+travellers.lone_barrack.prompt.name=Nombre:
+travellers.lone_barrack.prompt.half_width=ancho
+travellers.lone_barrack.prompt.half_depth=profundidad
+travellers.lone_barrack.prompt.half_height=altura
+travellers.lone_barrack.error.overlaps=Esta zona superpone una zona existente.
+travellers.lone_barrack.error.invalid=Esta zona no se puede crear aquí: acércate, mantenla dentro de los límites de tamaño y espera a que la zona se cargue.
+travellers.lone_barrack.created=¡Zona creada!
+
+travellers.zone.prompt.validate=Crear %s
+travellers.zone.prompt.role.chest=Cofres: %s (mín. %s)
+travellers.zone.prompt.role.bed=Camas: %s (mín. %s)
+travellers.zone.prompt.role.hitch=Vallas: %s (mín. %s)
+travellers.zone.error.no_chest=No se encontraron cofres en el área. Coloca al menos un cofre en el radio.
+travellers.zone.error.no_bed=No se encontraron camas en el área. Coloca al menos una cama (capacidad: un secuaz por cama).
+travellers.zone.error.no_hitch=No se encontraron vallas en el área. Coloca al menos una valla para que los caballos puedan engancharse a ella.
+
+travellers.zone.barrack.title=Cuartel
+travellers.zone.barrack.description=Vivienda para trabajadores contratados. Necesita al menos una cama y un cofre. Los trabajadores asignados aquí lo llaman hogar: pueden renacer junto a su cama tras morir, y su capacidad es un secuaz por cama.
+
+travellers.zone.stable.title=Establo
+travellers.zone.stable.description=Un rancho de caballos para trabajadores contratados. Necesita al menos un cofre, una valla para enganchar los caballos y una cama por cada mano de establo. Las manos de establo asignadas aquí doman, equipan y crían caballos para que tus trabajadores monten, y duermen en las camas por la noche.
+
+# Map legend
+travellers.map.legend.controlled_village=Ctrl. Aldea
+travellers.map.legend.enemy_village=Aldea enemiga
+travellers.map.settlement.population=%d habitantes
+travellers.map.settlement.kind=%s - %s
+travellers.map.settlement.reputation=Tu reputación: %s
+travellers.map.settlement.controlled_by=Controlado por %s
+travellers.map.settlement.under_attack=Bajo ataque!
+travellers.map.settlement.raiding=Raidando %s
+travellers.map.settlement.enemy=Enemigo de tus secuaces
+travellers.map.legend.home=Cuartel
+travellers.map.legend.stable=Establo
+travellers.map.legend.follower=Seguidor
+travellers.map.legend.leader=Líder
+travellers.map.legend.player=Tú
+travellers.map.legend.camp_firepit=Hoguera de campamento
+travellers.map.legend.camp_slot=Refugio de campamento
+travellers.map.legend.rest_spot=Lugar de descanso
+travellers.map.legend.road=Camino
+travellers.map.legend.trail=Sendero
+travellers.map.legend.bridge=Puente
+travellers.battle.report.running=Batalla
+travellers.battle.report.camp_assault=Asalto al campamento
+travellers.battle.report.won=Victoria
+travellers.battle.report.lost=Derrota
+travellers.battle.report.broken_off=Roto
+travellers.battle.report.over=Ganó %s
+travellers.battle.report.ago=Hace %s
+travellers.battle.report.yours=Tus secuaces
+travellers.battle.report.enemies=Enemigos
+travellers.battle.report.name.raiders=Saqueadores
+travellers.battle.report.name.travellers=Viajeros
+travellers.battle.report.name.henchmen=Secuaces
+travellers.battle.report.fallen=Caídos: %s
+travellers.battle.report.fallen_more=Caídos: %s y %s más
+travellers.battle.report.outlook.tomorrow=%s de vuelta a su cama mañana
+travellers.battle.report.outlook.later=%s en unos días
+travellers.battle.report.outlook.no_bed=%s no tuvo cama (perdido para siempre)
+travellers.battle.report.outlook.never=%s no volverá
+
+# Population map
+travellers.map.population.traveller=Viajeros: %d (%d cargados, %d virtual)
+travellers.map.population.raider=Saqueadores: %d (%d cargados, %d virtual)
+travellers.map.population.worker=Secuaces: %d (%d cargados, %d virtual)
+travellers.map.population.stable=Establos: %d (%d cargados, %d virtual)
+
+# Henchman/unit hover tooltips
+travellers.map.worker.unnamed=Secuaz #%d
+travellers.map.worker.unknown=Alguien
+travellers.map.worker.hp=§c♥§r %d/%d
+travellers.map.worker.in_battle=¡En batalla!
+travellers.map.worker.following=Siguiendo: %s
+travellers.map.worker.status.transport=En un trabajo de transporte
+travellers.map.worker.status.returning=Volviendo a casa
+travellers.map.worker.status.recruiting=En un trabajo de reclutamiento
+travellers.map.worker.status.get_equipment=Recogiendo equipo
+travellers.map.worker.status.dump_items=Dejando objetos
+travellers.map.worker.status.take_horses=Va a tomar un caballo
+travellers.map.worker.status.return_horses=Va a devolver un caballo
+travellers.map.worker.status.going_home=Volviendo a casa
+travellers.map.worker.status.going_to=Dirigiéndose a un destino
+
+# On-screen notifications
+travellers.notify.hire.already_hired_by_other=Este viajero ya está contratado por otra persona.
+travellers.notify.hire.needs_village_chief=Debes ser el líder de una aldea de Millénaire para contratar secuaces.
+travellers.notify.hire.not_enough_money=No tienes suficiente dinero (%s necesario).
+travellers.notify.hire.payment_failed=La contratación falló: no se pudo descontar el dinero.
+travellers.notify.hire.dismissed=El viajero ya no te seguirá.
+
+travellers.notify.recruit.busy=Estoy ocupado ahora mismo.
+travellers.notify.recruit.needs_group=Solo el líder de un grupo puede ir a reclutar.
+travellers.notify.recruit.no_villages_in_range=No hay aldeas en el rango para reclutar.
+travellers.notify.recruit.not_enough_fee=Cuota de reclutamiento: %s (tienes %s)
+travellers.notify.recruit.payment_failed=El pago de la cuota de reclutamiento falló. Inténtalo de nuevo.
+travellers.notify.recruit.recalled=%s está volviendo.
+travellers.notify.recruit.mission_started=Misión de reclutamiento iniciada. Cuota pagada: %s
+travellers.notify.recruit.henchmen_recruited=Reclutados %s secuaces en %s.
+travellers.notify.recruit.henchmen_recruited_road=Reclutados %s secuaces en la carretera cerca de %s.
+travellers.notify.recruit.mission_completed=Misión de reclutamiento completada.
+travellers.notify.recruit.back=%s ha vuelto de reclutar: habla con él para leer el informe.
+travellers.notify.worker.purse_no_room=No hay espacio para las monedas: libera un poco de espacio o lleva una bolsa de Millénaire.
+
+travellers.notify.worker.not_hired_transport=Debes contratar a este secuaz para usar el transporte.
+travellers.notify.worker.not_hired_inventory=Solo puedes acceder al equipo de un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_orders=Solo puedes dar órdenes a un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_behavior=Solo puedes gestionar el comportamiento de un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_recruit=Solo puedes reclutar con un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_home=Solo puedes gestionar el hogar de un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_go=Solo puedes ordenar a un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_formation=Solo puedes gestionar la formación de un secuaz que hayas contratado.
+travellers.notify.worker.not_hired_village_relations=Solo puedes gestionar las relaciones de aldea de un secuaz que hayas contratado.
+
+travellers.notify.leader.released_followers=Liberé %s secuaces a ti.
+travellers.notify.leader.now_leading=Este secuaz ahora lidera %s secuaces.
+travellers.notify.leader.no_free_followers=No hay secuaces libres para asignar.
+travellers.notify.leader.succession=%s ha tomado el mando del grupo.
+
+travellers.follow.choice.talk=Habla
+travellers.follow.choice.follow=Síguelo
+travellers.dialogue.gui.follow=Síguelo
+travellers.notify.follow.stopped_hurt=Te causó daño: dejaste de seguir.
+travellers.notify.follow.stopped_combat=Se desató una pelea: dejaste de seguir.
+travellers.notify.follow.stopped_hungry=Tienes demasiado hambre para seguir: dejaste de seguir.
+travellers.notify.follow.target_lost=Perdiste de vista a quién estabas siguiendo.
+
+travellers.notify.home.not_your_worker=No es tu secuaz.
+travellers.notify.home.none_assigned=Ningún hogar asignado.
+travellers.notify.home.lone_barrack_bed_destroyed=%s perdió su cama en "%s" y no hay otra cama libre allí: se marcharon de la zona y vuelven a ti.
+
+travellers.notify.order.worker_busy=Este secuaz está en una tarea y no puede recibir nuevas órdenes ahora mismo.
+travellers.notify.order.worker_on_duty=%s trabaja en "%s" y no recibe órdenes allí. Desasígnalo del menú de zonas primero.
+travellers.notify.order.some_busy_skipped=%s secuaces estaban en una tarea y fueron dejados solos.
+travellers.notify.goto.going_to=El secuaz se dirige a: %s
+travellers.notify.goto.going_to_pos=El secuaz se dirige a la posición seleccionada del mapa.
+travellers.notify.goto.not_enough_money=Necesitas %s para este viaje.
+travellers.notify.goto.payment_failed=El pago falló. Inténtalo de nuevo.
+travellers.notify.goto.delivery_started_free=Vale, me dirijo a %s!
+travellers.notify.goto.delivery_started_paid=Vale, me dirijo a %s por %s.
+travellers.notify.goto.delivery_started_donate=Vale, me dirijo a %s por %s como donación.
+
+travellers.notify.hostile.not_owner=No eres dueño de este secuaz.
+travellers.notify.hostile.added=Los secuaces atacarán: %s
+travellers.notify.hostile.removed=Enemigo eliminado: %s
+travellers.notify.hostile.war_declared_on_you=%s atacó a tus secuaces - ahora estás en guerra con ellos.
+
+travellers.notify.worker.arrived_home=El secuaz está en casa.
+travellers.notify.worker.cargo_arrived_full=Estoy aquí con tus mercancías. Revisa mi mochila.
+travellers.notify.worker.cargo_arrived_partial=Estoy aquí. No pude vender todo, algunas mercancías siguen en mi mochila.
+travellers.notify.worker.goods_left=%s todavía lleva mercancías para ti: habla con ellos para llevarte el resto.
+travellers.notify.worker.cargo_heading_home=%s no te encuentra y se dirige al cuartel con tu carga.
+travellers.notify.worker.cargo_waiting=%s no te encuentra y espera con tu carga donde fuiste vista por última vez.
+travellers.notify.worker.cargo_coming_back=%s está trayendo tu carga de vuelta a ti.
+travellers.notify.worker.already_on_job=Ya estoy en un trabajo.
+travellers.notify.worker.died=%s ha muerto.
+travellers.notify.worker.respawn_cancelled=%s no volverá: su cama se ha perdido, junto con lo que guardó.
+travellers.notify.worker.respawned=%s está en su cama.
+travellers.notify.worker.death_no_bed=Sin cama: no volverá.
+travellers.notify.worker.death_respawn_tomorrow=Estará en su cama mañana por la mañana.
+travellers.notify.worker.death_respawn_days=Estará en su cama en unos %s días.
+travellers.notify.worker.retaliation_target=%s ha sido designado como enemigo (represalia).
+
+travellers.notify.mount.led_terrain_blocked=%s no puede pasar por aquí - lo llevaremos a pie en su lugar.
+travellers.notify.mount.led_sidestep_gave_up=%s se quedó atascado y no pudo liberarse - lo llevaremos a pie en su lugar.
+travellers.notify.mount.led_low_health=%s tiene el caballo demasiado herido para montarlo - lo llevaremos a pie en su lugar.
+
+travellers.notify.trade.refused=El pueblo se niega a comerciar contigo (reputación demasiado baja o el pueblo no está comerciando ahora mismo).
+travellers.notify.trade.village_gone=%s no pudo encontrar el pueblo y está trayendo tu carga de vuelta.
+travellers.notify.trade.sold_summary=Venta en %s: %s artículos vendidos por %s, rep +%s%s
+travellers.notify.trade.donated_summary=Donación a %s: %s objetos, recompensa +%s%s
+travellers.notify.goto.arrived=Tu secuaz ha llegado a su destino.
+travellers.notify.goto.group_arrived=Tu grupo de %s secuaces ha llegado a su destino.
+travellers.notify.equip.done=Equipo ordenado: %s de %s cambiaron su equipo.
+travellers.notify.equip.nothing=No se encontró nada mejor para equipar.
+travellers.notify.dump.done=%s objetos almacenados, dejados por %s secuaces.
+travellers.notify.dump.full=Sin más espacio: %s objetos almacenados, %s se quedaron en las mochilas.
+travellers.notify.dump.nothing=Nada fue dejado.
+
+travellers.notify.battle.under_attack=Tus secuaces están bajo ataque
+travellers.notify.battle.fallen=Batalla: %s de tus secuaces caídos (%s)
+travellers.notify.battle.fallen_more=Batalla: %s de tus secuaces caídos (%s y %s más)
+travellers.notify.battle.won=Batalla ganada - %s de tus secuaces cayeron
+travellers.notify.battle.lost=Batalla perdida - %s de tus secuaces cayeron
+travellers.notify.battle.broken_off=Batalla interrumpida - %s de tus secuaces cayeron
+travellers.notify.battle.away_summary=Mientras estuviste ausente: %s batallas, %s de tus secuaces cayeron
+travellers.notify.overflow=+%s avisos más
+travellers.notify.location_suffix=%sm hacia el %s
+
+travellers.gui.history.loading=Cargando historial...
+travellers.gui.history.empty=Sin eventos todavía.
+travellers.gui.history.time.just_now=hace un momento
+travellers.gui.history.time.minutes_ago=%sm atras
+travellers.gui.history.time.hours_ago=%sh atras
+travellers.gui.history.time.days_ago=%sd atras
+
+travellers.dialogue.worker_farewell=Hice lo que tenía que hacer. Déjame descansar un poco.
+travellers.dialogue.staying_in_village=Estoy quedándome en %s un rato.
+travellers.dialogue.no_destination=Aún no tengo un destino.
+travellers.dialogue.heading_to=Me dirijo realmente a %s en el %s.
+travellers.dialogue.gui_fallback_heading_to=Me dirijo realmente a %s.
+
+# --- Dialogue GUI (AI conversation) ---
+travellers.dialogue.gui.title=Hablar
+travellers.dialogue.gui.not_configured=Aún no has configurado el diálogo de IA.
+travellers.dialogue.gui.configure=Configurar el diálogo de IA
+travellers.dialogue.gui.send=Enviar
+travellers.dialogue.gui.you=Tú
+travellers.dialogue.gui.generating=...
+travellers.dialogue.gui.looking_up=...(pensándolo)...
+travellers.dialogue.gui.tool_cap_fallback=Déjame pensarlo un poco más antes de responder.
+travellers.dialogue.gui.error_note=(Algo salió mal al contactar con tu IA local.)
+
+# --- Dialogue setup screen (client-local AI server connection) ---
+travellers.dialogue.setup.title=Configuración del diálogo de IA
+travellers.dialogue.setup.server_type=Servidor: %s
+travellers.dialogue.setup.host=Host del servidor
+travellers.dialogue.setup.port=Puerto
+travellers.dialogue.setup.enabled=Diálogo de IA:
+travellers.dialogue.setup.preload=Cargar el modelo al iniciar
+travellers.dialogue.setup.preload_help=Calienta tu modelo elegido cuando empieza el juego, para que la primera conversación no sea lenta
+travellers.dialogue.setup.preload_not_needed=No necesario: llama.cpp ya ha cargado su modelo
+travellers.dialogue.setup.test_connection=Probar conexión
+travellers.dialogue.setup.testing=Prueba...
+travellers.dialogue.setup.test_ok=Conectado - %d modelo(s) encontrado.
+travellers.dialogue.setup.test_no_models=Conectado, pero aún no se han cargado los modelos.
+travellers.dialogue.setup.test_failed=No se pudo conectar: %s
+travellers.dialogue.setup.detail_level=Detalle: %s
+travellers.dialogue.setup.detail_level.minimal=Mínimo
+travellers.dialogue.setup.detail_level.standard=Estándar
+travellers.dialogue.setup.detail_level.rich=Rico
+travellers.dialogue.setup.detail_level_help=Rico = más detalle, necesita un modelo local más grande
+travellers.dialogue.setup.debug_dump=Depuración: volcar prompts brutos
+travellers.dialogue.setup.debug_dump_help=Escribe todo lo enviado al AI a un archivo de registro, para diagnosticar respuestas malas
+travellers.dialogue.setup.advanced=Avanzado (ajustes del modelo)
+
+travellers.dialogue.setup.advanced.title=Configuración avanzada del modelo
+travellers.dialogue.setup.advanced.intro=Deja un campo vacío para usar el valor por defecto del modelo.
+travellers.dialogue.setup.advanced.think=Pensamiento extendido
+travellers.dialogue.setup.advanced.tools=Permite que el NPC busque cosas
+travellers.dialogue.setup.advanced.tools_warning=No todos los modelos lo soportan - los que no lo soportan simplemente lo ignoran.
+travellers.dialogue.setup.advanced.reset=Restablecer a los valores por defecto
+travellers.dialogue.setup.advanced.num_ctx=Tamaño de contexto (memoria, num_ctx)
+travellers.dialogue.setup.advanced.num_ctx_fixed=Tamaño de contexto: se define al iniciar llama.cpp
+travellers.dialogue.setup.advanced.temperature=Temperatura (creatividad)
+travellers.dialogue.setup.advanced.top_p=Top P (enfoque de palabras)
+travellers.dialogue.setup.advanced.top_k=Top K (opciones de palabras)
+travellers.dialogue.setup.advanced.repeat_penalty=Penalización por repetición
+travellers.dialogue.setup.advanced.num_predict=Longitud máxima de respuesta (-1 = sin límite)
+
+# --- Worker hub menu tree ---
+travellers.worker.hub.node.orders=Órdenes
+travellers.worker.hub.node.follow=Seguir
+travellers.worker.hub.node.follow_player=Sígueme
+travellers.worker.hub.node.follow_him=Síguelo
+travellers.worker.hub.node.follow_him.tooltip=Camina detrás de este secuaz sin soltar las manos. Presiona cualquier tecla de movimiento para detenerte.
+travellers.worker.hub.node.leader=Lidera
+travellers.worker.hub.node.go=Misiones
+travellers.worker.hub.node.travel=Viajar
+travellers.worker.hub.node.recruit=Reclutar
+travellers.worker.hub.node.recruit.tooltip=Envía a este líder y su grupo en una gira de reclutamiento. Haz que lideren al menos un secuaz primero.
+travellers.worker.hub.node.choir=Canta
+travellers.worker.hub.node.transport=Transportar
+travellers.worker.hub.node.unhire=Despedir
+travellers.worker.hub.node.unhire_confirm=¿Seguro?
+travellers.worker.hub.node.unhire.tooltip=Despide a este secuaz. Haz clic dos veces para confirmar.
+travellers.worker.hub.node.management=Gestión
+travellers.worker.hub.node.players=Jugadores
+travellers.worker.hub.node.players.tooltip=Elige qué jugadores tus secuaces consideran enemigos. Se aplica a todos tus secuazes, no solo a este.
+travellers.worker.hub.node.relations=Relaciones
+travellers.worker.hub.node.villages=Aldeas
+travellers.worker.hub.node.villages.tooltip=Cómo se comportan tus secuaces ante cada aldea. Se aplica a todos tus secuazes, no solo a este.
+travellers.worker.hub.node.barracks=Zonas
+travellers.worker.hub.node.inventory=Inventario
+travellers.worker.hub.node.formation=Formación
+travellers.worker.hub.info.health=Salud %s/%s
+travellers.worker.hub.info.village=Desde %s
+travellers.notify.raid.incoming=¡Asalto entrante!
+travellers.notify.raid.wave=¡Ola %s/%s entrante!
+travellers.notify.raid.repelled=¡Asalto repelido.
+travellers.notify.raid.scattered=Asalto sobre: los saqueadores se dispersan.
+travellers.raid.bar=Asalto — ola %s/%s
+
+# /summonworkers
+commands.travellers.summonworkers.usage=/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]
+commands.travellers.summonworkers.success=Hasasentado %s trabajadores contratados (%s a caballo) para %s.
+commands.travellers.summonworkers.partial=%s trabajadores no hallaron un lugar seguro cerca y no fueron generados.
+commands.travellers.summonworkers.none=No se encontró lugar seguro alrededor de %s.
+commands.travellers.summonworkers.bowShield=Un secuaz no puede llevar un arco y un escudo juntos.
+commands.travellers.summonworkers.badOption=Opción desconocida: %s
+commands.travellers.summonworkers.badCulture=Cultura desconocida: %s
+commands.travellers.summonworkers.mountsDisabled=Las monturas a caballo están deshabilitadas en la configuración: no se darán caballos.
+
+tile.travellers.village_of_nature.name=The Village of Nature
+
+# GUI unification: screen titles and hints
+travellers.map.title=Mapa mundial
+travellers.worker.go.title=Envía a un lugar
+travellers.worker.recruit.title=Recluta secuaces
+travellers.worker.barracks.title=Zonas
