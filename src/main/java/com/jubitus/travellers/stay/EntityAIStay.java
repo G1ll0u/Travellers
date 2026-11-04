@@ -75,6 +75,8 @@ public class EntityAIStay extends EntityAIBase {
 
     private enum Activity {
         NONE, STROLL, BUILDING, PANEL, TALK, SIT,
+        // Standing at a tavern counter for a drink (its one linger leg is the counter).
+        DRINK,
         // Leaving: out of any building, back to the horse, then (a group leader) wait for the group.
         EXIT, FETCH_HORSE, WAIT_GROUP;
 
@@ -164,6 +166,8 @@ public class EntityAIStay extends EntityAIBase {
     private int settleTicks;
     /** The previous leg was only walked through (no linger): don't stop to turn before the next one. */
     private boolean justWalked;
+    /** The drink at the counter has begun (the snack is planned, the drink's clock runs). */
+    private boolean atCounter;
 
     private List<EntityLivingBase> nearby = Collections.emptyList();
     private int socialTicker;
@@ -289,9 +293,12 @@ public class EntityAIStay extends EntityAIBase {
         mob.getGaze().reset();
         mob.getGaze().setPlaces(place == null ? Collections.emptyList() : place.placesOfInterest());
 
-        // Back from offscreen: first stand where it reappeared, facing the building it was visiting.
+        // Back from offscreen or from an interruption: a drink under way is finished first, through the door.
+        // Back from offscreen otherwise: first stand where it reappeared, facing the building it was visiting.
         StayState st = mob.getStayState();
-        if (st != null && st.facing != null && !st.isLeaving()) {
+        if (st != null && st.isDrinking() && !st.isLeaving()) {
+            if (!resumeDrink(st)) st.endDrink();
+        } else if (st != null && st.facing != null && !st.isLeaving()) {
             activity = Activity.STROLL;
             legs.add(new Leg(mob.getPosition(), 60 + mob.getRNG().nextInt(80), false, false, false, st.facing));
         }
@@ -374,21 +381,56 @@ public class EntityAIStay extends EntityAIBase {
         }
         if (p.isRestSpot() && mob.getRNG().nextDouble() < TravellersConfig.REST_SPOTS.sitChance && planSit(p)) return;
 
+        StayState st = mob.getStayState();
+        if (st != null && st.drinkAt != null) st.endDrink(); // a drink dropped on the way (unreachable, stuck)
+        boolean canDrink = st != null && !(mob instanceof EntityTravellerRaider) && s != null && !s.drinks.isEmpty();
+        if (canDrink && st.drinks == 0 && planDrink(st, s)) return;
+
         boolean streetsOnly = mob instanceof EntityTravellerRaider && !cfg.raidersVisitBuildings;
         int wStroll = cfg.weightStroll;
         int wBuilding = streetsOnly || s == null || s.buildings.isEmpty() ? 0 : cfg.weightBuilding;
         int wPanel = streetsOnly || !cfg.visitPanels || s == null || s.panelGroups.isEmpty() ? 0 : cfg.weightPanel;
-        int total = wStroll + wBuilding + wPanel;
+        int wDrink = canDrink ? cfg.weightDrink : 0;
+        int total = wStroll + wBuilding + wPanel + wDrink;
         if (total <= 0) {
             wStroll = 1;
             total = 1;
         }
         int roll = mob.getRNG().nextInt(total);
         boolean planned;
-        if (roll < wBuilding) planned = planTarget(drawBuilding(s), Activity.BUILDING);
-        else if (roll < wBuilding + wPanel) planned = planTarget(drawPanel(s), Activity.PANEL);
+        if (roll < wBuilding) planned = planTarget(drawBuilding(s), Activity.BUILDING, rollLingerTicks());
+        else if (roll < wBuilding + wPanel) planned = planTarget(drawPanel(s), Activity.PANEL, rollLingerTicks());
+        else if (roll < wBuilding + wPanel + wDrink) planned = planDrink(st, s);
         else planned = false;
         if (!planned && !planStroll(p)) planPause();
+    }
+
+    /** A drink at one of the village's taverns, quieter ones preferred: its time at the counter lengthens the stay. */
+    private boolean planDrink(StayState st, VillageVisitIndex.Settlement s) {
+        List<Double> weights = new ArrayList<>(s.drinks.size());
+        for (VillageVisitIndex.Target t : s.drinks) weights.add(crowdWeight(t));
+        VillageVisitIndex.Target t = pickWeighted(s.drinks, weights);
+        if (t == null || !mob.world.isBlockLoaded(t.point)) return false;
+        int ticks = StayPlace.rollDrinkTicks(mob.getRNG());
+        st.startDrink(t.point, t.entrance, ticks);
+        trace("drink", "#" + st.drinks + " for " + ticks / 20 + "s");
+        return planTarget(t, Activity.DRINK, ticks);
+    }
+
+    /** Goes back to the counter of a drink already under way, for the time it has left. */
+    private boolean resumeDrink(StayState st) {
+        VillageVisitIndex.Settlement s = place == null ? null : place.settlement();
+        if (s == null || mob instanceof EntityTravellerRaider) return false;
+        for (VillageVisitIndex.Target t : s.drinks) {
+            if (t.point.equals(st.drinkAt)) {
+                trace("drink", "resumed, " + st.drinkTicks / 20 + "s left");
+                if (!planTarget(t, Activity.DRINK, st.drinkTicks)) return false;
+                // Interrupted right at the counter: no detour out through the door and back in.
+                if (legs.size() == 3 && mob.getDistanceSqToCenter(t.point) < 16.0D) legs.pollFirst();
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A building to visit, any of them, quieter ones preferred; never the one just visited. */
@@ -490,7 +532,7 @@ public class EntityAIStay extends EntityAIBase {
         return true;
     }
 
-    private boolean planTarget(@Nullable VillageVisitIndex.Target t, Activity kind) {
+    private boolean planTarget(@Nullable VillageVisitIndex.Target t, Activity kind, int lingerTicks) {
         if (t == null || !mob.world.isBlockLoaded(t.point)) return false;
         boolean inside = MillFootprints.at(mob.world, t.point.getX() + 0.5D, t.point.getY(), t.point.getZ() + 0.5D, 0) != null;
         BlockPos approach = t.entrance;
@@ -503,7 +545,7 @@ public class EntityAIStay extends EntityAIBase {
         exitEntrance = approach;
         boolean viaApproach = approach != null && !approach.equals(t.point);
         if (viaApproach) legs.add(new Leg(approach, 0, false, false, false));
-        legs.add(new Leg(t.point, rollLingerTicks(), inside, false, t.panel));
+        legs.add(new Leg(t.point, lingerTicks, inside, false, t.panel));
         if (viaApproach) legs.add(new Leg(approach, 0, false, true, false));
         StayOccupancy.claim(mob.world, mob.getUniqueID(), approach != null ? approach : t.point, 20 * 60);
         trace("activity", kind + " " + t.label + " at " + fmt(t.point) + (inside ? " inside" : ""));
@@ -543,6 +585,8 @@ public class EntityAIStay extends EntityAIBase {
 
     private void beginExit() {
         clearActivity();
+        StayState st = mob.getStayState();
+        if (st != null) st.endDrink();
         MillFootprints.Footprint f = MillFootprints.at(mob.world, mob.posX, mob.posY, mob.posZ, 0);
         BlockPos out = null;
         if (f != null) {
@@ -684,6 +728,8 @@ public class EntityAIStay extends EntityAIBase {
         }
         activity = Activity.NONE;
         mob.sit.stand();
+        mob.snack.stop();
+        atCounter = false;
         legs.clear();
         leg = null;
         legTarget = null;
@@ -761,13 +807,35 @@ public class EntityAIStay extends EntityAIBase {
         }
 
         if (leg.seat != null && !settled) settleOnSeat(leg.seat);
+        boolean counter = activity == Activity.DRINK && leg.lingerTicks > 0;
+        if (counter) tickCounter();
         if (--lingerLeft <= 0) {
             if (leg.seat != null) mob.sit.stand();
+            if (counter) endCounter();
             justWalked = leg.lingerTicks <= 0;
             leg = null;
             if (lookAt != null) mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
             lookAt = null;
         }
+    }
+
+    /** Standing at the counter: the drink is planned on arrival, and its clock runs only here. */
+    private void tickCounter() {
+        StayState st = mob.getStayState();
+        if (!atCounter) {
+            atCounter = true;
+            mob.snack.planAtCounter();
+            trace("drink", "at the counter for " + lingerLeft / 20 + "s");
+        }
+        if (st != null && st.drinkTicks > 0) st.drinkTicks--;
+    }
+
+    private void endCounter() {
+        StayState st = mob.getStayState();
+        if (st != null) st.endDrink();
+        mob.snack.stop();
+        atCounter = false;
+        trace("drink", "done");
     }
 
     /** Steps onto the middle of the seat, then sits for the rest of the linger; gives up (stays standing) after a moment. */

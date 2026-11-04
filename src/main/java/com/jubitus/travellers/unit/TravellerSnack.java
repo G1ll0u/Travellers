@@ -12,9 +12,9 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.WorldServer;
 
 /**
- * A seated unit sipping or eating something, purely cosmetic: the item is only shown (synced for render), the real
+ * A seated unit (or one standing at a tavern counter) sipping or eating something, purely cosmetic: the item is only shown (synced for render), the real
  * hands are never touched, nothing is used up and nothing is persisted (a unit always comes back from offscreen
- * empty-handed). It ends itself the moment the unit is no longer sitting quietly, so no caller can leave it stuck.
+ * empty-handed). It ends itself the moment the unit is no longer sitting (or standing) quietly, so no caller can leave it stuck.
  */
 public final class TravellerSnack {
 
@@ -28,6 +28,9 @@ public final class TravellerSnack {
     private static final int FIRST_DELAY_MAX = 300;
     private static final int NEXT_DELAY_MIN = 60;
     private static final int NEXT_DELAY_MAX = 160;
+    // At a counter the drink comes soon after arriving.
+    private static final int COUNTER_DELAY_MIN = 20;
+    private static final int COUNTER_DELAY_MAX = 60;
 
     private static final float RAISE_STEP = 0.2F;
 
@@ -37,6 +40,8 @@ public final class TravellerSnack {
     // Server: what is left of this seat's snacks (true = a drink), and the wait before the next one.
     private final java.util.ArrayDeque<Boolean> planned = new java.util.ArrayDeque<>();
     private int nextDelay;
+    // Server: the snacks are had standing at a counter rather than seated.
+    private boolean standing;
     // Server: the heal-eating task (EntityAIAutoEat) owns the shown item; the seated snack logic stands aside.
     private boolean meal;
     // Client only, eased towards the synced state so the arm moves instead of snapping.
@@ -71,12 +76,27 @@ public final class TravellerSnack {
     public void planWhileSeated() {
         if (unit.world.isRemote || !unit.sit.isSitting()) return;
         planned.clear();
+        standing = false;
         if (unit.getRNG().nextDouble() >= TravellersConfig.REST_SPOTS.snackChance) return;
         boolean drinkFirst = unit.getRNG().nextBoolean();
         planned.add(drinkFirst);
         if (unit.getRNG().nextInt(3) == 0) planned.add(!drinkFirst); // a third of the time, both
         nextDelay = between(FIRST_DELAY_MIN, FIRST_DELAY_MAX);
         TravellerTracer.event(unit, "snack", "planned " + planned + " (true = drink) in " + nextDelay / 20 + "s");
+    }
+
+    /**
+     * Server, once the unit stands still at a tavern counter: always a drink, sometimes a bite after it, played out
+     * while it stands there. Whatever is left is dropped the moment it walks off.
+     */
+    public void planAtCounter() {
+        if (unit.world.isRemote || meal) return;
+        planned.clear();
+        standing = true;
+        planned.add(true);
+        if (unit.getRNG().nextInt(3) == 0) planned.add(false);
+        nextDelay = between(COUNTER_DELAY_MIN, COUNTER_DELAY_MAX);
+        TravellerTracer.event(unit, "snack", "at the counter " + planned + " (true = drink) in " + nextDelay / 20 + "s");
     }
 
     /** Server, for the heal-eating task: shows {@code food} at the mouth until {@link #releaseMeal}, seated or not. */
@@ -104,6 +124,7 @@ public final class TravellerSnack {
     public void stop() {
         if (meal) return;
         planned.clear();
+        standing = false;
         if (unit.world.isRemote || !isActive()) return;
         TravellerTracer.event(unit, "snack", "interrupted");
         sipsLeft = 0;
@@ -116,6 +137,7 @@ public final class TravellerSnack {
         if (meal) return;
         if (!isActive()) {
             if (!planned.isEmpty()) tickPlanned();
+            else standing = false;
             return;
         }
         if (!canSnackNow()) {
@@ -141,7 +163,8 @@ public final class TravellerSnack {
     private void tickPlanned() {
         if (!canSnackNow()) {
             planned.clear();
-            TravellerTracer.event(unit, "snack", "dropped: no longer sitting quietly");
+            TravellerTracer.event(unit, "snack", "dropped: no longer " + (standing ? "standing" : "sitting") + " quietly");
+            standing = false;
             return;
         }
         if (--nextDelay > 0) return;
@@ -191,7 +214,9 @@ public final class TravellerSnack {
     }
 
     private boolean canSnackNow() {
-        return unit.isEntityAlive() && unit.sit.isSitting() && unit.hurtTime == 0 && !unit.isInCombat()
+        boolean still = unit.sit.isSitting()
+                || standing && !unit.isRiding() && unit.getNavigator().noPath() && !unit.getMoveHelper().isUpdating();
+        return unit.isEntityAlive() && still && unit.hurtTime == 0 && !unit.isInCombat()
                 && unit.getAttackTarget() == null && !unit.isHandActive() && !unit.isAutoEating();
     }
 

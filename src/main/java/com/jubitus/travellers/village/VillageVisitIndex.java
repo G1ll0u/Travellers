@@ -40,12 +40,15 @@ public final class VillageVisitIndex {
         public final BlockPos entrance;
         public final String label;
         public final boolean panel;
+        /** A tavern or leisure building: a traveller stops for a drink at {@link #point}, its leisure point. */
+        public final boolean drink;
 
-        Target(BlockPos point, @Nullable BlockPos entrance, String label, boolean panel) {
+        Target(BlockPos point, @Nullable BlockPos entrance, String label, boolean panel, boolean drink) {
             this.point = point;
             this.entrance = entrance;
             this.label = label;
             this.panel = panel;
+            this.drink = drink;
         }
     }
 
@@ -58,6 +61,8 @@ public final class VillageVisitIndex {
         public final List<Target> panels;
         /** The same panels, one list per building: a visitor picks a building first, then one of its panels. */
         public final List<List<Target>> panelGroups;
+        /** The buildings of {@link #buildings} where a visitor can have a drink. */
+        public final List<Target> drinks;
 
         Settlement(BlockPos center, boolean lone, int radius, List<BlockPos> entrances,
                    List<Target> buildings, List<Target> panels, List<List<Target>> panelGroups) {
@@ -68,6 +73,9 @@ public final class VillageVisitIndex {
             this.buildings = buildings;
             this.panels = panels;
             this.panelGroups = panelGroups;
+            List<Target> d = new ArrayList<>();
+            for (Target t : buildings) if (t.drink) d.add(t);
+            this.drinks = Collections.unmodifiableList(d);
         }
     }
 
@@ -127,17 +135,19 @@ public final class VillageVisitIndex {
             if (entrance != null) entrances.add(entrance);
 
             String plan = b.location.planKey != null ? b.location.planKey : "?";
-            if (isVisitable(b, plan)) {
-                BlockPos point = toPos(raw.travellers$getLeasurePos());
+            BlockPos leisure = toPos(raw.travellers$getLeasurePos());
+            boolean drink = leisure != null && isDrinkPlace(b, plan);
+            if (drink || isVisitable(b, plan)) {
+                BlockPos point = leisure;
                 if (point == null) point = toPos(raw.travellers$getSellingPos());
                 if (point == null) point = entrance;
-                if (point != null) buildings.add(new Target(point, entrance, plan, false));
+                if (point != null) buildings.add(new Target(point, entrance, plan, false, drink));
             }
             if (res.signs != null) {
                 List<Target> group = new ArrayList<>();
                 for (Point p : res.signs) {
                     BlockPos panel = toPos(p);
-                    if (panel != null) group.add(new Target(panel, entrance, plan, true));
+                    if (panel != null) group.add(new Target(panel, entrance, plan, true, false));
                 }
                 if (!group.isEmpty()) {
                     panels.addAll(group);
@@ -150,18 +160,28 @@ public final class VillageVisitIndex {
                 Collections.unmodifiableList(panels), Collections.unmodifiableList(panelGroups));
     }
 
+    private static boolean isDrinkPlace(Building b, String plan) {
+        return !isExcluded(b, plan) && anyTag(tagsOf(b), TravellersConfig.VILLAGE_VISIT.drinkBuildingTags);
+    }
+
     private static boolean isVisitable(Building b, String plan) {
         TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
-        String planLower = plan.toLowerCase(Locale.ROOT);
-        Set<String> tags;
-        try {
-            tags = b.getTags();
-        } catch (Throwable t) {
-            tags = Collections.emptySet();
-        }
-        if (anyTag(tags, cfg.buildingExcludeTags) || anyWord(planLower, cfg.buildingExcludePlans)) return false;
+        if (isExcluded(b, plan)) return false;
         if (b.isTownhall && cfg.visitTownHall) return true;
-        return anyTag(tags, cfg.buildingIncludeTags) || anyWord(planLower, cfg.buildingIncludePlans);
+        return anyTag(tagsOf(b), cfg.buildingIncludeTags) || anyWord(plan.toLowerCase(Locale.ROOT), cfg.buildingIncludePlans);
+    }
+
+    private static boolean isExcluded(Building b, String plan) {
+        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
+        return anyTag(tagsOf(b), cfg.buildingExcludeTags) || anyWord(plan.toLowerCase(Locale.ROOT), cfg.buildingExcludePlans);
+    }
+
+    private static Set<String> tagsOf(Building b) {
+        try {
+            return b.getTags();
+        } catch (Throwable t) {
+            return Collections.emptySet();
+        }
     }
 
     private static boolean anyTag(Set<String> tags, String[] wanted) {

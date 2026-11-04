@@ -202,7 +202,9 @@ public class VillageDebugCommand implements DebugSubcommand {
         String visit = st == null ? "not visiting"
                 : "stop " + fmtPos(st.stop) + (st.asFollower ? " (with group)" : "")
                 + (st.isLeaving() ? " leaving" : " left=" + st.remainingTicks / 20 + "s")
-                + " spot " + fmtPos(st.spot) + " post " + fmtPos(st.hitchPos);
+                + " spot " + fmtPos(st.spot) + " post " + fmtPos(st.hitchPos)
+                + " drinks " + st.drinks + (st.isDrinking() ? " (drinking at " + fmtPos(st.drinkAt) + ", "
+                + st.drinkTicks / 20 + "s left)" : "");
         sender.sendMessage(new TextComponentString(TextFormatting.GOLD + who + TextFormatting.RESET + " | " + visit
                 + TextFormatting.GRAY + " | horse: " + horse));
     }

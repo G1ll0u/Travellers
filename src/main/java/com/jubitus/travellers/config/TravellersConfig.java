@@ -1298,6 +1298,21 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 100)
         public int weightPanel = 2;
 
+        @Config.Comment("Buildings where travellers and wandering workers stop for a drink at the counter: any building with one of these Millénaire tags.")
+        public String[] drinkBuildingTags = new String[]{"inn", "leasure"};
+
+        @Config.Comment("How often travellers go back for another drink after their first one, compared to the other activities (the first drink of a visit always happens).")
+        @Config.RangeInt(min = 0, max = 100)
+        public int weightDrink = 3;
+
+        @Config.Comment("Shortest time at the counter for a drink (seconds); it lengthens the visit.")
+        @Config.RangeInt(min = 5, max = 600)
+        public int drinkMinSeconds = 30;
+
+        @Config.Comment("Longest time at the counter for a drink (seconds); it lengthens the visit.")
+        @Config.RangeInt(min = 5, max = 600)
+        public int drinkMaxSeconds = 90;
+
         @Config.Comment("Shortest time a traveller stays at a spot it walked to (seconds).")
         @Config.RangeInt(min = 0, max = 600)
         public int lingerMinSeconds = 6;

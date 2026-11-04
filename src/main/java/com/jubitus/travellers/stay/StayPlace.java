@@ -89,6 +89,13 @@ public final class StayPlace {
         return 20 * (min + rng.nextInt(max - min + 1));
     }
 
+    /** How long a drink at a tavern counter lasts (it lengthens the stay). */
+    public static int rollDrinkTicks(Random rng) {
+        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
+        int max = Math.max(cfg.drinkMinSeconds, cfg.drinkMaxSeconds);
+        return 20 * (cfg.drinkMinSeconds + rng.nextInt(max - cfg.drinkMinSeconds + 1));
+    }
+
     /** Points a stroll starts from (a random spot around one of them), and posts a horse may be moved to. */
     public List<BlockPos> anchors() {
         return settlement != null ? settlement.entrances : Collections.singletonList(center);
@@ -110,7 +117,8 @@ public final class StayPlace {
         if (restSpot != null) return "rest spot score=" + restSpot.score();
         if (settlement == null) return "place";
         return (settlement.lone ? "lone" : "village") + " entrances=" + settlement.entrances.size()
-                + " buildings=" + settlement.buildings.size() + " panels=" + settlement.panels.size();
+                + " buildings=" + settlement.buildings.size() + " taverns=" + settlement.drinks.size()
+                + " panels=" + settlement.panels.size();
     }
 
     /** XZ distance check against the place's reach. */

@@ -20,6 +20,9 @@ import java.util.UUID;
 /** Stays of offscreen records (see StayState; the loaded side is EntityAIStay). */
 final class VirtualStays {
 
+    /** Close enough to a tavern's door to count as being in for a drink. */
+    private static final double DOOR_REACH_SQ = 4.0 * 4.0;
+
     private final VirtualTravellerManager manager;
     private final Map<UUID, VirtualTravellerRecord> records;
 
@@ -118,11 +121,16 @@ final class VirtualStays {
         }
 
         if (!st.isLeaving()) {
+            if (st.isDrinking()) {
+                tickDrink(st, r, elapsed, now);
+                return;
+            }
             if (now >= st.nextStepTick) pickVirtualSpot(world, r, place, now);
             return;
         }
 
         // Leaving: back to the horse first.
+        st.endDrink();
         st.spot = null;
         st.facing = null;
         if (st.hitchPos != null) {
@@ -133,6 +141,29 @@ final class VirtualStays {
             if (st.horseAtPost && !reclaimHorseAtPost(world, r, st, now)) return;
         }
         endVirtualVisit(world, r, now);
+    }
+
+    /**
+     * A drink offscreen: the record is "inside" with no real position (never placed in a building). It waits at the
+     * door, and the drink's clock runs once it is there, like the loaded clock runs only at the counter.
+     */
+    private static void tickDrink(StayState st, VirtualTravellerRecord r, long elapsed, long now) {
+        if (st.spot == null && st.drinkDoor != null) {
+            // Went offscreen at the counter: it stands at the door from now on.
+            st.spot = st.drinkDoor;
+            st.facing = st.drinkAt;
+            r.goal = st.spot;
+        }
+        BlockPos door = st.spot;
+        if (door != null) {
+            double dx = door.getX() + 0.5 - r.posX;
+            double dz = door.getZ() + 0.5 - r.posZ;
+            if (dx * dx + dz * dz > DOOR_REACH_SQ) return;
+        }
+        st.drinkTicks -= (int) elapsed;
+        if (st.drinkTicks > 0) return;
+        st.endDrink();
+        st.nextStepTick = now;
     }
 
     /**
@@ -201,22 +232,36 @@ final class VirtualStays {
         java.util.List<BlockPos> spots = new java.util.ArrayList<>();
         java.util.List<BlockPos> faces = new java.util.ArrayList<>();
         java.util.List<Double> weights = new java.util.ArrayList<>();
+        // The tavern behind each drink spot, by its index in spots.
+        Map<Integer, VillageVisitIndex.Target> taverns = new java.util.HashMap<>();
+        boolean canDrink = s != null && !s.lone && !s.drinks.isEmpty() && !"RAIDER".equals(r.entityClass);
+        double wDrink = canDrink ? Math.max(0, cfg.weightDrink) : 0;
+        if (canDrink && (st.drinks == 0 || wDrink > 0)) {
+            // The first drink of a stay is guaranteed: only taverns are drawn until it is had.
+            double w = st.drinks == 0 ? 1.0 : wDrink;
+            for (VillageVisitIndex.Target t : s.drinks) {
+                if (addSpot(world, r, t.entrance, t.point, w / s.drinks.size(), spots, faces, weights)) {
+                    taverns.put(spots.size() - 1, t);
+                }
+            }
+        }
+        boolean firstDrink = st.drinks == 0 && !taverns.isEmpty();
         double wStroll = Math.max(0, cfg.weightStroll);
         double wBuilding = streetsOnly ? 0 : Math.max(0, cfg.weightBuilding);
         double wPanel = streetsOnly || !cfg.visitPanels ? 0 : Math.max(0, cfg.weightPanel);
-        if (s != null && !s.buildings.isEmpty() && wBuilding > 0) {
+        if (!firstDrink && s != null && !s.buildings.isEmpty() && wBuilding > 0) {
             for (VillageVisitIndex.Target t : s.buildings) {
                 addSpot(world, r, t.entrance, t.point, wBuilding / s.buildings.size(), spots, faces, weights);
             }
         }
-        if (s != null && !s.panelGroups.isEmpty() && wPanel > 0) {
+        if (!firstDrink && s != null && !s.panelGroups.isEmpty() && wPanel > 0) {
             for (java.util.List<VillageVisitIndex.Target> g : s.panelGroups) {
                 VillageVisitIndex.Target t = g.get(rng.nextInt(g.size()));
                 addSpot(world, r, t.entrance, t.point, wPanel / s.panelGroups.size(), spots, faces, weights);
             }
         }
         java.util.List<BlockPos> anchors = place.anchors();
-        if (!anchors.isEmpty() && (wStroll > 0 || spots.isEmpty())) {
+        if (!firstDrink && !anchors.isEmpty() && (wStroll > 0 || spots.isEmpty())) {
             double w = Math.max(wStroll, 1.0) / anchors.size();
             for (BlockPos e : anchors) addSpot(world, r, e, null, w, spots, faces, weights);
         }
@@ -244,22 +289,25 @@ final class VirtualStays {
         st.spot = new BlockPos(base.getX() + Math.cos(angle) * radius, base.getY(), base.getZ() + Math.sin(angle) * radius);
         st.facing = faces.get(pick);
         r.goal = st.spot;
+        VillageVisitIndex.Target tavern = taverns.get(pick);
+        if (tavern != null) st.startDrink(tavern.point, tavern.entrance, StayPlace.rollDrinkTicks(rng));
         StayOccupancy.claim(world, r.uuid, st.spot, step * 2);
     }
 
-    private static void addSpot(WorldServer world, VirtualTravellerRecord r,
+    private static boolean addSpot(WorldServer world, VirtualTravellerRecord r,
                                 @Nullable BlockPos entrance, @Nullable BlockPos point, double weight,
                                 java.util.List<BlockPos> spots, java.util.List<BlockPos> faces, java.util.List<Double> weights) {
         // Offscreen visitors stand outside: at the entrance, never at an indoor point.
         BlockPos at = entrance;
         if (at == null && point != null && com.jubitus.travellers.village.MillFootprints.at(world,
                 point.getX() + 0.5, point.getY(), point.getZ() + 0.5, 0) == null) at = point;
-        if (at == null || weight <= 0) return;
+        if (at == null || weight <= 0) return false;
         double crowd = StayOccupancy.crowdFactor(world, at, 4.0, r.uuid,
                 TravellersConfig.VILLAGE_VISIT.crowdPenalty);
         spots.add(at);
         faces.add(point != null ? point : null);
         weights.add(weight * crowd);
+        return true;
     }
 
     /** The village a group leader (loaded or offscreen) is staying in right now, or null. */

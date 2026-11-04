@@ -36,6 +36,16 @@ public final class StayState {
     /** Offscreen: world tick the record started waiting at the post for a horse still standing there. */
     public long waitingForHorseSince = -1;
 
+    /** Drinks had during this stay: the first one is guaranteed, more come from the activity draw. */
+    public int drinks;
+    /** The drink under way: the counter (a building's leisure point) and its entrance; null when none. */
+    @Nullable
+    public BlockPos drinkAt;
+    @Nullable
+    public BlockPos drinkDoor;
+    /** Time left at the counter; it counts down only while there (offscreen: waiting at the door). */
+    public int drinkTicks;
+
     public StayState(BlockPos stop, int remainingTicks, boolean asFollower) {
         this.stop = stop;
         this.remainingTicks = remainingTicks;
@@ -44,6 +54,25 @@ public final class StayState {
 
     public boolean isLeaving() {
         return remainingTicks <= 0;
+    }
+
+    /** Starts a drink: the time at the counter lengthens the stay instead of eating into it. */
+    public void startDrink(BlockPos counter, @Nullable BlockPos door, int ticks) {
+        drinks++;
+        drinkAt = counter;
+        drinkDoor = door;
+        drinkTicks = ticks;
+        if (!asFollower) remainingTicks += ticks;
+    }
+
+    public boolean isDrinking() {
+        return drinkAt != null && drinkTicks > 0;
+    }
+
+    public void endDrink() {
+        drinkAt = null;
+        drinkDoor = null;
+        drinkTicks = 0;
     }
 
     public NBTTagCompound write() {
@@ -57,6 +86,10 @@ public final class StayState {
         if (hitchPos != null) t.setLong("Hitch", hitchPos.toLong());
         t.setBoolean("HorseAtPost", horseAtPost);
         t.setLong("WaitHorse", waitingForHorseSince);
+        t.setInteger("Drinks", drinks);
+        if (drinkAt != null) t.setLong("DrinkAt", drinkAt.toLong());
+        if (drinkDoor != null) t.setLong("DrinkDoor", drinkDoor.toLong());
+        t.setInteger("DrinkTicks", drinkTicks);
         return t;
     }
 
@@ -71,6 +104,10 @@ public final class StayState {
         s.hitchPos = t.hasKey("Hitch") ? BlockPos.fromLong(t.getLong("Hitch")) : null;
         s.horseAtPost = t.getBoolean("HorseAtPost");
         s.waitingForHorseSince = t.hasKey("WaitHorse") ? t.getLong("WaitHorse") : -1;
+        s.drinks = t.getInteger("Drinks");
+        s.drinkAt = t.hasKey("DrinkAt") ? BlockPos.fromLong(t.getLong("DrinkAt")) : null;
+        s.drinkDoor = t.hasKey("DrinkDoor") ? BlockPos.fromLong(t.getLong("DrinkDoor")) : null;
+        s.drinkTicks = t.getInteger("DrinkTicks");
         return s;
     }
 }
