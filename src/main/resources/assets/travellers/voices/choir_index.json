@@ -44,6 +44,13 @@
                         "entity.travellers.fr.vener.choir.test.__0"
                     ],
                     "durationTicks": 2985
+                },
+                {
+                    "name": "test2",
+                    "stems": [
+                        "entity.travellers.fr.vener.choir.test2.__0"
+                    ],
+                    "durationTicks": 1293
                 }
             ]
         }

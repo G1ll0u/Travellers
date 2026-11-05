@@ -552,6 +552,8 @@ travellers.gui.history.time.days_ago=%s дн. назад
 
 travellers.dialogue.worker_farewell=Я сделал всё, что нужно было сделать. Отдохну немного.
 travellers.dialogue.staying_in_village=Я пребываю в %s немного.
+travellers.dialogue.resting_here=Я просто немного отдыхаю здесь.
+travellers.dialogue.resting_heading_to=Я немного отдохну здесь, а потом отправлюсь в %s.
 travellers.dialogue.no_destination=У меня пока нет цели.
 travellers.dialogue.heading_to=Я сейчас иду в %s в %s.
 travellers.dialogue.gui_fallback_heading_to=Я сейчас иду в %s.

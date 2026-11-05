@@ -552,6 +552,8 @@ travellers.gui.history.time.days_ago=%s giorni fa
 
 travellers.dialogue.worker_farewell=Ho fatto quello che dovevo fare. Lasciami riposare un po'.
 travellers.dialogue.staying_in_village=Sto rimanendo in %s per un po'.
+travellers.dialogue.resting_here=Mi sto solo riposando qui un momento.
+travellers.dialogue.resting_heading_to=Mi riposo qui un momento, poi riparto per %s.
 travellers.dialogue.no_destination=Non ho ancora una destinazione.
 travellers.dialogue.heading_to=Sto andando davvero a %s nel %s.
 travellers.dialogue.gui_fallback_heading_to=Sto andando davvero verso %s.

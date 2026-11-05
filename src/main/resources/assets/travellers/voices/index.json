@@ -96,7 +96,13 @@
                     "entity.travellers.en.default.ambient.__2",
                     "entity.travellers.en.default.ambient.__3",
                     "entity.travellers.en.default.ambient.__4",
-                    "entity.travellers.en.default.ambient.__5"
+                    "entity.travellers.en.default.ambient.__5",
+                    "entity.travellers.en.default.ambient.__6",
+                    "entity.travellers.en.default.ambient.__7",
+                    "entity.travellers.en.default.ambient.__8",
+                    "entity.travellers.en.default.ambient.__9",
+                    "entity.travellers.en.default.ambient.__10",
+                    "entity.travellers.en.default.ambient.__11"
                 ],
                 "attack": [
                     "entity.travellers.en.default.attack.__0",

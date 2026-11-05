@@ -1493,20 +1493,50 @@ public class EntityTraveller extends EntityCreature {
             return true;
         }
 
-        // Keep your existing “village idle / announce heading” messages:
-        if (travelCommon.isIdlingAtStop()) {
-            String stayName = travelCommon.lookupNearestVillageNameOrCoords();
-            ITextComponent stayNameComp = new TextComponentString(stayName)
-                    .setStyle(new Style().setColor(TextFormatting.GOLD));
-            ITextComponent stayMsg = new TextComponentTranslation("travellers.dialogue.staying_in_village", stayNameComp);
+        // A group follower's trip is its leader's.
+        EntityTraveller leader = getLoadedGroupLeader();
+        TravelCommon plan = leader != null ? leader.getTravelCommon() : travelCommon;
+        BlockPos stop = currentStayStop();
+        if (stop != null) {
+            ITextComponent stayMsg;
+            if (com.jubitus.travellers.restspot.RestSpotManager.isRestSpot(world, stop)) {
+                BlockPos next = plan.getTargetSettlement();
+                stayMsg = next == null
+                        ? new TextComponentTranslation("travellers.dialogue.resting_here")
+                        : new TextComponentTranslation("travellers.dialogue.resting_heading_to", gold(settlementName(next)));
+            } else {
+                stayMsg = new TextComponentTranslation("travellers.dialogue.staying_in_village",
+                        gold(MillSettlements.nameOf(world, stop)));
+            }
             stayMsg.getStyle().setColor(TextFormatting.WHITE);
             player.sendMessage(stayMsg);
             return true;
         }
 
         world.setEntityState(this, (byte) 4); // swing animation
-        announceHeadingTo(player);
+        announceHeadingTo(player, plan);
         return true;
+    }
+
+    /** The stop this unit is staying at right now (its own visit or its group's), null when on the road. */
+    @Nullable
+    private BlockPos currentStayStop() {
+        if (!travelCommon.isIdlingAtStop()) return null;
+        EntityAIStay stay = getStayAI();
+        BlockPos stop = stay != null ? stay.getStayStop() : null;
+        return stop != null ? stop : travelCommon.getTargetVillage();
+    }
+
+    private static ITextComponent gold(String text) {
+        return new TextComponentString(text).setStyle(new Style().setColor(TextFormatting.GOLD));
+    }
+
+    /** Settlement name, or x/y/z as the last fallback. */
+    private String settlementName(BlockPos pos) {
+        MillSettlements.Settlement s = MillSettlements.resolve(this.world, pos);
+        if (s != null && s.name != null && !s.name.isEmpty()) return s.name;
+        BlockPos c = s != null ? s.center : pos;
+        return c.getX() + "/" + c.getY() + "/" + c.getZ();
     }
 
     public void scheduleNextTravelAmbient() {
@@ -1742,13 +1772,8 @@ public class EntityTraveller extends EntityCreature {
                 (world != null && world.isRemote ? "CLIENT" : "SERVER") + "]";
     }
 
-    // was: lookupNearestVillageNameOrCoords()
-    private String lookupNearestVillageNameOrCoords() {
-        return travelCommon.lookupNearestVillageNameOrCoords();
-    }
-
-    private void announceHeadingTo(EntityPlayer player) {
-        BlockPos target = travelCommon.getTargetSettlement();
+    private void announceHeadingTo(EntityPlayer player, TravelCommon plan) {
+        BlockPos target = plan.getTargetSettlement();
         if (target == null) {
             ITextComponent noDestMsg = new TextComponentTranslation("travellers.dialogue.no_destination");
             noDestMsg.getStyle().setColor(TextFormatting.WHITE);
@@ -1756,25 +1781,10 @@ public class EntityTraveller extends EntityCreature {
             return;
         }
 
-        // Resolve via the settlement registry
         MillSettlements.Settlement vi = MillSettlements.resolve(this.world, target);
-
-        // Use the resolved center if we have one, otherwise keep the raw target
         BlockPos center = (vi != null) ? vi.center : target;
-
-        // Good name if possible, x/y/z only as final fallback
-        String name;
-        if (vi != null && vi.name != null && !vi.name.isEmpty()) {
-            name = vi.name;
-        } else {
-            name = center.getX() + "/" + center.getY() + "/" + center.getZ();
-        }
-
-        String dir = cardinalDirectionTo(center); // or whatever your direction helper is
-
-        ITextComponent nameComp = new TextComponentString(name).setStyle(new Style().setColor(TextFormatting.GOLD));
-        ITextComponent dirComp = new TextComponentString(dir).setStyle(new Style().setColor(TextFormatting.GOLD));
-        ITextComponent msg = new TextComponentTranslation("travellers.dialogue.heading_to", nameComp, dirComp);
+        ITextComponent msg = new TextComponentTranslation("travellers.dialogue.heading_to",
+                gold(settlementName(target)), gold(cardinalDirectionTo(center)));
         msg.getStyle().setColor(TextFormatting.WHITE);
         player.sendMessage(msg);
     }

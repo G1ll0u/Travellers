@@ -967,6 +967,60 @@
             }
         ]
     },
+    "entity.travellers.en.default.ambient.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_01",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.default.ambient.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_02",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.default.ambient.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_03",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.default.ambient.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_04",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.default.ambient.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_05",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.default.ambient.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_06",
+                "stream": true
+            }
+        ]
+    },
     "entity.travellers.en.default.ambient": {
         "category": "voice",
         "sounds": [
@@ -992,6 +1046,30 @@
             },
             {
                 "name": "travellers:travellers/en/default/ambient/ambient6",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_01",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_02",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_03",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_04",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_05",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/test2_06",
                 "stream": true
             }
         ]
@@ -17608,6 +17686,15 @@
         "sounds": [
             {
                 "name": "travellers:travellers/fr/vener/choir/test/test_01",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.vener.choir.test2.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/choir/test2/test2_01",
                 "stream": true
             }
         ]

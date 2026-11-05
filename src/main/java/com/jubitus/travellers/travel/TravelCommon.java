@@ -131,12 +131,6 @@ public class TravelCommon {
         departCooldownTicks = t;
     }
 
-    public String lookupNearestVillageNameOrCoords() {
-        BlockPos near = getNearestVillage();
-        if (near == null) return "this area";
-        return MillSettlements.nameOf(owner.getEntityWorld(), near);
-    }
-
     @Nullable
     public BlockPos getNearestVillage() {
         return this.nearestVillage; // may be null if none found yet
