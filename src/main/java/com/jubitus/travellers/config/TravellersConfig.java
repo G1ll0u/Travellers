@@ -117,9 +117,6 @@ public class TravellersConfig {
 
         @Config.Comment("Enable debug logging for follower teleport rescues.")
         public boolean debugFollowTeleport = false;
-
-        @Config.Comment("Log a line when a traveller keeps a weapon or tool in hand for a long time outside combat.")
-        public boolean debugHandProbe = false;
     }
 
     public static class Rendering {

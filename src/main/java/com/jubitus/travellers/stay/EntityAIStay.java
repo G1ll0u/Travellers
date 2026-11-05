@@ -836,25 +836,12 @@ public class EntityAIStay extends EntityAIBase {
         StayState st = mob.getStayState();
         if (!atCounter) {
             atCounter = true;
-            headUpLogged = false;
             counterGazeTicks = 0;
             mob.snack.planAtCounter();
             trace("drink", "at the counter for " + lingerLeft / 20 + "s");
         }
         if (st != null && st.drinkTicks > 0) st.drinkTicks--;
         if (--counterGazeTicks <= 0) lookAroundCounter();
-        probeHeadUp();
-    }
-
-    // Probe: one log line per drink when the head looks up at the counter; remove once the "head stays up" case is found.
-    private boolean headUpLogged;
-
-    private void probeHeadUp() {
-        if (headUpLogged || mob.rotationPitch > -15.0F || mob.snack.isActive()) return;
-        headUpLogged = true;
-        org.apache.logging.log4j.LogManager.getLogger("Travellers/HeadProbe").info(
-                "[HeadProbe] {} pitch={} gaze={} lookAt={} legPos={} pos={}", mob.getName(), (int) mob.rotationPitch,
-                mob.getGaze().describe(), fmt(lookAt), leg == null ? "-" : fmt(leg.pos), fmt(mob.getPosition()));
     }
 
     /** Now and then turns to someone drinking alongside, the counter, or lets the eyes wander. */
