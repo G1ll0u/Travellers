@@ -182,6 +182,16 @@ public class Travellers {
                     true
             );
 
+            // Cosmetic fishing bobber: positions computed client side, so rare tracker updates suffice.
+            EntityRegistry.registerModEntity(
+                    new ResourceLocation(Tags.MOD_ID, "traveller_bobber"),
+                    com.jubitus.travellers.ambient.EntityTravellerBobber.class,
+                    Tags.MOD_ID + ".traveller_bobber",
+                    7,
+                    this,
+                    64, 20, false
+            );
+
             // Raider
             if (TravellersConfig.GENERAL.enableTravellerRaider) {
                 EntityRegistry.registerModEntity(

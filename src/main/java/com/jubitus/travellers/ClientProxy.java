@@ -19,6 +19,8 @@ public class ClientProxy {
         RenderingRegistry.registerEntityRenderingHandler(EntityTraveller.class, RenderTraveller::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerRaider.class, RenderTraveller::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerWorker.class, RenderTraveller::new);
+        RenderingRegistry.registerEntityRenderingHandler(com.jubitus.travellers.ambient.EntityTravellerBobber.class,
+                com.jubitus.travellers.ambient.client.RenderTravellerBobber::new);
 
         BackpackStyles.registerAll();
 
