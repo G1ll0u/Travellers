@@ -103,12 +103,13 @@ public final class WorkerHubMenu {
             WorkerHubNode.leaf("inventory", Kind.SCREEN, Column.RIGHT, "travellers.worker.hub.node.inventory")
                     .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.INVENTORY)),
 
-            WorkerHubNode.leaf("follow_him", Kind.ACTION, Column.RIGHT, "travellers.worker.hub.node.follow_him")
-                    .tooltip("travellers.worker.hub.node.follow_him.tooltip")
-                    .onClick(ctx -> {
-                        ctx.send(new MsgStartPlayerFollow(ctx.worker.getEntityId()));
-                        ctx.openClientScreen(null);
-                    }),
+            // Temporarily hidden: player follow is disabled for now.
+            // WorkerHubNode.leaf("follow_him", Kind.ACTION, Column.RIGHT, "travellers.worker.hub.node.follow_him")
+            //         .tooltip("travellers.worker.hub.node.follow_him.tooltip")
+            //         .onClick(ctx -> {
+            //             ctx.send(new MsgStartPlayerFollow(ctx.worker.getEntityId()));
+            //             ctx.openClientScreen(null);
+            //         }),
 
             WorkerHubNode.leaf("formation", Kind.SCREEN, Column.RIGHT, "travellers.worker.hub.node.formation")
                     .tooltip("travellers.worker.hub.formation.tooltip")

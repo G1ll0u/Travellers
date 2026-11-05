@@ -1452,7 +1452,8 @@ public class EntityTraveller extends EntityCreature {
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
         if (world.isRemote) return !isInCombatSynced();
         if (this.isInCombat()) return false;
-        if (!(player instanceof net.minecraft.entity.player.EntityPlayerMP)) {
+        if (!(player instanceof net.minecraft.entity.player.EntityPlayerMP)
+                || !com.jubitus.travellers.config.TravellersConfig.DIALOGUE.enabled) {
             return talkTo(player, hand);
         }
         // Talk or follow: the choice screen's "Talk" comes back through MsgTalkToTraveller -> talkTo.
