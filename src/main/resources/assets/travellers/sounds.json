@@ -17681,24 +17681,6 @@
             }
         ]
     },
-    "entity.travellers.fr.vener.choir.test.__0": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/vener/choir/test/test_01",
-                "stream": true
-            }
-        ]
-    },
-    "entity.travellers.fr.vener.choir.test2.__0": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/vener/choir/test2/test2_01",
-                "stream": true
-            }
-        ]
-    },
     "raid.horn": {
         "category": "hostile",
         "sounds": [
