@@ -862,19 +862,27 @@ public class EntityAIStay extends EntityAIBase {
         counterGazeTicks = COUNTER_GAZE_MIN + mob.getRNG().nextInt(COUNTER_GAZE_MAX - COUNTER_GAZE_MIN + 1);
         List<EntityLivingBase> company = new ArrayList<>();
         for (EntityLivingBase e : nearby) {
-            if (e.isEntityAlive() && mob.getDistanceSq(e) <= COUNTER_COMPANY * COUNTER_COMPANY) company.add(e);
+            // Same floor and in sight: never someone upstairs through the ceiling.
+            if (e.isEntityAlive() && mob.getDistanceSq(e) <= COUNTER_COMPANY * COUNTER_COMPANY
+                    && Math.abs(e.posY - mob.posY) <= 1.0D && mob.canEntityBeSeen(e)) company.add(e);
         }
         double roll = mob.getRNG().nextDouble();
         if (!company.isEmpty() && roll < 0.6D) {
             EntityLivingBase who = company.get(mob.getRNG().nextInt(company.size()));
             mob.getGaze().focus(TravellerGaze.Kind.TALK, who);
-        } else if (roll < 0.8D && leg != null) {
-            // Visit spots are at feet level: looked at from head height, never at the floor.
+        } else if (roll < 0.8D && leg != null && horizontalDistSq(leg.pos) >= 4.0D) {
+            // Visit spots are at feet level: looked at from head height. Standing on or by it, that point is
+            // above the head and tilts it up, so the eyes wander instead.
             mob.getGaze().focus(TravellerGaze.Kind.POINT, leg.pos.up());
         } else {
             mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
             mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
         }
+    }
+
+    private double horizontalDistSq(BlockPos p) {
+        double dx = p.getX() + 0.5D - mob.posX, dz = p.getZ() + 0.5D - mob.posZ;
+        return dx * dx + dz * dz;
     }
 
     private void endCounter() {

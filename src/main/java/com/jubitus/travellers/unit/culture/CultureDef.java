@@ -296,13 +296,9 @@ public final class CultureDef {
     }
 
     public ItemStack randomBow(java.util.Random r, WeightProfile profile) {
-        java.util.List<ItemStack> pool = collectItems(stack -> {
-            Item item = stack.getItem();
-            boolean bowLike = item instanceof ItemBow
-                    || (item.getRegistryName() != null
-                    && item.getRegistryName().getPath().toLowerCase(java.util.Locale.ROOT).contains("bow"));
-            return bowLike && spawnAllowed(stack, null, profile);
-        });
+        // Never by name: "bow" matched "bowl", handed out as a bow.
+        java.util.List<ItemStack> pool = collectItems(stack ->
+                TravellerEquipmentManager.isBow(stack) && spawnAllowed(stack, null, profile));
         return pickRandom(pool, r);
     }
 

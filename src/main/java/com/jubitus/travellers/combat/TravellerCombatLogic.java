@@ -124,6 +124,8 @@ public class TravellerCombatLogic {
             silenceUntilTick = entity.ticksExisted + 100;
         }
         wasInCombatPrev = inCombatNow;
+        // A target that died or was cleared elsewhere leaves no setInCombat(false): the weapon would stay drawn.
+        if (inCombat && !isInCombatRaw()) inCombat = false;
 
         disengageIfTooFar();
         abandonUnreachableTarget();
