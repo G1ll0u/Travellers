@@ -171,8 +171,11 @@ public final class TravellerVoice {
 
         choosePersonalityIfNeeded();
         VoiceSet v = unit.resolveVoiceSetForKillDeath();
-        if (v == null) return;
-        SoundEvent snd = v.pickDeath(unit.getRNG(), null);
+        SoundEvent snd = (v == null) ? null : v.pickDeath(unit.getRNG(), null);
+        if (snd == null) {
+            VoiceSet fallback = unit.resolveCultureDefaultVoiceSet();
+            snd = (fallback == null) ? null : fallback.pickDeath(unit.getRNG(), null);
+        }
         if (snd == null) return;
 
         play(snd, TravellersConfig.SOUND.deathSoundVolume, jitteredPitch(0.04F), 60, true, Kind.TALK);

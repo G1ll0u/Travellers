@@ -1758,6 +1758,11 @@ public class EntityTraveller extends EntityCreature {
         return voice.activeVoiceSet();
     }
 
+    /** Hook: the culture's default voice, for a kind the unit's own voice has no clips for. */
+    protected VoiceSet resolveCultureDefaultVoiceSet() {
+        return CultureRegistry.resolveTravellerVoiceSet(getCultureId(), null);
+    }
+
     public void doInteractSwing(EnumHand hand) {
         // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
         world.setEntityState(this, (byte) (hand == EnumHand.OFF_HAND ? 5 : 4));
@@ -1904,6 +1909,13 @@ public void fall(float distance, float damageMultiplier) {
         super.onDeath(cause);
     }
 
+
+    // Death is voiced by TravellerVoice.tryPlayDeath; vanilla would add the player's generic death sound.
+    @Override
+    @javax.annotation.Nullable
+    protected SoundEvent getDeathSound() {
+        return null;
+    }
 
     @Override
     @javax.annotation.Nullable

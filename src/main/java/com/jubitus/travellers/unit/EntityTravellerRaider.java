@@ -415,6 +415,11 @@ public class EntityTravellerRaider extends EntityTraveller {
     }
 
     @Override
+    protected com.jubitus.travellers.unit.culture.VoiceSet resolveCultureDefaultVoiceSet() {
+        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), null);
+    }
+
+    @Override
     public boolean isAggressiveToTravellers() {
         return true;
     }

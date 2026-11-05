@@ -2380,8 +2380,8 @@ public class TravellersConfig {
         public boolean deathSoundEnabled = true;
 
         @Config.Comment("Minimum ticks before another death sound is allowed within the same 64-block zone.")
-        @Config.RangeInt(min = 40, max = 12000)
-        public int deathSoundZoneCooldownTicks = 60;
+        @Config.RangeInt(min = 0, max = 12000)
+        public int deathSoundZoneCooldownTicks = 20;
 
         @Config.Comment("Volume for death voice lines, for a player with no volume-boosting mods.")
         @Config.RangeDouble(min = 0.0, max = 8.0)
