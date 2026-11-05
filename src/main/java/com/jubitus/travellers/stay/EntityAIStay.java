@@ -215,6 +215,11 @@ public class EntityAIStay extends EntityAIBase {
         return running || mob.world.getTotalWorldTime() - lastActiveTick <= RESUME_WINDOW_TICKS;
     }
 
+    /** Taking a break at a rest spot right now (not leaving): a time for songs. */
+    public boolean isOnRestBreak() {
+        return isRunning() && place != null && place.isRestSpot() && isStaying();
+    }
+
     @Nullable
     public BlockPos getStayStop() {
         StayState st = mob.getStayState();

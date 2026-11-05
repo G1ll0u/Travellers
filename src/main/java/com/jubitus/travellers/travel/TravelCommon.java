@@ -4,6 +4,7 @@ import com.jubitus.travellers.unit.TravellerVoice;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.sound.ModSounds;
+import com.jubitus.travellers.stay.EntityAIStay;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.camp.CampfireBlock;
@@ -411,26 +412,16 @@ public class TravelCommon {
         }
 
         if (owner.isInCombat() || owner.isInPostCombatSilence() || owner.isAutoEating() || owner.isHandActive()) return;
-        if (owner.getTravelCommon().getTargetVillage() == null) return;
         if (owner.getTravelAI() == null) return;
-        if (owner.getNavigator().noPath() && owner.getTravelCommon().getCurrentWaypoint() == null) return;
-        if (owner.motionX * owner.motionX + owner.motionZ * owner.motionZ < 0.005) return;
+        if (!isOnRestBreak()) {
+            if (owner.getTravelCommon().getTargetVillage() == null) return;
+            if (owner.getNavigator().noPath() && owner.getTravelCommon().getCurrentWaypoint() == null) return;
+            if (owner.motionX * owner.motionX + owner.motionZ * owner.motionZ < 0.005) return;
+        }
 
-        if (!owner.world.isRemote) {
-            // Only block within a small radius to avoid everyone suppressing each other
-            final double radius = 24.0;
-            boolean someoneSinging = !owner.world.getEntitiesWithinAABB(
-                    EntityTraveller.class,
-                    owner.getEntityBoundingBox().grow(radius, 4.0, radius),
-                    e -> e != null && e != owner && e.isEntityAlive() && e.voice.isAmbientPlaying()
-            ).isEmpty();
-
-            if (someoneSinging) {
-                owner.setNextTravelAmbientTick(
-                        owner.ticksExisted + 40 + owner.getRNG().nextInt(20)
-                );
-                return;
-            }
+        if (!owner.world.isRemote && TravellerVoice.isSongNearby(owner)) {
+            owner.setNextTravelAmbientTick(owner.ticksExisted + 40 + owner.getRNG().nextInt(20));
+            return;
         }
 
         if (owner.ticksExisted < owner.voice.getLockUntilTick()) return;
@@ -451,6 +442,11 @@ public class TravelCommon {
             owner.scheduleNextTravelAmbient();
         }
 
+    }
+
+    private boolean isOnRestBreak() {
+        EntityAIStay stay = owner.getStayAI();
+        return stay != null && stay.isOnRestBreak();
     }
 
     public BlockPos getCurrentWaypoint() {

@@ -22,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TravellerVoice {
 
+    private static final double SONG_SPACING = 24.0;
+
     public enum Kind {NONE, AMBIENT, TALK, HURT, CHOIR}
 
     // One shout per 32-block zone per cooldown window: zone key -> world time of last shout
@@ -60,6 +62,13 @@ public final class TravellerVoice {
 
     public boolean isAmbientPlaying() {
         return isLocked() && kindNow == Kind.AMBIENT;
+    }
+
+    /** Another unit sings (solo or choir) close enough that a second song would be heard over it. */
+    public static boolean isSongNearby(EntityTraveller unit) {
+        double r = SONG_SPACING;
+        return !unit.world.getEntitiesWithinAABB(EntityTraveller.class, unit.getEntityBoundingBox().grow(r, 4.0, r),
+                e -> e != null && e != unit && e.isEntityAlive() && e.voice.isSinging()).isEmpty();
     }
 
     /** A song (solo or choir) is playing: greetings and chatter must not cut it. */

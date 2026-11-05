@@ -2,6 +2,7 @@ package com.jubitus.travellers.choir;
 
 import com.jubitus.travellers.unit.TravellerVoice;
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.stay.EntityAIStay;
 
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -123,7 +124,7 @@ public final class ChoirCoordinator {
         if (world.rand.nextFloat() >= TravellersConfig.CHOIR.choirAutoChance) return;
 
         List<EntityTraveller> candidates = world.getEntities(EntityTraveller.class, t ->
-                t != null && t.isEntityAlive() && !t.isChoirSinging() && !t.isInCombat()
+                t != null && t.isEntityAlive() && !t.isChoirSinging() && !t.voice.isSinging() && !t.isInCombat()
                         && !(t instanceof EntityTravellerWorker && ((EntityTravellerWorker) t).isHiredFollower())
                         && isAudibleToAnyPlayer(world, t)
         );
@@ -131,8 +132,10 @@ public final class ChoirCoordinator {
         if (candidates.size() < 2) return;
 
         Collections.shuffle(candidates, world.rand);
+        candidates.sort(Comparator.comparing(t -> !isOnRestBreak(t))); // stable: groups resting at a rest spot get the first try
 
         for (EntityTraveller seed : candidates) {
+            if (TravellerVoice.isSongNearby(seed)) continue;
             String lang = CultureRegistry.langForCulture(seed.getCultureId()).toLowerCase(Locale.ROOT);
             String personality = seed.voice.getPersonalityId().toLowerCase(Locale.ROOT);
 
@@ -149,6 +152,11 @@ public final class ChoirCoordinator {
             startSession(world, song, group.subList(0, singerCount), now, null);
             return;
         }
+    }
+
+    private static boolean isOnRestBreak(EntityTraveller t) {
+        EntityAIStay stay = t.getStayAI();
+        return stay != null && stay.isOnRestBreak();
     }
 
     // An unheard choir would hold the dimension's single auto slot for its whole duration.
