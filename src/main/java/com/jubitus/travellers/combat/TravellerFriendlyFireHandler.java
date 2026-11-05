@@ -31,12 +31,13 @@ public final class TravellerFriendlyFireHandler {
 
     /**
      * Same side: a player, their hired workers and pets; hired workers of the same owner; groupmates of a
-     * spawn group; a unit's bonded mount sides with its rider. A player's own hits on an animal stay vanilla.
+     * spawn group; a unit's bonded mount sides with its rider. A player's own hits on an animal stay vanilla
+     * (a bonded mount counts as its rider, not as an animal).
      */
     public static boolean areAllies(@Nullable Entity a, @Nullable Entity b) {
         if (a == null || b == null || a == b) return false;
-        if (a instanceof EntityPlayer && isAnimal(b) || b instanceof EntityPlayer && isAnimal(a)) return false;
         Entity sideA = rider(a), sideB = rider(b);
+        if (sideA instanceof EntityPlayer && isAnimal(sideB) || sideB instanceof EntityPlayer && isAnimal(sideA)) return false;
         if (sideA == sideB) return true;
         UUID ownerA = ownerSide(sideA);
         if (ownerA != null && ownerA.equals(ownerSide(sideB))) return true;
