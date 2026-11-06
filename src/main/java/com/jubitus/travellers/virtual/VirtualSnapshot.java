@@ -89,6 +89,7 @@ final class VirtualSnapshot {
         }
         handOverItinerary(worker, r);
         handOverVisit(worker, r);
+        r.soberAt = worker.drunk.getSoberAt();
         return r;
     }
 
@@ -136,6 +137,7 @@ final class VirtualSnapshot {
         captureTrip(entity, r);
         handOverItinerary(entity, r);
         handOverVisit(entity, r);
+        r.soberAt = entity.drunk.getSoberAt();
 
         r.virtualizedTick = now;
         r.health = entity.getHealth();
@@ -145,6 +147,7 @@ final class VirtualSnapshot {
     /** Re-applies the record-authoritative state of a traveller or raider right after readFromNBT. */
     static void applyToTraveller(VirtualTravellerRecord r, EntityTraveller entity) {
         applyGroup(r, entity);
+        entity.drunk.setSoberAt(r.soberAt);
         // Unconditional overwrite: the record is authoritative for population accounting
         // (TravellerSoftSpawner), entityNbt is just a frozen snapshot.
         entity.setHomeVillage(r.homeVillage);
@@ -175,6 +178,7 @@ final class VirtualSnapshot {
      */
     static void applyToWorker(VirtualTravellerRecord r, EntityTravellerWorker worker) {
         applyGroup(r, worker);
+        worker.drunk.setSoberAt(r.soberAt);
         // Unconditional: the record's tour went on offscreen, entityNbt holds the one it left with.
         worker.recruit.adoptTour(r.recruitTour);
         worker.purse.set(r.purse.get());

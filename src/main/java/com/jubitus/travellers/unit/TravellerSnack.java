@@ -2,6 +2,7 @@ package com.jubitus.travellers.unit;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
+import com.jubitus.travellers.sound.ModSounds;
 import com.jubitus.travellers.village.CultureSnacks;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.EnumAction;
@@ -36,13 +37,15 @@ public final class TravellerSnack {
 
     private final EntityTraveller unit;
     private int sipsLeft;
+    // Server: strength of the alcohol being sipped (TravellerDrunk), 0 for none.
+    private int alcohol;
     private int phaseTicks;
     // Server: what is left of this seat's snacks (true = a drink), and the wait before the next one.
     private final java.util.ArrayDeque<Boolean> planned = new java.util.ArrayDeque<>();
     private int nextDelay;
     // Server: the snacks are had standing at a counter rather than seated.
     private boolean standing;
-    // Server: the heal-eating task (EntityAIAutoEat) owns the shown item; the seated snack logic stands aside.
+    // Server: the heal-eating task (EntityAIAutoEat) owns the shown item and when it ends; sips loop until then.
     private boolean meal;
     // Server: a photo pose (/travellersdebug pose) sips in a loop, or holds still (SNACK_FREEZE), until released.
     private boolean posed;
@@ -101,27 +104,29 @@ public final class TravellerSnack {
         TravellerTracer.event(unit, "snack", "at the counter " + planned + " (true = drink) in " + nextDelay / 20 + "s");
     }
 
-    /** Server, for the heal-eating task: shows {@code food} at the mouth until {@link #releaseMeal}, seated or not. */
-    public void holdForMeal(ItemStack food) {
+    /**
+     * Server, for the heal-eating task: sips or bites {@code snack} with the same rhythm as a break, seated or not,
+     * until {@link #releaseMeal}.
+     */
+    public void holdForMeal(CultureSnacks.Snack snack) {
         if (unit.world.isRemote) return;
         planned.clear();
-        sipsLeft = 0;
         meal = true;
+        alcohol = snack.alcohol;
         putAwayWeapon();
-        unit.getDataManager().set(EntityTraveller.SNACK, food.copy());
-        unit.getDataManager().set(EntityTraveller.SNACK_AT_MOUTH, true);
+        unit.getDataManager().set(EntityTraveller.SNACK, snack.stack.copy());
+        sipsLeft = Integer.MAX_VALUE;
+        beginSip();
+        TravellerTracer.event(unit, "snack", "heal with " + snack.stack.getItem().getRegistryName()
+                + (alcohol > 0 ? " alcohol " + alcohol : ""));
     }
 
     public void releaseMeal() {
         if (unit.world.isRemote || !meal) return;
         meal = false;
+        sipsLeft = 0;
         unit.getDataManager().set(EntityTraveller.SNACK_AT_MOUTH, false);
         unit.getDataManager().set(EntityTraveller.SNACK, ItemStack.EMPTY);
-    }
-
-    /** Server: one chew of the shown item (sound, crumbs). */
-    public void chew() {
-        if (isActive()) sipEffects();
     }
 
     /** Photo pose: shows {@code stack} and sips it in a loop, whatever else asks, until {@link #releasePose}. */
@@ -163,13 +168,13 @@ public final class TravellerSnack {
 
     /** Server, every tick after the sitting pose's own tick. */
     void tick() {
-        if (meal || posed && unit.getDataManager().get(EntityTraveller.SNACK_FREEZE) >= 0.0F) return;
+        if (posed && unit.getDataManager().get(EntityTraveller.SNACK_FREEZE) >= 0.0F) return;
         if (!isActive()) {
             if (!planned.isEmpty()) tickPlanned();
             else standing = false;
             return;
         }
-        if (!posed && !canSnackNow()) {
+        if (!posed && !meal && !canSnackNow()) {
             stop();
             return;
         }
@@ -177,6 +182,7 @@ public final class TravellerSnack {
             if (phaseTicks <= 25 && phaseTicks % 4 == 0) sipEffects();
             if (--phaseTicks > 0) return;
             unit.getDataManager().set(EntityTraveller.SNACK_AT_MOUTH, false);
+            if (!posed) unit.drunk.sip(alcohol);
             phaseTicks = --sipsLeft > 0 ? PAUSE_MIN + unit.getRNG().nextInt(PAUSE_MAX - PAUSE_MIN + 1) : LAST_HOLD;
             return;
         }
@@ -206,7 +212,9 @@ public final class TravellerSnack {
             return;
         }
         sipsLeft = between(1, 3);
-        TravellerTracer.event(unit, "snack", snack.stack.getItem().getRegistryName() + " x" + sipsLeft);
+        alcohol = snack.alcohol;
+        TravellerTracer.event(unit, "snack", snack.stack.getItem().getRegistryName() + " x" + sipsLeft
+                + (alcohol > 0 ? " alcohol " + alcohol : ""));
         putAwayWeapon();
         unit.getDataManager().set(EntityTraveller.SNACK, snack.stack.copy());
         beginSip();
@@ -269,7 +277,11 @@ public final class TravellerSnack {
     private void sipEffects() {
         ItemStack stack = getStack();
         if (isDrinking()) {
-            unit.playSound(SoundEvents.ENTITY_GENERIC_DRINK, 0.5F * volume(), unit.world.rand.nextFloat() * 0.1F + 0.9F);
+            if (ModSounds.SNACK_SIP != null) {
+                unit.playSound(ModSounds.SNACK_SIP, volume(), unit.world.rand.nextFloat() * 0.1F + 0.95F);
+            } else {
+                unit.playSound(SoundEvents.ENTITY_GENERIC_DRINK, 0.5F * volume(), unit.world.rand.nextFloat() * 0.1F + 0.9F);
+            }
             return;
         }
         unit.playSound(SoundEvents.ENTITY_GENERIC_EAT, (0.5F + 0.5F * unit.getRNG().nextInt(2)) * volume(),

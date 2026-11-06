@@ -28,7 +28,8 @@ public class CommandTravellerDebug extends CommandBase {
                 new MapDebugCommand(), new ResetDebugCommand(), new BowDebugCommand(), new SoundDebugCommand(),
                 new StableDebugCommand(), new TerrainDebugCommand(), new VillageDebugCommand(), new DialogueDebugCommand(),
                 new DestinationDebugCommand(), new RelationsDebugCommand(), new EquipDebugCommand(), new RaidDebugCommand(),
-                new CultureDumpCommand(), new CultureItemsDebugCommand(), new RouteDumpDebugCommand(), new PoseDebugCommand()}) {
+                new CultureDumpCommand(), new CultureItemsDebugCommand(), new RouteDumpDebugCommand(), new PoseDebugCommand(),
+                new DrunkDebugCommand()}) {
             SUBCOMMANDS.put(c.name(), c);
         }
     }

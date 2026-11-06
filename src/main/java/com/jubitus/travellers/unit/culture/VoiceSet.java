@@ -12,9 +12,11 @@ public final class VoiceSet {
     public final SoundEvent[] creeper;
     public final SoundEvent[] kill;
     public final SoundEvent[] death;
+    public final SoundEvent[] drunk;
 
     public VoiceSet(SoundEvent[] talk, SoundEvent[] hurt, SoundEvent[] hello, SoundEvent[] ambient,
-                    SoundEvent[] attack, SoundEvent[] creeper, SoundEvent[] kill, SoundEvent[] death) {
+                    SoundEvent[] attack, SoundEvent[] creeper, SoundEvent[] kill, SoundEvent[] death,
+                    SoundEvent[] drunk) {
         this.talk    = (talk    == null) ? new SoundEvent[0] : talk;
         this.hurt    = (hurt    == null) ? new SoundEvent[0] : hurt;
         this.hello   = (hello   == null) ? new SoundEvent[0] : hello;
@@ -23,6 +25,7 @@ public final class VoiceSet {
         this.creeper = (creeper == null) ? new SoundEvent[0] : creeper;
         this.kill    = (kill    == null) ? new SoundEvent[0] : kill;
         this.death   = (death   == null) ? new SoundEvent[0] : death;
+        this.drunk   = (drunk   == null) ? new SoundEvent[0] : drunk;
     }
 
     public SoundEvent pickTalk(java.util.Random rand, SoundEvent fallback) {
@@ -57,10 +60,15 @@ public final class VoiceSet {
         return pickFrom(death, rand, fallback);
     }
 
+    public SoundEvent pickDrunk(java.util.Random rand, SoundEvent fallback) {
+        return pickFrom(drunk, rand, fallback);
+    }
+
     /** True if every clip category is empty - a personality with no sound folder at all (a dialogue-only "no voice" personality), or a genuinely empty one. */
     public boolean isEmpty() {
         return talk.length == 0 && hurt.length == 0 && hello.length == 0 && ambient.length == 0
-                && attack.length == 0 && creeper.length == 0 && kill.length == 0 && death.length == 0;
+                && attack.length == 0 && creeper.length == 0 && kill.length == 0 && death.length == 0
+                && drunk.length == 0;
     }
 
     private static SoundEvent pickFrom(SoundEvent[] arr, java.util.Random rand, SoundEvent fallback) {

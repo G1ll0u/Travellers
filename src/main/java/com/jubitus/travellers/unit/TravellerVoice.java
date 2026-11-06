@@ -182,6 +182,19 @@ public final class TravellerVoice {
         DEATH_ZONE_COOLDOWN.put(zoneKey, worldTime);
     }
 
+    /** A tipsy mumble or hiccup (TravellerDrunk); never cuts another line. Borrows the language default's like death. */
+    void tryPlayDrunk() {
+        if (unit.world.isRemote || unit.isDead) return;
+        VoiceSet v = unit.resolveVoiceSetForKillDeath();
+        SoundEvent snd = (v == null) ? null : v.pickDrunk(unit.getRNG(), null);
+        if (snd == null) {
+            VoiceSet fallback = unit.resolveCultureDefaultVoiceSet();
+            snd = (fallback == null) ? null : fallback.pickDrunk(unit.getRNG(), null);
+        }
+        if (snd == null) return;
+        play(snd, TravellersConfig.SOUND.drunkSoundVolume, jitteredPitch(0.06F), 40 + unit.getRNG().nextInt(20), false, Kind.TALK);
+    }
+
     public void playTalk() {
         if (isSinging()) return;
         VoiceSet v = activeVoiceSet();

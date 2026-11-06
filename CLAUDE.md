@@ -95,6 +95,8 @@ One question, one answer. Never add a second helper for a question listed here.
 | Which settlement / its population / is a point inside it | `village/MillSettlements` (XZ identity) |
 | Does this player know this village (lists, orders, recruiting filter by it, server side) | `worldmap/KnownVillages` |
 | Moving items into a settlement's stores | `village/MillGoods` |
+| Is this drink alcohol, how strong (culture snack menus) | `village/CultureSnacks` |
+| Is this unit tipsy (one `soberAt` world time on entity and record) | `unit/TravellerDrunk` |
 | Is this spot inside a Millénaire building | `village/MillFootprints` (`isForbiddenLanding`) |
 | Where a unit's route goes | `pathing/itinerary/ItineraryPlanner` |
 | Which settlement to travel to next | `travel/destination/TravelDestinationChooser` |

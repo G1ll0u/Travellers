@@ -958,8 +958,9 @@ public final class CultureRegistry {
         SoundEvent[] creeper = resolveExactEvents(idx, lang, personality, "creeper", defaultLang, defaultPersonality);
         SoundEvent[] kill    = resolveExactEvents(idx, lang, personality, "kill",    defaultLang, defaultPersonality);
         SoundEvent[] death   = resolveExactEvents(idx, lang, personality, "death",   defaultLang, defaultPersonality);
+        SoundEvent[] drunk   = resolveExactEvents(idx, lang, personality, "drunk",   defaultLang, defaultPersonality);
 
-        return new VoiceSet(talk, hurt, hello, ambient, attack, creeper, kill, death);
+        return new VoiceSet(talk, hurt, hello, ambient, attack, creeper, kill, death, drunk);
     }
 
     public static String pickRandomRaiderPersonalityId(String cultureId, java.util.Random rand) {
@@ -1059,8 +1060,9 @@ public final class CultureRegistry {
         SoundEvent[] attack  = resolveExactRaiderEvents(idx, lang, personality, "attack",  defaultLang, defaultPersonality);
         SoundEvent[] kill    = resolveExactRaiderEvents(idx, lang, personality, "kill",    defaultLang, defaultPersonality);
         SoundEvent[] death   = resolveExactRaiderEvents(idx, lang, personality, "death",   defaultLang, defaultPersonality);
+        SoundEvent[] drunk   = resolveExactRaiderEvents(idx, lang, personality, "drunk",   defaultLang, defaultPersonality);
 
-        return new VoiceSet(talk, hurt, hello, ambient, attack, null, kill, death);
+        return new VoiceSet(talk, hurt, hello, ambient, attack, null, kill, death, drunk);
     }
 
     private static SoundEvent[] resolveExactRaiderEvents(

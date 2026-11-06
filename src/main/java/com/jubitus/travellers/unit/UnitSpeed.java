@@ -24,6 +24,8 @@ public final class UnitSpeed {
     public static final double ATTRIBUTE = 0.52D;
     /** Internal pace of camp life, ambience and other idle strolls. */
     public static final double STROLL_PERCENT = 70.0D;
+    /** A tipsy unit's pace (TravellerDrunk), loaded and offscreen alike. */
+    public static final double DRUNK_FACTOR = 0.7D;
     /** In-reach circling is slower than the chase. */
     public static final double FIGHT_RATIO = 0.84D;
     /** How much a follower may outpace its leader to close a gap, whatever the leader's speed. */

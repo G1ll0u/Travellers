@@ -2387,6 +2387,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 8.0)
         public float deathSoundVolume = 1.0f;
 
+        @Config.Comment("Volume for the mumbles and hiccups of tipsy travellers, for a player with no volume-boosting mods.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float drunkSoundVolume = 1.0f;
+
         @Config.Comment("Extra volume multiplier automatically applied to all traveller voice sounds only when the Sound Physics mod is detected. Sound Physics needs a louder source to reach the same distance because it computes its own realistic falloff, so this keeps range consistent without making sounds too loud for players who don't have it installed.")
         @Config.RangeDouble(min = 1.0, max = 8.0)
         public float soundPhysicsVolumeBoost = 4.0f;
@@ -2664,11 +2668,23 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double snackVolume = 0.4;
 
-        @Config.Comment("Extra food or drink a culture enjoys on breaks, as culture=item (for example norman=minecraft:apple).")
-        public String[] snackExtraItems = new String[0];
+        @Config.Comment("Extra food or drink a culture enjoys on breaks, as culture=item (for example norman=minecraft:apple). Lines for a culture or item that isn't installed are ignored.")
+        public String[] snackExtraItems = new String[]{
+                "viking=millenairepolishculture:polishmead", "viking=bohemian_mod:lager",
+                "teuton=bohemian_mod:lager", "rus=millenairepolishculture:polishmead"};
 
         @Config.Comment("Food or drink no traveller ever has on a break.")
         public String[] snackExcludedItems = new String[]{"millenaire:oliveoil"};
+
+        @Config.Comment("Travellers who drink alcohol on a break get tipsy for a while: slower, staggering and clumsier in a fight.")
+        public boolean drunkenness = true;
+
+        @Config.Comment("Your henchmen may also drink alcohol when they heal, and get tipsy like other travellers.")
+        public boolean henchmenDrinkAlcohol = true;
+
+        @Config.Comment("Drinks that count as alcohol, besides Millénaire's own wines, ciders and spirits. Items that aren't installed are ignored.")
+        public String[] alcoholicDrinks = new String[]{"bohemian_mod:lager", "millenairepolishculture:polishmead",
+                "smm:wheatwine", "smm:ricewine", "zimblocks:maizebeer"};
     }
 
     public static class BattleEvents {

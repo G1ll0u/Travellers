@@ -1,6 +1,8 @@
 package com.jubitus.travellers.ambient;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.village.CultureSnacks;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBase;
@@ -12,12 +14,11 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 
 public class EntityAIAutoEat extends EntityAIBase {
-    /**
-     * Average heal-per-tick across {@link #foods}(18/64 + 12/32 + 14/32 + 16/64 + 24/96 + 24/120) / 6.
-     * Used by the offscreen virtual healing sim (VirtualTravellerManager) to approximate this AI's
-     * gradual-eating heal rate without replicating the bite-by-bite/cosmetic logic offscreen.
-     */
+    /** Heal per tick of every bite or sip, loaded and offscreen alike (VirtualTravellerManager's healing sim). */
     public static final float AVG_HEAL_PER_TICK = 0.3F;
+    // How long one helping lasts: a few sips or bites with the break rhythm (TravellerSnack).
+    private static final int HELPING_MIN = 64;
+    private static final int HELPING_MAX = 120;
     /** Post-combat eat lockout window (ticks), shared with the virtual healing sim for parity. */
     public static final int POST_COMBAT_DELAY_MIN = 30;
     public static final int POST_COMBAT_DELAY_MAX = 50;
@@ -26,13 +27,11 @@ public class EntityAIAutoEat extends EntityAIBase {
     private final float healthFrac;   // start eating below this fraction of max HP
     private final int postCombatDelayMin, postCombatDelayMax;   // ticks
     private final int betweenBiteDelayMin, betweenBiteDelayMax; // ticks
-    private final FoodSpec[] foods;   // pool to pick from
     private final int postCombatDelay = 0;
     private final boolean wasInCombat = false;
     // runtime
     private int ticksLeftThisBite = 0;
     private int betweenBiteDelay = 0;
-    private FoodSpec currentFood = null;
 
     // fields
     private boolean recoverToFull = false;   // keep eating (with pauses) until full
@@ -48,16 +47,6 @@ public class EntityAIAutoEat extends EntityAIBase {
         this.postCombatDelayMax = POST_COMBAT_DELAY_MAX;
         this.betweenBiteDelayMin = 12;
         this.betweenBiteDelayMax = 30;
-
-        // A small curated menu. heal = half-hearts (1.0F = 1/2 heart)
-        this.foods = new FoodSpec[]{
-                new FoodSpec(Items.BREAD, 18F, 64),
-                new FoodSpec(Items.CARROT, 12F, 32),
-                new FoodSpec(Items.COOKIE, 14F, 32),
-                new FoodSpec(Items.BAKED_POTATO, 16F, 64),
-                new FoodSpec(Items.COOKED_BEEF, 24.0F, 96), // 4 hearts
-                new FoodSpec(Items.COOKED_CHICKEN, 24.0F, 120)
-        };
 
         // lock movement & look while chewing
         this.setMutexBits(1 /*MOVE*/ | 2 /*LOOK*/);
@@ -159,7 +148,6 @@ public class EntityAIAutoEat extends EntityAIBase {
     public void resetTask() {
         // called when AI ends for any reason
         finishHoldItem();
-        currentFood = null;
         ticksLeftThisBite = 0;
     }
 
@@ -171,18 +159,8 @@ public class EntityAIAutoEat extends EntityAIBase {
         }
 
         if (ticksLeftThisBite > 0) {
-            // chew tick
-            if (ticksLeftThisBite % 24 == 0) mob.snack.chew();
-            // gradual healing per tick (no potion particles)
-            float healPerTick = currentFood.healAmount / Math.max(1, currentFood.durationTicks);
-            if (healPerTick > 0f) {
-                float before = mob.getHealth();
-                mob.heal(healPerTick);
-                // stop early if we reach max HP mid-bite (feels snappy)
-                if (mob.getHealth() >= mob.getMaxHealth() - 0.001F && before < mob.getMaxHealth()) {
-                    ticksLeftThisBite = 1; // finish this tick then end
-                }
-            }
+            // gradual healing per tick (no potion particles); sips and crumbs come from TravellerSnack
+            mob.heal(AVG_HEAL_PER_TICK);
             // stop early if we reached max HP
             if (!isBelowFull(0.001F)) {
                 ticksLeftThisBite = 1;
@@ -190,7 +168,6 @@ public class EntityAIAutoEat extends EntityAIBase {
 
             if (--ticksLeftThisBite <= 0) {
                 finishHoldItem();
-                currentFood = null;
 
                 if (isBelowFull(0.001F)) {
                     // still not full → keep the session going
@@ -206,7 +183,6 @@ public class EntityAIAutoEat extends EntityAIBase {
     private void cancelChew() {
         ticksLeftThisBite = 0;
         finishHoldItem();
-        currentFood = null;
 
         // Add this line:
         blockEatingForPostCombat();
@@ -222,11 +198,19 @@ public class EntityAIAutoEat extends EntityAIBase {
     }
 
     private void beginNewBite() {
-        currentFood = foods[mob.getRNG().nextInt(foods.length)];
-        ticksLeftThisBite = currentFood.durationTicks;
-
-        mob.snack.holdForMeal(new ItemStack(currentFood.item));
+        ticksLeftThisBite = randBetween(HELPING_MIN, HELPING_MAX);
+        mob.snack.holdForMeal(pickHelping());
         mob.getNavigator().clearPath();
+    }
+
+    // Same menu as a break: half drinks, half food, from the unit's culture; bread when it has none.
+    private CultureSnacks.Snack pickHelping() {
+        String culture = mob.getCultureId();
+        boolean alcohol = !mob.isHiredFollower() || TravellersConfig.REST_SPOTS.henchmenDrinkAlcohol;
+        boolean drink = mob.getRNG().nextBoolean();
+        CultureSnacks.Snack snack = culture == null ? null : CultureSnacks.pick(culture, drink, alcohol, mob.getRNG());
+        if (snack == null && culture != null) snack = CultureSnacks.pick(culture, !drink, alcohol, mob.getRNG());
+        return snack != null ? snack : CultureSnacks.FALLBACK_HELPING;
     }
 
 
@@ -236,19 +220,6 @@ public class EntityAIAutoEat extends EntityAIBase {
 
     public void cancel() { // external force-stop (from EntityTraveller)
         if (ticksLeftThisBite > 0 || mob.isHandActive()) cancelChew();
-    }
-
-    // simple food spec
-    private static class FoodSpec {
-        final Item item;
-        final float healAmount;    // in half-hearts (1.0F = 1/2 heart)
-        final int durationTicks;   // how long this bite takes
-
-        FoodSpec(Item item, float healAmount, int durationTicks) {
-            this.item = item;
-            this.healAmount = Math.max(0F, healAmount);
-            this.durationTicks = Math.max(6, durationTicks);
-        }
     }
 }
 

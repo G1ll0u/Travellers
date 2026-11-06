@@ -307,6 +307,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         double dNorm = Math.min(1.0, shot.horizontalRange / 24.0);
         float inaccuracy = (float) (INACC_NEAR + (INACC_FAR - INACC_NEAR) * dNorm);
         if (lofted) inaccuracy += LOB_INACCURACY_BONUS; // an arcing shot is harder to land cleanly
+        if (mob.drunk.isDrunk()) inaccuracy += com.jubitus.travellers.unit.TravellerDrunk.BOW_SPREAD;
 
         // Fire
         arrow.shoot(shot.dx, shot.dy, shot.dz, ARROW_VEL, inaccuracy);

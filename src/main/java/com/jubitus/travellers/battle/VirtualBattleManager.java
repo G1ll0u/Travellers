@@ -1,5 +1,6 @@
 package com.jubitus.travellers.battle;
 
+import com.jubitus.travellers.unit.TravellerDrunk;
 import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.worldmap.stream.MapStrikeLog;
 import com.jubitus.travellers.ground.ColumnGround;
@@ -1043,6 +1044,7 @@ public class VirtualBattleManager extends WorldSavedData {
         double ax = attackerRec != null ? attackerRec.posX : victimRec.posX;
         double az = attackerRec != null ? attackerRec.posZ : victimRec.posZ;
         b.recordBlow((ax + victimRec.posX) / 2, (az + victimRec.posZ) / 2, now);
+        if (attackerRec != null && TravellerDrunk.missesBlow(attackerRec.soberAt, now, world.rand)) return;
         // Leader survival bias: a shielding follower nearby takes the hit instead
         if (victim.isGroupLeader && TravellersConfig.BATTLE_EVENTS.leaderSurvivalBias) {
             BattleParticipant shield = null;

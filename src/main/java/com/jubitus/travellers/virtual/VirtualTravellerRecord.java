@@ -188,6 +188,8 @@ public class VirtualTravellerRecord {
     // Blocks re-claiming a camp right after leaving one (prevents daytime loitering). Persisted so a
     // server restart mid-cooldown can't be used to instantly re-claim a camp just left.
     public long campCooldownUntil = 0L;
+    // World time the unit sobers up (TravellerDrunk); slows its offscreen pace and its blows miss until then.
+    public long soberAt = 0L;
 
     // Cached display data for the worldmap (set at virtualization)
     public String name = "";
@@ -320,6 +322,7 @@ public class VirtualTravellerRecord {
             tag.setInteger("CampSlot", campSlotIndex);
         }
         if (campCooldownUntil > 0L) tag.setLong("CampCooldown", campCooldownUntil);
+        if (soberAt > 0L) tag.setLong("SoberAt", soberAt);
         if (cultureId != null) tag.setString("Cult", cultureId);
         if (recentDestinations.length > 0) {
             tag.setIntArray("RcD", com.jubitus.travellers.travel.destination
@@ -418,6 +421,7 @@ public class VirtualTravellerRecord {
             r.campSlotIndex = tag.getInteger("CampSlot");
         }
         r.campCooldownUntil = tag.getLong("CampCooldown");
+        r.soberAt = tag.getLong("SoberAt");
         int[] trip = tag.getIntArray("Trip");
         if (trip.length >= 3 && trip.length % 3 == 0) {
             List<BlockPos> stops = new ArrayList<>();

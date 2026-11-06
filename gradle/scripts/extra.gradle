@@ -28,7 +28,7 @@ tasks.register('generateDynamicSounds') {
         def travIndexOut = file("$voicesDir/index.json")
         def raidIndexOut = file("$voicesDir/raiders_index.json")
 
-        def kinds = ["talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death"]
+        def kinds = ["talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death", "drunk"]
         def soundsMap = [:]
 
         def mkIndex = { String defLang, String defPers ->
@@ -164,6 +164,7 @@ tasks.register('generateDynamicSounds') {
                             if (kind == "creeper") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.creeper"
                             if (kind == "kill") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.kill"
                             if (kind == "death") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.death"
+                            if (kind == "drunk") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.drunk"
                         }
 
                         soundsMap[aggregateEventKey] = [
@@ -176,6 +177,7 @@ tasks.register('generateDynamicSounds') {
                         if (kind == "creeper") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.creeper"
                         if (kind == "kill") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.kill"
                         if (kind == "death") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.death"
+                        if (kind == "drunk") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.drunk"
 
                         indexObj.clips[lang][personality][kind] = exactEventKeys
                     }
@@ -286,15 +288,16 @@ tasks.register('generateDynamicSounds') {
         choirIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(choirIndexData)) + "\n"
         println "[generateDynamicSounds] Wrote ${choirIndexOut} (${choirIndex.size()} langs)"
 
-        // ---- Raid cues ----
-        // Structure: sounds/raid/<cue>/*.ogg -> event "raid.<cue>", one random clip per play; no clip, no event.
-        def raidCueBase = new File(soundsBase, "raid")
-        dirChildren(raidCueBase).each { File cueDir ->
-            def cue = cueDir.name.toLowerCase()
-            def clips = oggsIn(cueDir).collect { File ogg ->
-                [name: "${MODID}:raid/${cue}/${ogg.name.substring(0, ogg.name.length() - 4)}", stream: false]
+        // ---- Global cues (raid horn, snack sip…) ----
+        // Structure: sounds/<group>/<cue>/*.ogg -> event "<group>.<cue>", one random clip per play; no clip, no event.
+        [raid: "hostile", snack: "neutral"].each { String group, String category ->
+            dirChildren(new File(soundsBase, group)).each { File cueDir ->
+                def cue = cueDir.name.toLowerCase()
+                def clips = oggsIn(cueDir).collect { File ogg ->
+                    [name: "${MODID}:${group}/${cue}/${ogg.name.substring(0, ogg.name.length() - 4)}", stream: false]
+                }
+                if (!clips.isEmpty()) soundsMap["${group}.${cue}"] = [category: category, sounds: clips]
             }
-            if (!clips.isEmpty()) soundsMap["raid.${cue}"] = [category: "hostile", sounds: clips]
         }
 
         soundsJsonOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(soundsMap)) + "\n"

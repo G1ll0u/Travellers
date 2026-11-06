@@ -164,6 +164,9 @@ public class EntityTraveller extends EntityCreature {
     // Debug photo pose: how far the snack is held towards the mouth (0..1), -1 when not frozen.
     static final DataParameter<Float> SNACK_FREEZE =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
+    // Tipsiness sway for render (TravellerDrunk): 0 sober, up to 1.
+    static final DataParameter<Float> DRUNK =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
     // Set only by /travellersdebug path test: a throwaway entity for comparing a mounted route
     // against a hand-marked one. Never persisted - it exists for one test run and is deleted by its
     // own watchdog, never handed off to the offscreen simulation.
@@ -200,6 +203,7 @@ public class EntityTraveller extends EntityCreature {
     public final TravellerSleep sleep = new TravellerSleep(this);
     public final TravellerSit sit = new TravellerSit(this);
     public final TravellerSnack snack = new TravellerSnack(this);
+    public final TravellerDrunk drunk = new TravellerDrunk(this);
     public final TravellerVoice voice = new TravellerVoice(this);
     public final TravellerHandOff handOff = new TravellerHandOff(this);
     public final FollowCatchup catchup = new FollowCatchup(this);
@@ -998,6 +1002,7 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(SNACK, ItemStack.EMPTY);
         this.dataManager.register(SNACK_AT_MOUTH, Boolean.FALSE);
         this.dataManager.register(SNACK_FREEZE, -1.0F);
+        this.dataManager.register(DRUNK, 0.0F);
         this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
         this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
     }
@@ -1098,6 +1103,7 @@ public class EntityTraveller extends EntityCreature {
             if (hitchStop != null) compound.setLong("VillageHitchStop", hitchStop.toLong());
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, voice.getPersonalityId());
+            drunk.write(compound);
             UUID groupLeader = getGroupLeaderUUID();
             if (groupLeader != null) compound.setUniqueId("GroupLeaderUUID", groupLeader);
             compound.setString("GroupFormationStyle", groupFormationStyle.name());
@@ -1133,6 +1139,7 @@ public class EntityTraveller extends EntityCreature {
         // just be a slower way of writing the same thing.
         this.setElytraFlying(false);
         this.elytraFlight.reset();
+        drunk.read(compound);
         // Unconditional replace, never merge (CLAUDE.md's virtualization trap: frozen NBT vs. a live
         // entity's own state must never mix) - an absent tag (pre-Phase-3 save, or never talked to
         // anyone) decodes to "no memories", which is already the right answer.
@@ -1252,6 +1259,7 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             sit.tick();
             snack.tick();
+            drunk.tick();
         } else {
             snack.clientTick();
         }
@@ -2030,6 +2038,7 @@ public void fall(float distance, float damageMultiplier) {
     @Override
     public boolean attackEntityAsMob(Entity target) {
         if (!shield.mayStrike()) return false; // like a player: no strike with the shield up or just lowered
+        if (!world.isRemote && drunk.missesBlow()) return false;
         boolean hit = combat.performMeleeAttack(target);
         if (hit && !world.isRemote) {
             world.playSound(null, target.posX, target.posY, target.posZ,

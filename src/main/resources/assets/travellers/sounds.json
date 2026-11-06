@@ -4206,6 +4206,1156 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
+    "entity.travellers.en.gilles2.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_007",
+                "stream": true
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_009",
+                "stream": true
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_011",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_012",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_007",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_009",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_010",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_011",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/talk/talk_012",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hurt/hurt_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.gilles2.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_011",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_012",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_013",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_014",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_015",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_016",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_010",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_011",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_012",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_013",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_014",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_015",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/hello/hello_016",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.gilles2.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/ambient/ambient_001",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.gilles2.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/ambient/ambient_002",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.gilles2.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/ambient/ambient_003",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.gilles2.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/ambient/ambient_001",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/ambient/ambient_002",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/ambient/ambient_003",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.en.gilles2.attack.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_011",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_012",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_013",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_014",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.attack": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_010",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_011",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_012",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_013",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/attack/attack_014",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.gilles2.creeper.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.creeper": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/creeper/creeper_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.gilles2.kill.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.kill": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/kill/kill_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.gilles2.death.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.gilles2.death": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/gilles2/death/death_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
     "entity.travellers.fr.silva.talk.__0": {
         "category": "voice",
         "sounds": [

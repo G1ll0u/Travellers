@@ -1,5 +1,6 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.unit.TravellerDrunk;
 import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -225,9 +226,10 @@ public class VirtualTravellerManager extends WorldSavedData {
     private static final float YAW_SMOOTHING_BLEND = 0.35F;
 
     private void advanceVirtual(long now) {
-        double simStep = currentSimStep();
+        double soberStep = currentSimStep();
         for (VirtualTravellerRecord r : records.values()) {
             if (r.battleId != null) continue; // battle sim owns movement
+            double simStep = TravellerDrunk.isDrunk(r.soberAt, now) ? soberStep * UnitSpeed.DRUNK_FACTOR : soberStep;
             boolean mountedPace = r.mounted && (r.mountMode == null || "MOUNTED".equals(r.mountMode));
 
             // Route-driven records glide along their itinerary: the carrot one step ahead of the

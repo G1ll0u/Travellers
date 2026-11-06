@@ -3,6 +3,7 @@
 Audio on disk is organised by `language/personality/type`; run `./gradlew generateDynamicSounds` after adding files.
 
 - **One pipeline for every important voice sound**: `TravellerVoice.play` → `MsgPlayTravellerVoice` → `TravellerVoiceClientBus.play()` → `EntityLinkedSound`. Footsteps and swings stay on vanilla one-shots. Category is `NEUTRAL`.
+- Global cues (no language or personality): `sounds/<group>/<cue>/*.ogg` → event `<group>.<cue>` (raid, snack); their `ModSounds` field stays null until clips ship and callers fall back.
 - `ModSounds` registers a `SoundEvent` only for kinds a personality has real clips for (`voices/index.json`). A sound-less personality's voice set is never empty: `resolveClipSourcePersonality` → own clips → `voice_overrides.json` → language default → first voiced personality of the language. Never "first id alphabetically".
 
 ## `EntityLinkedSound`

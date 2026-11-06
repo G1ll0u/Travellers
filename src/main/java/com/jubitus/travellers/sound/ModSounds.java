@@ -23,6 +23,8 @@ public final class ModSounds {
     public static SoundEvent AMBIENT;
     /** Raid cues; null until the user ships clips in sounds/raid/horn and sounds/raid/end. */
     @javax.annotation.Nullable public static SoundEvent RAID_HORN, RAID_END;
+    /** A sip of a drink, any unit (variations in sounds/snack/sip); null until clips ship, vanilla's gulp then. */
+    @javax.annotation.Nullable public static SoundEvent SNACK_SIP;
 
     public static VoiceSet EN_TRAV, FR_TRAV;
     public static VoiceSet EN_RAID, FR_RAID;
@@ -58,6 +60,7 @@ public final class ModSounds {
         java.util.Set<String> declared = declaredSoundEvents();
         if (declared.contains("raid.horn")) RAID_HORN = reg(toReg, "raid.horn");
         if (declared.contains("raid.end")) RAID_END = reg(toReg, "raid.end");
+        if (declared.contains("snack.sip")) SNACK_SIP = reg(toReg, "snack.sip");
 
         e.getRegistry().registerAll(toReg.toArray(new SoundEvent[0]));
         assignVoicesToCulturesDynamic(idx, ridx);
@@ -80,8 +83,8 @@ public final class ModSounds {
         }
     }
 
-    private static final String[] RAIDER_KINDS = {"talk", "hurt", "hello", "ambient", "attack", "kill", "death"};
-    private static final String[] TRAVELLER_KINDS = {"talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death"};
+    private static final String[] RAIDER_KINDS = {"talk", "hurt", "hello", "ambient", "attack", "kill", "death", "drunk"};
+    private static final String[] TRAVELLER_KINDS = {"talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death", "drunk"};
 
     private static void registerAggregateEvents(java.util.List<SoundEvent> out, RaiderVoiceIndex idx, String eventPrefix) {
         if (idx == null || idx.langs == null) return;

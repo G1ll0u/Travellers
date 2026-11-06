@@ -132,7 +132,21 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
             GlStateManager.rotate(entity.getElytraBank(partialTicks), 0.0F, 1.0F, 0.0F);
         } else {
             super.applyRotations(entity, ageInTicks, rotationYaw, partialTicks);
+            applyDrunkSway(entity, ageInTicks);
         }
+    }
+
+    // Tipsy: the whole body sways about the feet, so every layer (armour, armband, held item) follows.
+    private static void applyDrunkSway(EntityTraveller entity, float ageInTicks) {
+        float sway = entity.drunk.getSway();
+        if (sway <= 0.0F || !entity.isEntityAlive()
+                || com.jubitus.travellers.gui.hub.WorkerPortraitRenderer.isRenderingPortrait()) return;
+        if (entity.sit.isSitting()) sway *= 0.5F;
+        float t = ageInTicks + (entity.getEntityId() % 97) * 7.0F;
+        float roll = (MathHelper.sin(t * 0.09F) * 6.0F + MathHelper.sin(t * 0.23F) * 2.0F) * sway;
+        float pitch = MathHelper.sin(t * 0.07F + 1.3F) * 3.5F * sway;
+        GlStateManager.rotate(roll, 0.0F, 0.0F, 1.0F);
+        GlStateManager.rotate(pitch, 1.0F, 0.0F, 0.0F);
     }
 
     /** Shifts the render back toward the bed's foot half, mirroring RenderPlayer's sleep handling. */

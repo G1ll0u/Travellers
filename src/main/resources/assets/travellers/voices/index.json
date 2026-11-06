@@ -6,6 +6,7 @@
             "afraid",
             "default",
             "gilles",
+            "gilles2",
             "gilles_fou",
             "low",
             "silva"
@@ -177,6 +178,9 @@
                     "entity.travellers.en.default.death.__9",
                     "entity.travellers.en.default.death.__10",
                     "entity.travellers.en.default.death.__11"
+                ],
+                "drunk": [
+                    
                 ]
             },
             "afraid": {
@@ -260,6 +264,9 @@
                     "entity.travellers.en.afraid.death.__6",
                     "entity.travellers.en.afraid.death.__7",
                     "entity.travellers.en.afraid.death.__8"
+                ],
+                "drunk": [
+                    
                 ]
             },
             "low": {
@@ -365,6 +372,109 @@
                     "entity.travellers.en.low.death.__2",
                     "entity.travellers.en.low.death.__3",
                     "entity.travellers.en.low.death.__4"
+                ],
+                "drunk": [
+                    
+                ]
+            },
+            "gilles2": {
+                "talk": [
+                    "entity.travellers.en.gilles2.talk.__0",
+                    "entity.travellers.en.gilles2.talk.__1",
+                    "entity.travellers.en.gilles2.talk.__2",
+                    "entity.travellers.en.gilles2.talk.__3",
+                    "entity.travellers.en.gilles2.talk.__4",
+                    "entity.travellers.en.gilles2.talk.__5",
+                    "entity.travellers.en.gilles2.talk.__6",
+                    "entity.travellers.en.gilles2.talk.__7",
+                    "entity.travellers.en.gilles2.talk.__8",
+                    "entity.travellers.en.gilles2.talk.__9",
+                    "entity.travellers.en.gilles2.talk.__10",
+                    "entity.travellers.en.gilles2.talk.__11"
+                ],
+                "hurt": [
+                    "entity.travellers.en.gilles2.hurt.__0",
+                    "entity.travellers.en.gilles2.hurt.__1",
+                    "entity.travellers.en.gilles2.hurt.__2",
+                    "entity.travellers.en.gilles2.hurt.__3",
+                    "entity.travellers.en.gilles2.hurt.__4",
+                    "entity.travellers.en.gilles2.hurt.__5",
+                    "entity.travellers.en.gilles2.hurt.__6",
+                    "entity.travellers.en.gilles2.hurt.__7",
+                    "entity.travellers.en.gilles2.hurt.__8",
+                    "entity.travellers.en.gilles2.hurt.__9"
+                ],
+                "hello": [
+                    "entity.travellers.en.gilles2.hello.__0",
+                    "entity.travellers.en.gilles2.hello.__1",
+                    "entity.travellers.en.gilles2.hello.__2",
+                    "entity.travellers.en.gilles2.hello.__3",
+                    "entity.travellers.en.gilles2.hello.__4",
+                    "entity.travellers.en.gilles2.hello.__5",
+                    "entity.travellers.en.gilles2.hello.__6",
+                    "entity.travellers.en.gilles2.hello.__7",
+                    "entity.travellers.en.gilles2.hello.__8",
+                    "entity.travellers.en.gilles2.hello.__9",
+                    "entity.travellers.en.gilles2.hello.__10",
+                    "entity.travellers.en.gilles2.hello.__11",
+                    "entity.travellers.en.gilles2.hello.__12",
+                    "entity.travellers.en.gilles2.hello.__13",
+                    "entity.travellers.en.gilles2.hello.__14",
+                    "entity.travellers.en.gilles2.hello.__15"
+                ],
+                "ambient": [
+                    "entity.travellers.en.gilles2.ambient.__0",
+                    "entity.travellers.en.gilles2.ambient.__1",
+                    "entity.travellers.en.gilles2.ambient.__2"
+                ],
+                "attack": [
+                    "entity.travellers.en.gilles2.attack.__0",
+                    "entity.travellers.en.gilles2.attack.__1",
+                    "entity.travellers.en.gilles2.attack.__2",
+                    "entity.travellers.en.gilles2.attack.__3",
+                    "entity.travellers.en.gilles2.attack.__4",
+                    "entity.travellers.en.gilles2.attack.__5",
+                    "entity.travellers.en.gilles2.attack.__6",
+                    "entity.travellers.en.gilles2.attack.__7",
+                    "entity.travellers.en.gilles2.attack.__8",
+                    "entity.travellers.en.gilles2.attack.__9",
+                    "entity.travellers.en.gilles2.attack.__10",
+                    "entity.travellers.en.gilles2.attack.__11",
+                    "entity.travellers.en.gilles2.attack.__12",
+                    "entity.travellers.en.gilles2.attack.__13"
+                ],
+                "creeper": [
+                    "entity.travellers.en.gilles2.creeper.__0",
+                    "entity.travellers.en.gilles2.creeper.__1",
+                    "entity.travellers.en.gilles2.creeper.__2",
+                    "entity.travellers.en.gilles2.creeper.__3",
+                    "entity.travellers.en.gilles2.creeper.__4",
+                    "entity.travellers.en.gilles2.creeper.__5",
+                    "entity.travellers.en.gilles2.creeper.__6"
+                ],
+                "kill": [
+                    "entity.travellers.en.gilles2.kill.__0",
+                    "entity.travellers.en.gilles2.kill.__1",
+                    "entity.travellers.en.gilles2.kill.__2",
+                    "entity.travellers.en.gilles2.kill.__3",
+                    "entity.travellers.en.gilles2.kill.__4",
+                    "entity.travellers.en.gilles2.kill.__5",
+                    "entity.travellers.en.gilles2.kill.__6",
+                    "entity.travellers.en.gilles2.kill.__7",
+                    "entity.travellers.en.gilles2.kill.__8"
+                ],
+                "death": [
+                    "entity.travellers.en.gilles2.death.__0",
+                    "entity.travellers.en.gilles2.death.__1",
+                    "entity.travellers.en.gilles2.death.__2",
+                    "entity.travellers.en.gilles2.death.__3",
+                    "entity.travellers.en.gilles2.death.__4",
+                    "entity.travellers.en.gilles2.death.__5",
+                    "entity.travellers.en.gilles2.death.__6",
+                    "entity.travellers.en.gilles2.death.__7"
+                ],
+                "drunk": [
+                    
                 ]
             },
             "gilles": {
@@ -390,6 +500,9 @@
                     
                 ],
                 "death": [
+                    
+                ],
+                "drunk": [
                     
                 ]
             },
@@ -417,6 +530,9 @@
                 ],
                 "death": [
                     
+                ],
+                "drunk": [
+                    
                 ]
             },
             "gilles_fou": {
@@ -442,6 +558,9 @@
                     
                 ],
                 "death": [
+                    
+                ],
+                "drunk": [
                     
                 ]
             }
@@ -582,6 +701,9 @@
                     
                 ],
                 "death": [
+                    
+                ],
+                "drunk": [
                     
                 ]
             },
@@ -760,6 +882,9 @@
                     "entity.travellers.fr.gilles.death.__9",
                     "entity.travellers.fr.gilles.death.__10",
                     "entity.travellers.fr.gilles.death.__11"
+                ],
+                "drunk": [
+                    
                 ]
             },
             "gilles_fou": {
@@ -845,6 +970,9 @@
                     
                 ],
                 "death": [
+                    
+                ],
+                "drunk": [
                     
                 ]
             },
@@ -939,6 +1067,9 @@
                     "entity.travellers.fr.vener.death.__8",
                     "entity.travellers.fr.vener.death.__9",
                     "entity.travellers.fr.vener.death.__10"
+                ],
+                "drunk": [
+                    
                 ]
             }
         }

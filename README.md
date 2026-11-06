@@ -60,6 +60,7 @@ They **visit every village on their way** for a minute or three: tie their horse
 - They step aside for people instead of walking into them, glance at you as you pass and stop to face you if you stay close.
 - Visitors spread over the whole village instead of piling up in one spot. A group splits up to visit on its own, then meets again at the leader's horse.
 - It keeps going while you're away: come back and the visitors are already scattered around the village, each horse still at its post.
+- At the tavern, on a break or while healing, they eat and drink their homeland's food. Wine, cider, beer and the like leave them tipsy for a few minutes: slower, staggering and swaying, clumsier in a fight.
 - Raiders only walk the streets. A wandering henchman leaves a small gift of building materials when it leaves.
 - Everything is tunable in the `VillageVisit` config category.
 
