@@ -150,8 +150,12 @@ public class ModelSimpleHumanoid extends ModelBiped {
         arm.rotateAngleX = lerp(x, mouthX, raise);
         arm.rotateAngleY = lerp(y, -0.6F * side, raise);
         arm.rotateAngleZ = z;
-        if (drinking && raise > 0.0F) {
-            bipedHead.rotateAngleX = lerp(bipedHead.rotateAngleX, -0.45F, raise);
+        // The arm aims at a head facing the body: the head comes round to meet the item, or it lands beside the face.
+        if (raise > 0.0F) {
+            // Vanilla leaves the head-to-body yaw unwrapped (350° for -10°): wrap it or the head spins a full turn.
+            float headYaw = MathHelper.wrapDegrees(bipedHead.rotateAngleY * 57.29578F) * 0.017453292F;
+            bipedHead.rotateAngleY = lerp(headYaw, 0.0F, raise);
+            bipedHead.rotateAngleX = lerp(bipedHead.rotateAngleX, drinking ? -0.45F : 0.0F, raise);
             copyModelAngles(bipedHead, bipedHeadwear);
         }
     }

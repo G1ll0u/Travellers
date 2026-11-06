@@ -9,6 +9,9 @@ Basically, Travellers was just a mod aiming to add roaming travellers that trave
 This readme contains lots of details about the mod, I suggest just reading the CurseForge description to not spoil yourself.
 **Contents:** [A living world](#a-living-world) · [Life on the road](#life-on-the-road) · [Conflict](#conflict) · [Henchmen](#henchmen) · [Configuration](#configuration) · [Compatibility](#compatibility) · [Credits](#big-thanks)
 
+Curseforge Link : https://www.curseforge.com/minecraft/mc-mods/travellers
+
+
 ---
 
 ## A living world
@@ -108,6 +111,8 @@ Travellers have voices and **voice personalities**! They talk, and will tell you
 ### Songs?!
 
 Travellers are singers too! They sing alone while walking, and in **chorus** when you ask them or when they walk together (still in development: only a few songs for normans with the default personality).
+
+I spent lot of time singing and making voicelines for them, I hope you'll enjoy it :D
 
 ### They notice you (and each other)
 
@@ -333,6 +338,8 @@ You can freely screenshot this part and tell people it's AI slop.
 
 Translations other than French are made with a local LLM, so expect some rough wording in the other languages.
 Feel free to help me translate things correctly.
+
+You can look at how I work with llms, I didn't exclude CLAUDE.md and the plans made by it.
 
 ## AI art disclosure
 

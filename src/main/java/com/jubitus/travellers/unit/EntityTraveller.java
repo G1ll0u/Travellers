@@ -161,6 +161,9 @@ public class EntityTraveller extends EntityCreature {
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.ITEM_STACK);
     static final DataParameter<Boolean> SNACK_AT_MOUTH =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
+    // Debug photo pose: how far the snack is held towards the mouth (0..1), -1 when not frozen.
+    static final DataParameter<Float> SNACK_FREEZE =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
     // Set only by /travellersdebug path test: a throwaway entity for comparing a mounted route
     // against a hand-marked one. Never persisted - it exists for one test run and is deleted by its
     // own watchdog, never handed off to the offscreen simulation.
@@ -994,6 +997,7 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(SIT_YAW, 0.0F);
         this.dataManager.register(SNACK, ItemStack.EMPTY);
         this.dataManager.register(SNACK_AT_MOUTH, Boolean.FALSE);
+        this.dataManager.register(SNACK_FREEZE, -1.0F);
         this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
         this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
     }
@@ -1081,6 +1085,7 @@ public class EntityTraveller extends EntityCreature {
         try {
             // Let vanilla do its save (this is where attribute maps are massaged)
             super.writeEntityToNBT(compound);
+            if (sit.isHeld()) compound.removeTag("NoAI"); // the photo pose's frozen AI is never saved
 
             // ---- your existing writes below ----
             compound.setTag("TravellerInv", inventory.serializeNBT());

@@ -44,6 +44,8 @@ public final class TravellerSnack {
     private boolean standing;
     // Server: the heal-eating task (EntityAIAutoEat) owns the shown item; the seated snack logic stands aside.
     private boolean meal;
+    // Server: a photo pose (/travellersdebug pose) sips in a loop, or holds still (SNACK_FREEZE), until released.
+    private boolean posed;
     // Client only, eased towards the synced state so the arm moves instead of snapping.
     private float hold, prevHold, raise, prevRaise;
 
@@ -122,8 +124,34 @@ public final class TravellerSnack {
         if (isActive()) sipEffects();
     }
 
+    /** Photo pose: shows {@code stack} and sips it in a loop, whatever else asks, until {@link #releasePose}. */
+    public void pose(ItemStack stack) {
+        if (unit.world.isRemote) return;
+        planned.clear();
+        meal = false;
+        posed = true;
+        putAwayWeapon();
+        unit.getDataManager().set(EntityTraveller.SNACK, stack.copy());
+        unit.getDataManager().set(EntityTraveller.SNACK_FREEZE, -1.0F);
+        sipsLeft = Integer.MAX_VALUE;
+        beginSip();
+    }
+
+    /** Photo pose: holds the item still, {@code raise} of the way from the chest (0) to the mouth (1). */
+    public void freezeAt(float raise) {
+        if (unit.world.isRemote || !posed) return;
+        unit.getDataManager().set(EntityTraveller.SNACK_FREEZE, MathHelper.clamp(raise, 0.0F, 1.0F));
+    }
+
+    public void releasePose() {
+        if (!posed) return;
+        posed = false;
+        unit.getDataManager().set(EntityTraveller.SNACK_FREEZE, -1.0F);
+        stop();
+    }
+
     public void stop() {
-        if (meal) return;
+        if (meal || posed) return;
         planned.clear();
         standing = false;
         if (unit.world.isRemote || !isActive()) return;
@@ -135,13 +163,13 @@ public final class TravellerSnack {
 
     /** Server, every tick after the sitting pose's own tick. */
     void tick() {
-        if (meal) return;
+        if (meal || posed && unit.getDataManager().get(EntityTraveller.SNACK_FREEZE) >= 0.0F) return;
         if (!isActive()) {
             if (!planned.isEmpty()) tickPlanned();
             else standing = false;
             return;
         }
-        if (!canSnackNow()) {
+        if (!posed && !canSnackNow()) {
             stop();
             return;
         }
@@ -195,6 +223,12 @@ public final class TravellerSnack {
 
     /** Client, every tick: eases the arm towards the synced pose. */
     void clientTick() {
+        float frozen = unit.getDataManager().get(EntityTraveller.SNACK_FREEZE);
+        if (frozen >= 0.0F && isActive()) {
+            prevHold = hold = 1.0F;
+            prevRaise = raise = frozen;
+            return;
+        }
         prevHold = hold;
         prevRaise = raise;
         hold = approach(hold, isActive() ? 1.0F : 0.0F);
