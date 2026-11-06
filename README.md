@@ -11,7 +11,7 @@ This readme contains lots of details about the mod, I suggest just reading the C
 
 Curseforge Link : https://www.curseforge.com/minecraft/mc-mods/travellers
 I, G1ll0u, (aka Jubitus) am the author of this mod.
-
+I fully authorize Jubitus (me) of publishing this mod on Curseforge, Modrinth and any other platform.
 
 ---
 
