@@ -2328,11 +2328,11 @@ public class TravellersConfig {
 
         @Config.Comment("Minimum ticks before the same entity can shout again.")
         @Config.RangeInt(min = 20, max = 6000)
-        public int attackSoundEntityCooldownTicks = 120;
+        public int attackSoundEntityCooldownTicks = 90;
 
         @Config.Comment("Minimum ticks before another shout is allowed within the same 64-block zone (prevents group spam).")
         @Config.RangeInt(min = 40, max = 12000)
-        public int attackSoundZoneCooldownTicks = 240;
+        public int attackSoundZoneCooldownTicks = 120;
 
         @Config.Comment("Maximum new sounds that can start in a single tick (throttle to prevent audio spam).")
         @Config.RangeInt(min = 1, max = 20)
@@ -2351,7 +2351,7 @@ public class TravellersConfig {
 
         @Config.Comment("Max distance (blocks) between the warning traveller and the player.")
         @Config.RangeDouble(min = 4.0, max = 32.0)
-        public double creeperWarnTravellerRadius = 12.0;
+        public double creeperWarnTravellerRadius = 8.0;
 
         @Config.Comment("Minimum ticks between two creeper warnings for the same player.")
         @Config.RangeInt(min = 100, max = 12000)
@@ -2402,11 +2402,11 @@ public class TravellersConfig {
 
         @Config.Comment("Distance (blocks) beyond which voice sounds become inaudible entirely, with or without SoundPhysics. This is the main setting to raise or lower how far away travellers can be heard talking/singing/shouting.")
         @Config.RangeDouble(min = 8.0, max = 128.0)
-        public double voiceMaxDistance = 48.0;
+        public double voiceMaxDistance = 30.0;
 
         @Config.Comment("How far away (in blocks) songs and choirs can be heard. Other voices use the distance above.")
         @Config.RangeDouble(min = 8.0, max = 128.0)
-        public double songMaxDistance = 72.0;
+        public double songMaxDistance = 32.0;
 
         @Config.Comment("With Sound Physics, how much walls muffle songs and choirs compared to other sounds. 1 is the same, lower lets them carry through walls better.")
         @Config.RangeDouble(min = 0.1, max = 1.0)
@@ -2654,7 +2654,7 @@ public class TravellersConfig {
 
         @Config.Comment("How often travellers sit down to enjoy the view during a break (0 = never, 1 = whenever they can).")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public double sitChance = 0.5;
+        public double sitChance = 0.62;
 
         @Config.Comment("How often seated travellers have a drink or a bite of their homeland's food (0 = never, 1 = every time they sit).")
         @Config.RangeDouble(min = 0.0, max = 1.0)
