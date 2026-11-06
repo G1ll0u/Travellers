@@ -9,13 +9,13 @@ Basically, Travellers was just a mod aiming to add roaming travellers that trave
 This readme contains lots of details about the mod, I suggest just reading the CurseForge description to not spoil yourself.
 **Contents:** [A living world](#a-living-world) · [Life on the road](#life-on-the-road) · [Conflict](#conflict) · [Henchmen](#henchmen) · [Configuration](#configuration) · [Compatibility](#compatibility) · [Credits](#big-thanks)
 
-Curseforge Link : https://www.curseforge.com/minecraft/mc-mods/travellers
-I, G1ll0u, (aka Jubitus) am the author of this mod.
-I fully authorize Jubitus (me) of publishing this mod on Curseforge, Modrinth and any other platform.
 
 Curseforge link : https://www.curseforge.com/minecraft/mc-mods/travellers
 
 Modrinth link : https://modrinth.com/mod/travellers-jubitus
+
+I, G1ll0u, (aka Jubitus) am the author of this mod.
+I fully authorize Jubitus (me) of publishing this mod on Curseforge, Modrinth and any other platform.
 
 ---
 
